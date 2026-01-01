@@ -81,3 +81,6 @@ lint/tmp/
 
 # 排除 Kiro 配置文件夹
 /.kiro/
+
+# 排除 VS Code 配置文件夹
+/.vscode/
