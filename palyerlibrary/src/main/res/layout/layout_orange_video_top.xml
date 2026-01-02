@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="48dp"
-    android:background="@drawable/dkplayer_shape_standard_controller_top_bg"
+    android:background="@drawable/orange_shape_controller_top_bg"
     android:paddingStart="8dp"
     android:paddingEnd="8dp">
 
@@ -14,7 +14,7 @@
         android:layout_centerVertical="true"
         android:padding="8dp"
         android:scaleType="centerInside"
-        android:src="@drawable/dkplayer_ic_action_arrow_back" />
+        android:src="@drawable/orange_ic_action_arrow_back" />
 
     <!-- 标题 -->
     <TextView

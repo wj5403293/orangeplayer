@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" 
+    xmlns:app="http://schemas.android.com/apk/res-auto" 
+    android:id="@+id/playLiset_v" 
+    android:layout_width="wrap_content" 
+    android:layout_height="wrap_content" 
+    android:layout_margin="5dp" 
+    android:maxWidth="180dp">
+    
+    <RelativeLayout 
+        android:id="@+id/listtop" 
+        android:layout_width="220dp" 
+        android:layout_height="35dp" 
+        android:gravity="center_vertical" 
+        android:layout_centerHorizontal="true" 
+        android:layout_alignParentRight="true" 
+        android:layout_marginRight="15dp" 
+        android:layout_marginTop="25dp" 
+        android:background="#10bababa">
+        
+        <TextView 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:text="选集" 
+            android:textSize="16sp" 
+            android:layout_marginLeft="15dp" 
+            android:textColor="#fff7f7f7" 
+            android:id="@+id/xjwb" 
+            android:layout_centerVertical="true"/>
+        
+        <TextView 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:text="正序" 
+            android:id="@+id/shorts" 
+            android:layout_marginLeft="15dp" 
+            android:textSize="13sp" 
+            android:textColor="#fff7f7f7" 
+            android:layout_toRightOf="@id/xjwb" 
+            android:layout_centerVertical="true"/>
+        
+        <TextView 
+            android:id="@+id/mode" 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:text="默认" 
+            android:layout_gravity="right" 
+            android:layout_alignParentRight="true" 
+            android:layout_centerVertical="true" 
+            android:textSize="13sp" 
+            android:textColor="#fff7f7f7" 
+            android:layout_marginRight="5dp"/>
+    </RelativeLayout>
+    
+    <TextView 
+        android:id="@+id/wbjk" 
+        android:layout_width="220dp" 
+        android:layout_height="1dp" 
+        android:text="" 
+        android:layout_below="@id/listtop" 
+        android:background="#10bababa" 
+        android:layout_centerHorizontal="true" 
+        android:layout_alignParentRight="true" 
+        android:layout_marginRight="15dp"/>
+    
+    <androidx.recyclerview.widget.RecyclerView 
+        android:id="@+id/recycler" 
+        android:layout_width="220dp" 
+        android:layout_height="wrap_content" 
+        android:layout_below="@id/wbjk" 
+        android:layout_centerHorizontal="true" 
+        android:layout_alignParentRight="true" 
+        android:layout_marginRight="15dp" 
+        android:layout_marginBottom="45dp" 
+        android:background="#10bababa"/>
+</RelativeLayout>

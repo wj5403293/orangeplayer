@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 播放中时显示暂停图标（双杠），让用户点击暂停 -->
+    <item android:state_selected="true" android:drawable="@drawable/dkplayer_ic_action_pause"/>
+    <!-- 暂停时显示播放图标（三角形），让用户点击播放 -->
+    <item android:drawable="@drawable/dkplayer_ic_action_play_arrow"/>
+</selector>
