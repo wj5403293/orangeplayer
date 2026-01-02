@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
- * 视频事件管理器
+ * 视频事件管理�?
  * 负责处理播放器UI的各种点击事件和功能
  */
 public class VideoEventManager {
@@ -36,10 +36,10 @@ public class VideoEventManager {
     // 组件引用
     private VodControlView mVodControlView;
     
-    // 对话框引用
+    // 对话框引�?
     private AlertDialog mCurrentSetupDialog;
     
-    // 长按倍速相关
+    // 长按倍速相�?
     private float mLongPressSpeed = 3.0f;
     private float mNormalSpeed = 1.0f;
     private boolean mIsLongPressing = false;
@@ -52,7 +52,7 @@ public class VideoEventManager {
         mSettingsManager = PlayerSettingsManager.getInstance(context);
         mSqlite = OrangevideoView.sqlite;
         
-        // 从设置中读取长按倍速
+        // 从设置中读取长按倍�?
         mLongPressSpeed = mSettingsManager.getLongPressSpeed();
         
         // 绑定基础事件
@@ -60,11 +60,10 @@ public class VideoEventManager {
     }
     
     /**
-     * 绑定控制器组件
+     * 绑定控制器组�?
      */
     public void bindControllerComponents(VodControlView vodControlView) {
-        android.util.Log.d(TAG, "bindControllerComponents: 被调用, vodControlView=" + vodControlView);
-        mVodControlView = vodControlView;
+                mVodControlView = vodControlView;
         bindControllerEvents();
     }
     
@@ -72,18 +71,15 @@ public class VideoEventManager {
      * 绑定 TitleView 组件
      */
     public void bindTitleView(com.orange.playerlibrary.component.TitleView titleView) {
-        android.util.Log.d(TAG, "bindTitleView: 被调用");
-        if (titleView != null) {
+                if (titleView != null) {
             // 绑定设置按钮点击事件
             titleView.setOnSettingsClickListener(v -> {
-                android.util.Log.d(TAG, "设置按钮被点击（来自 TitleView）");
-                showSetupDialog();
+                                showSetupDialog();
             });
             
-            // 绑定投屏按钮点击事件（暂时只显示提示）
+            // 绑定投屏按钮点击事件（暂时只显示提示�?
             titleView.setOnCastClickListener(v -> {
-                android.util.Log.d(TAG, "投屏按钮被点击");
-                Toast.makeText(mContext, "投屏功能开发中", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(mContext, "投屏功能开发中", Toast.LENGTH_SHORT).show();
             });
         }
     }
@@ -92,70 +88,77 @@ public class VideoEventManager {
      * 绑定基础事件
      */
     private void bindEvents() {
-        // 倍速按钮事件
-        // 注意：这里使用接口方式绑定，实际调用在bindControllerEvents中
+        // 倍速按钮事�?
+        // 注意：这里使用接口方式绑定，实际调用在bindControllerEvents�?
     }
     
     /**
-     * 绑定控制器事件
+     * 绑定控制器事�?
      */
     private void bindControllerEvents() {
-        android.util.Log.d(TAG, "bindControllerEvents: 开始绑定, mVodControlView=" + mVodControlView);
-        
+                
         if (mVodControlView == null) {
-            android.util.Log.d(TAG, "bindControllerEvents: mVodControlView 为 null，无法绑定");
-            return;
+                        return;
         }
         
-        // 绑定倍速按钮点击事件
-        android.util.Log.d(TAG, "bindControllerEvents: 设置倍速监听器");
-        mVodControlView.setOnSpeedControlClickListener(v -> {
-            android.util.Log.d(TAG, "倍速按钮被点击");
-            showSpeedDialog();
+        // 绑定倍速按钮点击事�?
+                mVodControlView.setOnSpeedControlClickListener(v -> {
+                        showSpeedDialog();
         });
         
         // 绑定选集按钮点击事件
-        android.util.Log.d(TAG, "bindControllerEvents: 设置选集监听器");
-        mVodControlView.setOnEpisodeSelectClickListener(v -> {
-            android.util.Log.d(TAG, "选集按钮被点击");
-            showPlaylistDialog();
+                mVodControlView.setOnEpisodeSelectClickListener(v -> {
+                        showPlaylistDialog();
+        });
+        
+        // 绑定弹幕开关按钮点击事件
+        mVodControlView.setOnDanmuToggleClickListener(v -> {
+            Toast.makeText(mContext, "弹幕功能开发中", Toast.LENGTH_SHORT).show();
+        });
+        
+        // 绑定弹幕设置按钮点击事件
+        mVodControlView.setOnDanmuSetClickListener(v -> {
+            Toast.makeText(mContext, "弹幕设置功能开发中", Toast.LENGTH_SHORT).show();
+        });
+        
+        // 绑定跳过片头片尾按钮点击事件
+        mVodControlView.setOnSkipOpeningClickListener(v -> {
+            showSkipDialog();
+        });
+        
+        // 绑定下一集按钮点击事件
+        mVodControlView.setOnPlayNextClickListener(v -> {
+            playNextEpisode();
         });
         
         // 绑定播放按钮长按事件（用于长按倍速）
         ImageView playButton = mVodControlView.getPlayButton();
         if (playButton != null) {
-            android.util.Log.d(TAG, "bindControllerEvents: 设置长按倍速");
-            setupLongPressSpeed(playButton);
+                        setupLongPressSpeed(playButton);
         } else {
-            android.util.Log.d(TAG, "bindControllerEvents: playButton 为 null");
-        }
+                    }
         
-        android.util.Log.d(TAG, "控制器事件绑定完成");
-    }
+            }
     
     /**
-     * 显示倍速选择对话框
+     * 显示倍速选择对话�?
      */
     private void showSpeedDialog() {
-        android.util.Log.d(TAG, "showSpeedDialog: 开始显示倍速对话框");
-        mController.hide(); // 隐藏播放器UI
+                mController.hide(); // 隐藏播放器UI
         
         try {
-            // 创建对话框视图
+            // 创建对话框视�?
             View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
-            android.util.Log.d(TAG, "showSpeedDialog: 布局加载成功");
-            
-            // 始终显示在右侧
+                        
+            // 始终显示在右�?
             final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                     DialogUtils.DialogPosition.RIGHT, null, null);
-            android.util.Log.d(TAG, "showSpeedDialog: 对话框创建成功");
-            
-            // 点击外部区域关闭对话框
+                        
+            // 点击外部区域关闭对话�?
             android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
             if (layout != null) {
                 layout.setOnClickListener(v -> dialog.dismiss());
-                android.util.Log.d(TAG, "showSpeedDialog: 外部点击事件绑定成功");
-            }
+                            }
             
             // 设置倍速选项
             setupSpeedOptions(dialogView, dialog);
@@ -181,7 +184,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 使用 RecyclerView 显示倍速列表
+        // 使用 RecyclerView 显示倍速列�?
         RecyclerView recyclerView = dialogView.findViewById(R.id.recycler);
         if (recyclerView != null) {
             OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -192,7 +195,7 @@ public class VideoEventManager {
                     String speedText = data.get(position).get("name").toString();
                     float speedValue = Float.parseFloat(speedText.replace("x", ""));
                     
-                    // 高亮当前倍速
+                    // 高亮当前倍�?
                     float currentSpeed = mVideoView.getSpeed();
                     if (Math.abs(speedValue - currentSpeed) < 0.01f) {
                         speedName.setTextColor(COLOR_HIGHLIGHT);
@@ -207,19 +210,17 @@ public class VideoEventManager {
                     // 倍速选择事件
                     speedName.setOnClickListener(v -> {
                         mVideoView.setSpeed(speedValue);
-                        android.util.Log.d(TAG, "设置倍速: " + speedValue + "x");
-                        Toast.makeText(mContext, "倍速: " + speedText, Toast.LENGTH_SHORT).show();
+                                                Toast.makeText(mContext, "倍�? " + speedText, Toast.LENGTH_SHORT).show();
                         dialog.dismiss();
                     });
                 });
-            android.util.Log.d(TAG, "setupSpeedOptions: RecyclerView 设置完成");
-        } else {
-            android.util.Log.e(TAG, "setupSpeedOptions: RecyclerView 为 null");
+                    } else {
+            android.util.Log.e(TAG, "setupSpeedOptions: RecyclerView �?null");
         }
     }
     
     /**
-     * 设置长按倍速功能
+     * 设置长按倍速功�?
      * 长按视图时加速播放，松开恢复正常速度
      */
     private void setupLongPressSpeed(View view) {
@@ -228,8 +229,7 @@ public class VideoEventManager {
                 mIsLongPressing = true;
                 mNormalSpeed = mVideoView.getSpeed();
                 mVideoView.setSpeed(mLongPressSpeed);
-                android.util.Log.d(TAG, "长按加速: " + mLongPressSpeed + "x");
-                return true;
+                                return true;
             }
             return false;
         });
@@ -240,15 +240,14 @@ public class VideoEventManager {
                 if (mIsLongPressing) {
                     mIsLongPressing = false;
                     mVideoView.setSpeed(mNormalSpeed);
-                    android.util.Log.d(TAG, "恢复正常速度: " + mNormalSpeed + "x");
-                }
+                                    }
             }
             return false;
         });
     }
     
     /**
-     * 设置长按倍速
+     * 设置长按倍�?
      */
     public void setLongPressSpeed(float speed) {
         mLongPressSpeed = speed;
@@ -256,7 +255,7 @@ public class VideoEventManager {
     }
     
     /**
-     * 获取长按倍速
+     * 获取长按倍�?
      */
     public float getLongPressSpeed() {
         return mLongPressSpeed;
@@ -277,7 +276,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         mSettingsManager.setPlayMode(mode);
-        Toast.makeText(mActivity, "播放模式：" + getPlayModeName(mode), Toast.LENGTH_SHORT).show();
+        Toast.makeText(mActivity, "播放模式: " + getPlayModeName(mode), Toast.LENGTH_SHORT).show();
     }
     
     /**
@@ -292,13 +291,12 @@ public class VideoEventManager {
         }
     }
     
-    // ==================== 设置对话框 ====================
+    // ==================== 设置对话�?====================
     
     /**
      * 显示设置对话框
      */
     public void showSetupDialog() {
-        android.util.Log.d(TAG, "showSetupDialog: 开始显示设置对话框");
         mController.hide(); // 隐藏播放器UI
         
         // 创建设置对话框视图
@@ -308,47 +306,119 @@ public class VideoEventManager {
         mCurrentSetupDialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
+        // 绑定所有设置项（使用 dialogView 而不是 mCurrentSetupDialog）
+        bindSetupOptions(dialogView);
+        
         // 点击空白区域关闭对话框
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> mCurrentSetupDialog.dismiss());
-        }
-        
-        android.util.Log.d(TAG, "showSetupDialog: 对话框创建完成");
-        
-        // 绑定所有设置项
-        bindSetupOptions();
+        mCurrentSetupDialog.setCanceledOnTouchOutside(true);
     }
     
     /**
      * 绑定设置选项
      */
-    private void bindSetupOptions() {
-        // 获取所有设置项视图
-        android.widget.LinearLayout screenScaleButton = mCurrentSetupDialog.findViewById(R.id.line1);
-        android.widget.LinearLayout longPressSpeedButton = mCurrentSetupDialog.findViewById(R.id.line2);
-        android.widget.LinearLayout skipOpeningButton = mCurrentSetupDialog.findViewById(R.id.line4);
-        android.widget.LinearLayout skipEndingButton = mCurrentSetupDialog.findViewById(R.id.line5);
-        android.widget.TextView sequentialPlayBtn = mCurrentSetupDialog.findViewById(R.id.sxbf);
-        android.widget.TextView singleLoopBtn = mCurrentSetupDialog.findViewById(R.id.djxh);
-        android.widget.TextView playPauseBtn = mCurrentSetupDialog.findViewById(R.id.bwzt);
+    private void bindSetupOptions(View dialogView) {
+        // 获取所有设置项视图 - 从 dialogView 获取而不是从 dialog 获取
+        android.widget.LinearLayout screenScaleButton = dialogView.findViewById(R.id.line1);
+        android.widget.LinearLayout longPressSpeedButton = dialogView.findViewById(R.id.line2);
+        android.widget.LinearLayout skipOpeningButton = dialogView.findViewById(R.id.line4);
+        android.widget.LinearLayout skipEndingButton = dialogView.findViewById(R.id.line5);
+        android.widget.TextView sequentialPlayBtn = dialogView.findViewById(R.id.sxbf);
+        android.widget.TextView singleLoopBtn = dialogView.findViewById(R.id.djxh);
+        android.widget.TextView playPauseBtn = dialogView.findViewById(R.id.bwzt);
+        
+        // 获取音量控制组件
+        android.widget.SeekBar volumeSeekBar = dialogView.findViewById(R.id.volumeSeek_bar);
+        android.widget.TextView volumeText = dialogView.findViewById(R.id.volumeText);
+        
+        // 调试日志：打印视图ID
+        android.util.Log.d(TAG, "screenScaleButton id=" + (screenScaleButton != null ? screenScaleButton.getId() : "null") + ", R.id.line1=" + R.id.line1);
+        android.util.Log.d(TAG, "longPressSpeedButton id=" + (longPressSpeedButton != null ? longPressSpeedButton.getId() : "null") + ", R.id.line2=" + R.id.line2);
         
         // 设置播放模式按钮
         setupPlayModeButtons(sequentialPlayBtn, singleLoopBtn, playPauseBtn);
         
-        // 绑定设置项点击事件
+        // 绑定音量控制
+        setupVolumeControl(volumeSeekBar, volumeText);
+        
+        // 绑定画面比例按钮点击事件
         if (screenScaleButton != null) {
-            screenScaleButton.setOnClickListener(v -> showScreenScaleDialog());
+            android.util.Log.d(TAG, "bindSetupOptions: bindScreenScale to view id=" + screenScaleButton.getId());
+            screenScaleButton.setOnClickListener(v -> {
+                android.util.Log.d(TAG, "clicked view id=" + v.getId() + " -> showScreenScaleDialog");
+                showScreenScaleDialog();
+            });
         }
+        
+        // 绑定长按倍速按钮点击事件
         if (longPressSpeedButton != null) {
-            longPressSpeedButton.setOnClickListener(v -> showLongPressSpeedDialog());
+            android.util.Log.d(TAG, "bindSetupOptions: bindLongPressSpeed to view id=" + longPressSpeedButton.getId());
+            longPressSpeedButton.setOnClickListener(v -> {
+                android.util.Log.d(TAG, "clicked view id=" + v.getId() + " -> showLongPressSpeedDialog");
+                showLongPressSpeedDialog();
+            });
         }
+        
+        // 绑定跳过片头按钮点击事件
         if (skipOpeningButton != null) {
             skipOpeningButton.setOnClickListener(v -> showSkipOpeningDialog());
         }
+        
+        // 绑定跳过片尾按钮点击事件
         if (skipEndingButton != null) {
             skipEndingButton.setOnClickListener(v -> showSkipEndingDialog());
         }
+    }
+    
+    /**
+     * 设置音量控制
+     */
+    private void setupVolumeControl(android.widget.SeekBar volumeSeekBar, android.widget.TextView volumeText) {
+        if (volumeSeekBar == null) return;
+        
+        // 获取系统音量管理器
+        android.media.AudioManager audioManager = (android.media.AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+        if (audioManager == null) return;
+        
+        // 获取当前音量和最大音量
+        int maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+        int currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+        
+        // 设置进度条最大值和当前值
+        volumeSeekBar.setMax(maxVolume);
+        volumeSeekBar.setProgress(currentVolume);
+        
+        // 更新音量文本
+        if (volumeText != null) {
+            int percent = (int) ((currentVolume * 100.0f) / maxVolume);
+            volumeText.setText(percent + "%");
+        }
+        
+        // 设置进度条监听器
+        volumeSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    // 设置系统音量
+                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, progress, 0);
+                    
+                    // 更新音量文本
+                    if (volumeText != null) {
+                        int percent = (int) ((progress * 100.0f) / maxVolume);
+                        volumeText.setText(percent + "%");
+                    }
+                }
+            }
+            
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+                // 不需要处理
+            }
+            
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                // 不需要处理
+            }
+        });
     }
     
     /**
@@ -382,7 +452,7 @@ public class VideoEventManager {
     }
     
     /**
-     * 显示画面比例对话框
+     * 显示画面比例对话�?
      */
     private void showScreenScaleDialog() {
         if (mCurrentSetupDialog != null) {
@@ -391,14 +461,14 @@ public class VideoEventManager {
         
         mController.hide();
         
-        // 创建对话框
+        // 创建对话�?
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
         
-        // 始终显示在右侧
+        // 始终显示在右�?
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
-        // 点击外部区域关闭对话框
+        // 点击外部区域关闭对话�?
         android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> dialog.dismiss());
@@ -423,7 +493,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前选中的比例
+        // 当前选中的比�?
         final String currentScale = mSettingsManager.getVideoScale();
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -463,12 +533,10 @@ public class VideoEventManager {
         if (scaleManager != null) {
             scaleManager.setAndSaveScale(scaleType);
             Toast.makeText(mContext, "画面比例: " + scaleType + " 已应用", Toast.LENGTH_SHORT).show();
-            android.util.Log.d(TAG, "setScreenScaleType: 画面比例已设置并应用 = " + scaleType);
         } else {
             // 如果 VideoScaleManager 未初始化，只保存设置
             mSettingsManager.setVideoScale(scaleType);
             Toast.makeText(mContext, "画面比例: " + scaleType + "\n将在下次播放时生效", Toast.LENGTH_SHORT).show();
-            android.util.Log.w(TAG, "setScreenScaleType: VideoScaleManager 未初始化，只保存设置");
         }
     }
     
@@ -476,18 +544,23 @@ public class VideoEventManager {
      * 显示长按倍速对话框
      */
     private void showLongPressSpeedDialog() {
+        android.util.Log.d(TAG, "showLongPressSpeedDialog: 开始");
+        
         if (mCurrentSetupDialog != null) {
+            android.util.Log.d(TAG, "showLongPressSpeedDialog: 关闭设置弹窗");
             mCurrentSetupDialog.dismiss();
         }
         
         mController.hide();
         
         // 创建对话框
+        android.util.Log.d(TAG, "showLongPressSpeedDialog: 创建对话框");
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
         
         // 始终显示在右侧
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
+        android.util.Log.d(TAG, "showLongPressSpeedDialog: 对话框创建完成, dialog=" + dialog);
         
         // 点击外部区域关闭对话框
         android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
@@ -497,6 +570,7 @@ public class VideoEventManager {
         
         // 设置长按倍速选项
         setupLongPressSpeedOptions(dialogView, dialog);
+        android.util.Log.d(TAG, "showLongPressSpeedDialog: 完成");
     }
     
     /**
@@ -514,7 +588,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前长按倍速
+        // 当前长按倍�?
         final float currentSpeed = mLongPressSpeed;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -525,7 +599,7 @@ public class VideoEventManager {
                 String speedText = data.get(position).get("name").toString();
                 float speedValue = Float.parseFloat(speedText.replace("x", ""));
                 
-                // 高亮当前倍速
+                // 高亮当前倍�?
                 if (Math.abs(speedValue - currentSpeed) < 0.01f) {
                     speedName.setTextColor(COLOR_HIGHLIGHT);
                     speedName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
@@ -539,14 +613,14 @@ public class VideoEventManager {
                 // 倍速选择事件
                 speedName.setOnClickListener(v -> {
                     setLongPressSpeed(speedValue);
-                    Toast.makeText(mContext, "长按倍速: " + speedText, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(mContext, "长按倍�? " + speedText, Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
                 });
             });
     }
     
     /**
-     * 显示播放模式对话框
+     * 显示播放模式对话�?
      */
     private void showPlayModeDialog() {
         final String[] modes = {"顺序播放", "单集循环", "播放暂停"};
@@ -602,6 +676,127 @@ public class VideoEventManager {
         });
         builder.setNegativeButton("取消", null);
         builder.show();
+    }
+    
+    /**
+     * 显示跳过片头片尾弹窗（使用skip_dialog_full布局）
+     */
+    public void showSkipDialog() {
+        mController.hide();
+        
+        // 创建对话框视图
+        View dialogView = View.inflate(mActivity, R.layout.skip_dialog_full, null);
+        
+        // 创建对话框 - 显示在右侧
+        final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
+                DialogUtils.DialogPosition.RIGHT, null, null);
+        
+        // 点击空白区域关闭对话框
+        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        if (layout != null) {
+            layout.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // 绑定跳过片头片尾的SeekBar
+        bindSkipSeekBars(dialogView, dialog);
+    }
+    
+    /**
+     * 绑定跳过片头片尾的SeekBar
+     */
+    private void bindSkipSeekBars(View dialogView, AlertDialog dialog) {
+        // 获取片头SeekBar和文本
+        android.widget.SeekBar seekBarPt = dialogView.findViewById(R.id.seekBarpt);
+        android.widget.TextView namePt = dialogView.findViewById(R.id.name);
+        
+        // 获取片尾SeekBar和文本
+        android.widget.SeekBar seekBarPw = dialogView.findViewById(R.id.seekBarpw);
+        android.widget.TextView namePw = dialogView.findViewById(R.id.wb2);
+        
+        // 获取当前设置值
+        int skipOpening = mSettingsManager.getSkipOpening();
+        int skipEnding = mSettingsManager.getSkipEnding();
+        
+        // 设置片头SeekBar
+        if (seekBarPt != null) {
+            // 最大值设为180秒（3分钟）
+            seekBarPt.setMax(180000);
+            seekBarPt.setProgress(skipOpening);
+            
+            if (namePt != null) {
+                namePt.setText(formatSkipTime(skipOpening));
+            }
+            
+            seekBarPt.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser && namePt != null) {
+                        namePt.setText(formatSkipTime(progress));
+                    }
+                }
+                
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                    int progress = seekBar.getProgress();
+                    mSettingsManager.setSkipOpening(progress);
+                    Toast.makeText(mContext, "跳过片头: " + formatSkipTime(progress), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
+        // 设置片尾SeekBar
+        if (seekBarPw != null) {
+            // 最大值设为180秒（3分钟）
+            seekBarPw.setMax(180000);
+            seekBarPw.setProgress(skipEnding);
+            
+            if (namePw != null) {
+                namePw.setText(formatSkipTime(skipEnding));
+            }
+            
+            seekBarPw.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser && namePw != null) {
+                        namePw.setText(formatSkipTime(progress));
+                    }
+                }
+                
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                    int progress = seekBar.getProgress();
+                    mSettingsManager.setSkipEnding(progress);
+                    Toast.makeText(mContext, "跳过片尾: " + formatSkipTime(progress), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+    
+    /**
+     * 格式化跳过时间显示
+     */
+    private String formatSkipTime(int milliseconds) {
+        if (milliseconds <= 0) {
+            return "不跳过";
+        }
+        int seconds = milliseconds / 1000;
+        if (seconds < 60) {
+            return seconds + "秒";
+        } else {
+            int minutes = seconds / 60;
+            int remainingSeconds = seconds % 60;
+            if (remainingSeconds == 0) {
+                return minutes + "分钟";
+            } else {
+                return minutes + "分" + remainingSeconds + "秒";
+            }
+        }
     }
     
     /**
@@ -768,8 +963,7 @@ public class VideoEventManager {
      * 显示选集列表
      */
     public void showPlaylistDialog() {
-        android.util.Log.d(TAG, "showPlaylistDialog: 开始显示选集对话框");
-        ArrayList<HashMap<String, Object>> videoList = mController.getVideoList();
+                ArrayList<HashMap<String, Object>> videoList = mController.getVideoList();
         if (videoList == null || videoList.isEmpty()) {
             Toast.makeText(mActivity, "暂无选集", Toast.LENGTH_SHORT).show();
             return;
@@ -778,17 +972,15 @@ public class VideoEventManager {
         mController.hide();
         
         try {
-            // 始终显示在右侧
+            // 始终显示在右�?
             final AlertDialog dialog = DialogUtils.showAlertDialog(mActivity, R.layout.playliset, 
                     DialogUtils.DialogPosition.RIGHT);
-            android.util.Log.d(TAG, "showPlaylistDialog: 对话框创建成功");
-            
-            // 点击外部区域关闭对话框
+                        
+            // 点击外部区域关闭对话�?
             View playListView = dialog.findViewById(R.id.playLiset_v);
             if (playListView != null) {
                 playListView.setOnClickListener(v -> dialog.dismiss());
-                android.util.Log.d(TAG, "showPlaylistDialog: 外部点击事件绑定成功");
-            }
+                            }
             
             // 设置 RecyclerView 显示选集列表
             RecyclerView recyclerView = dialog.findViewById(R.id.recycler);
@@ -821,12 +1013,11 @@ public class VideoEventManager {
                             dialog.dismiss();
                         });
                     });
-                android.util.Log.d(TAG, "showPlaylistDialog: RecyclerView 设置完成");
             } else {
-                android.util.Log.e(TAG, "showPlaylistDialog: RecyclerView 为 null");
+                android.util.Log.e(TAG, "showPlaylistDialog: RecyclerView is null");
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "showPlaylistDialog: 错误", e);
+            android.util.Log.e(TAG, "showPlaylistDialog: error", e);
         }
     }
     

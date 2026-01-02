@@ -21,79 +21,79 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 橘子播放器视图
- * 继承 GSYBaseVideoPlayer，完全使用橘子组件 UI
+ * 锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷??
+ * 锟教筹拷 GSYBaseVideoPlayer锟斤拷锟斤拷全使锟斤拷锟斤拷锟斤拷锟斤拷??UI
  */
 public class OrangevideoView extends GSYBaseVideoPlayer {
 
     private static final String TAG = "OrangevideoView";
     
-    // ===== 状态常量 =====
+    // ===== 状态锟斤拷??=====
     public static final int STATE_STARTSNIFFING = PlayerConstants.STATE_STARTSNIFFING;
     public static final int STATE_ENDSNIFFING = PlayerConstants.STATE_ENDSNIFFING;
     
-    // ===== 全局 SQLite 存储 =====
+    // ===== 全锟斤拷 SQLite 锟芥储 =====
     public static OrangeSharedSqlite sqlite;
     
-    // ===== 成员变量 =====
-    private String mVideoUrl;                     // 当前视频地址
-    private Map<String, String> mVideoHeaders;    // 请求头
-    private static float sSpeed = 1.0f;           // 当前倍速
-    private static float sLongSpeed = 3.0f;       // 长按倍速
-    private boolean mKeepVideoPlaying = false;    // 是否记忆播放位置
-    private boolean mAutoThumbnailEnabled = true; // 是否启用自动缩略图
-    private Object mDefaultThumbnail = null;      // 默认缩略图
-    private boolean mIsLiveVideo = false;         // 是否直播
-    private boolean mIsSniffing = false;          // 是否正在嗅探
-    private boolean mAutoRotateOnFullscreen = true; // 全屏时是否自动旋转屏幕
+    // ===== 锟斤拷员锟斤拷锟斤拷 =====
+    private String mVideoUrl;                     // 锟斤拷前锟斤拷频锟斤拷址
+    private Map<String, String> mVideoHeaders;    // 锟斤拷锟斤拷??
+    private static float sSpeed = 1.0f;           // 锟斤拷前锟斤拷??
+    private static float sLongSpeed = 3.0f;       // 锟斤拷锟斤拷锟斤拷??
+    private boolean mKeepVideoPlaying = false;    // 锟角凤拷锟斤拷洳ワ拷锟轿伙拷锟?
+    private boolean mAutoThumbnailEnabled = true; // 锟角凤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷??
+    private Object mDefaultThumbnail = null;      // 默锟斤拷锟斤拷锟斤拷??
+    private boolean mIsLiveVideo = false;         // 锟角凤拷直锟斤拷
+    private boolean mIsSniffing = false;          // 锟角凤拷锟斤拷锟斤拷锟斤拷探
+    private boolean mAutoRotateOnFullscreen = true; // 全锟斤拷时锟角凤拷锟皆讹拷锟斤拷转锟斤拷??
     
-    // ===== 跳过片头片尾管理器 =====
+    // ===== 锟斤拷锟斤拷片头片尾锟斤拷锟斤拷??=====
     private SkipManager mSkipManager;
     
-    // ===== 视频比例管理器 =====
+    // ===== 锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷??=====
     private VideoScaleManager mVideoScaleManager;
     
-    // ===== 播放状态管理器 =====
+    // ===== 锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷 =====
     private PlaybackStateManager mPlaybackStateManager;
     
-    // ===== 组件状态管理器 =====
+    // ===== 锟斤拷锟阶刺拷锟斤拷锟斤拷锟?=====
     private ComponentStateManager mComponentStateManager;
     
-    // ===== 错误恢复管理器 =====
+    // ===== 锟斤拷锟斤拷指锟斤拷锟斤拷锟??=====
     private ErrorRecoveryManager mErrorRecoveryManager;
     
-    // ===== 自定义全屏辅助类 =====
+    // ===== 锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷 =====
     private CustomFullscreenHelper mFullscreenHelper;
     
     // ===== ControlWrapper =====
     private com.orange.playerlibrary.interfaces.ControlWrapper mControlWrapper;
     
-    // ===== 控制器 =====
+    // ===== 锟斤拷锟斤拷??=====
     private OrangeVideoController mOrangeController;
     
-    // ===== UI 组件 =====
+    // ===== UI 锟斤拷锟?=====
     private com.orange.playerlibrary.component.PrepareView mPrepareView;
     private com.orange.playerlibrary.component.TitleView mTitleView;
     private com.orange.playerlibrary.component.VodControlView mVodControlView;
     private com.orange.playerlibrary.component.LiveControlView mLiveControlView;
     private com.orange.playerlibrary.component.CompleteView mCompleteView;
     private com.orange.playerlibrary.component.ErrorView mErrorView;
-    private boolean mUseOrangeComponents = true; // 默认使用橘子组件
+    private boolean mUseOrangeComponents = true; // 默锟斤拷使锟斤拷锟斤拷锟斤拷锟斤拷锟?
     
-    // ===== 监听器 =====
+    // ===== 锟斤拷锟斤拷??=====
     private final List<OnStateChangeListener> mStateChangeListeners = new ArrayList<>();
     private OnProgressListener mProgressListener;
     private OnPlayCompleteListener mPlayCompleteListener;
     
-    // ===== 当前状态 =====
+    // ===== 锟斤拷前状??=====
     private int mCurrentPlayState = PlayerConstants.STATE_IDLE;
     private int mCurrentPlayerState = PlayerConstants.PLAYER_NORMAL;
     
-    // ===== 调试模式 =====
+    // ===== 锟斤拷锟斤拷模式 =====
     private boolean mDebug = false;
 
     /**
-     * 构造函数
+     * 锟斤拷锟届函??
      */
     public OrangevideoView(Context context) {
         super(context);
@@ -108,7 +108,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 初始化 - 重写父类方法
+     * 锟斤拷始??- 锟斤拷写锟斤拷锟洁方锟斤拷
      */
     @Override
     protected void init(Context context) {
@@ -117,114 +117,104 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 橘子播放器初始化
+     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷始锟斤拷
      */
     private void initOrangePlayer() {
-        // 强制启用橘子组件（解决初始化顺序问题）
+        // 强锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷始锟斤拷顺锟斤拷锟斤拷锟斤拷??
         mUseOrangeComponents = true;
         
-        // 初始化跳过管理器
+        // 锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
         mSkipManager = new SkipManager();
         mSkipManager.attachVideoView(this);
         
-        // 初始化视频比例管理器
+        // 锟斤拷始锟斤拷锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
         mVideoScaleManager = new VideoScaleManager(this, PlayerSettingsManager.getInstance(getContext()));
-        android.util.Log.d(TAG, "initOrangePlayer: VideoScaleManager 初始化完成");
-        
-        // 初始化播放状态管理器
+                
+        // 锟斤拷始锟斤拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
         mPlaybackStateManager = new PlaybackStateManager();
-        android.util.Log.d(TAG, "initOrangePlayer: PlaybackStateManager 初始化完成");
-        
-        // 初始化组件状态管理器
+                
+        // 锟斤拷始锟斤拷锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
         mComponentStateManager = new ComponentStateManager();
-        android.util.Log.d(TAG, "initOrangePlayer: ComponentStateManager 初始化完成");
-        
-        // 初始化错误恢复管理器
+                
+        // 锟斤拷始锟斤拷锟斤拷锟斤拷指锟斤拷锟斤拷锟斤拷锟?
         mErrorRecoveryManager = new ErrorRecoveryManager();
         mErrorRecoveryManager.attachVideoView(this);
-        android.util.Log.d(TAG, "initOrangePlayer: ErrorRecoveryManager 初始化完成");
-        
-        // 初始化自定义全屏辅助类
+                
+        // 锟斤拷始锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷??
         mFullscreenHelper = new CustomFullscreenHelper(this);
-        android.util.Log.d(TAG, "initOrangePlayer: CustomFullscreenHelper 初始化完成");
-        
-        // 禁用旋转动画，直接切换
+                
+        // 锟斤拷锟斤拷锟斤拷转锟斤拷锟斤拷锟斤拷直锟斤拷锟斤拷??
         setShowFullAnimation(false);
         setRotateViewAuto(false);
         setNeedLockFull(false);
         setLockLand(false);
         setRotateWithSystem(false);
-        // 禁用全屏切换动画
+        // 锟斤拷锟斤拷全锟斤拷锟叫伙拷锟斤拷锟斤拷
         setNeedShowWifiTip(false);
-        // 禁用 OrientationUtils，不旋转屏幕
+        // 锟斤拷锟斤拷 OrientationUtils锟斤拷锟斤拷锟斤拷转锟斤拷幕
         setNeedOrientationUtils(false);
         
-        // 启用触摸手势（双击暂停/播放、滑动调节音量/亮度/进度）
+        // 锟斤拷锟矫达拷锟斤拷锟斤拷锟狡ｏ拷双锟斤拷锟斤拷??锟斤拷锟脚★拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??锟斤拷锟斤拷/锟斤拷锟斤拷??
         setIsTouchWiget(true);
         setIsTouchWigetFull(true);
         
-        // 默认初始化橘子组件
+        // 默锟较筹拷始锟斤拷锟斤拷锟斤拷锟斤拷??
         if (mUseOrangeComponents) {
             initOrangeComponents();
         }
         
-        // 使用 ComponentStateManager 注册进度监听器
-        // 这样可以确保监听器不重复注册，并在组件重建后自动重新注册
+        // 使锟斤拷 ComponentStateManager 注锟斤拷锟斤拷燃锟斤拷锟??
+        // 锟斤拷锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟截革拷注锟结，锟斤拷锟斤拷锟斤拷锟斤拷亟锟斤拷锟斤拷远锟斤拷锟斤拷锟阶拷锟?
         if (mComponentStateManager != null) {
             mComponentStateManager.reregisterProgressListener(this);
-            android.util.Log.d(TAG, "initOrangePlayer: 进度监听器已通过 ComponentStateManager 注册");
-        }
+                    }
         
-        // 设置回调监听
+        // 锟斤拷锟矫回碉拷锟斤拷锟斤拷
         setVideoAllCallBack(new GSYSampleCallBack() {
             @Override
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PREPARED);
-                // 检查是否为直播
+                // 锟斤拷锟斤拷欠锟轿憋拷锟?
                 if (getDuration() <= 0) {
                     mIsLiveVideo = true;
                 }
-                // 应用保存的视频比例设置
+                // 应锟矫憋拷锟斤拷锟斤拷锟狡碉拷锟斤拷锟斤拷锟??
                 if (mVideoScaleManager != null) {
                     mVideoScaleManager.applyVideoScale();
-                    android.util.Log.d(TAG, "onPrepared: 视频比例已应用");
-                }
+                                    }
                 
-                // 检查是否需要恢复全屏切换时保存的播放位置
+                // 锟斤拷锟斤拷欠锟斤拷锟揭拷指锟饺拷锟斤拷谢锟绞憋拷锟斤拷锟侥诧拷锟斤拷位??
                 if (mFullscreenHelper != null && mFullscreenHelper.getPendingSeekPosition() > 0) {
                     final long pendingPosition = mFullscreenHelper.getPendingSeekPosition();
                     final boolean pendingResume = mFullscreenHelper.isPendingResume();
-                    android.util.Log.d(TAG, "onPrepared: 检测到待恢复位置=" + pendingPosition + ", pendingResume=" + pendingResume);
-                    
-                    // 清除待恢复状态
+                                        
+                    // 锟斤拷锟斤拷锟斤拷指锟阶??
                     mFullscreenHelper.clearPendingSeekPosition();
                     
-                    // 延迟执行 seekTo，确保播放器完全准备好
+                    // 锟接筹拷执锟斤拷 seekTo锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷全准锟斤拷??
                     postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            android.util.Log.d(TAG, "onPrepared: 恢复播放位置到 " + pendingPosition);
-                            seekTo(pendingPosition);
+                                                        seekTo(pendingPosition);
                             
-                            // 如果之前在播放，确保继续播放
+                            // 锟斤拷锟街帮拷诓锟斤拷牛锟饺凤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
                             if (pendingResume && !isPlaying()) {
-                                android.util.Log.d(TAG, "onPrepared: 恢复播放状态");
-                                resume();
+                                                                resume();
                             }
                         }
                     }, 100);
                 } else {
-                    // 恢复播放进度（非全屏切换的情况）
+                    // 锟街革拷锟斤拷锟脚斤拷锟饺ｏ拷锟斤拷全锟斤拷锟叫伙拷锟斤拷锟斤拷锟斤拷锟?
                     if (mKeepVideoPlaying) {
                         restorePlaybackProgress();
                     }
                 }
-                // 执行跳过片头
+                // 执锟斤拷锟斤拷锟斤拷片头
                 if (mSkipManager != null) {
                     mSkipManager.performSkipIntro();
                 }
-                // 准备完成后自动进入播放状态
+                // 准锟斤拷锟斤拷珊锟斤拷远锟斤拷锟斤拷氩ワ拷锟阶??
                 setOrangePlayState(PlayerConstants.STATE_PLAYING);
             }
 
@@ -232,11 +222,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onAutoComplete(String url, Object... objects) {
                 super.onAutoComplete(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PLAYBACK_COMPLETED);
-                // 播放完成，清除保存的进度
+                // 锟斤拷锟斤拷锟斤拷桑锟斤拷锟斤拷锟斤拷锟斤拷慕锟斤拷锟?
                 if (mKeepVideoPlaying) {
                     clearSavedProgress();
                 }
-                // 重置跳过状态
+                // 锟斤拷锟斤拷锟斤拷锟斤拷状??
                 if (mSkipManager != null) {
                     mSkipManager.reset();
                 }
@@ -255,14 +245,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onEnterFullscreen(String url, Object... objects) {
                 super.onEnterFullscreen(url, objects);
                 setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
-                // 不旋转屏幕，保持竖屏
+                // 锟斤拷锟斤拷转锟斤拷幕锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
             }
 
             @Override
             public void onQuitFullscreen(String url, Object... objects) {
                 super.onQuitFullscreen(url, objects);
                 setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
-                // 不旋转屏幕，保持竖屏
+                // 锟斤拷锟斤拷转锟斤拷幕锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
                 if (mAutoRotateOnFullscreen) {
                     Activity activity = getActivity();
                     if (activity != null) {
@@ -274,10 +264,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 启用橘子组件 UI（替代 GSY 内置 UI）
-     * 调用此方法后会添加 PrepareView、TitleView、VodControlView、CompleteView、ErrorView 等组件
+     * 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?UI锟斤拷锟斤拷??GSY 锟斤拷锟斤拷 UI??
+     * 锟斤拷锟矫此凤拷锟斤拷锟斤拷锟斤拷锟??PrepareView锟斤拷TitleView锟斤拷VodControlView锟斤拷CompleteView锟斤拷ErrorView 锟斤拷锟斤拷??
      */
-    // ===== 调试日志回调 =====
+    // ===== 锟斤拷锟斤拷锟斤拷志锟截碉拷 =====
     private DebugLogCallback mDebugLogCallback;
 
     public interface DebugLogCallback {
@@ -295,7 +285,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 初始化橘子组件
+     * 锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷??
      */
     private void initOrangeComponents() {
         Context context = getContext();
@@ -303,57 +293,90 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 android.widget.RelativeLayout.LayoutParams.MATCH_PARENT,
                 android.widget.RelativeLayout.LayoutParams.MATCH_PARENT);
 
-        debugLog("橘子组件初始化开始");
-
-        // 创建 ControlWrapper 并保存到成员变量
+        
+        // 锟斤拷锟斤拷 ControlWrapper 锟斤拷锟斤拷锟芥到锟斤拷员锟斤拷锟斤拷
         mControlWrapper = createControlWrapper();
-        debugLog("ControlWrapper 创建完成");
-
-        // 1. PrepareView - 准备/加载视图
+        
+        // 1. PrepareView - 准锟斤拷/锟斤拷锟斤拷锟斤拷图
         mPrepareView = new com.orange.playerlibrary.component.PrepareView(context);
         mPrepareView.attach(mControlWrapper);
-        mPrepareView.setClickStart(); // 设置点击开始播放
+        mPrepareView.setClickStart(); // 锟斤拷锟矫碉拷锟斤拷锟绞硷拷锟??
         addView(mPrepareView, matchParentParams);
-        debugLog("PrepareView 添加完成");
-
-        // 2. CompleteView - 播放完成视图
+        
+        // 2. CompleteView - 锟斤拷锟斤拷锟斤拷锟斤拷锟酵?
         mCompleteView = new com.orange.playerlibrary.component.CompleteView(context);
         mCompleteView.attach(mControlWrapper);
         addView(mCompleteView, matchParentParams);
 
-        // 3. ErrorView - 错误视图
+        // 3. ErrorView - 锟斤拷锟斤拷锟斤拷图
         mErrorView = new com.orange.playerlibrary.component.ErrorView(context);
         mErrorView.attach(mControlWrapper);
         addView(mErrorView, matchParentParams);
 
-        // 4. TitleView - 标题栏（全屏时显示）
+        // 4. TitleView - 锟斤拷锟斤拷锟斤拷锟斤拷全锟斤拷时锟斤拷示锟斤拷
         mTitleView = new com.orange.playerlibrary.component.TitleView(context);
         mTitleView.attach(mControlWrapper);
         addView(mTitleView, matchParentParams);
 
-        // 5. VodControlView - 点播控制栏
+        // 5. VodControlView - 鐐规挱鎺у埗
         mVodControlView = new com.orange.playerlibrary.component.VodControlView(context);
+        // 璁剧疆鎺у埗鍣ㄥ紩鐢紝纭繚浜嬩欢鑳藉琚粦瀹氾紙鍦?attach 涔嬪墠璁剧疆锛?
+        if (mOrangeController != null) {
+            mVodControlView.setOrangeVideoController(mOrangeController);
+        }
         mVodControlView.attach(mControlWrapper);
         addView(mVodControlView, matchParentParams);
-        debugLog("VodControlView 添加完成");
-
-        // 初始状态设置为 IDLE，显示准备界面
+        
+        // 鍒濆鐘舵€佽缃负 IDLE锛屾樉绀哄噯澶囪鍥?
         setOrangePlayState(PlayerConstants.STATE_IDLE);
-        debugLog("橘子组件初始化完成");
-    }
+        
+        // 纭繚浜嬩欢缁戝畾
+        ensureEventBinding();
+            }
 
     /**
-     * 添加调试日志
+     * 娣诲姞璋冭瘯鏃ュ織
      */
     public void debugLog(String msg) {
         if (mDebugLogCallback != null) {
             mDebugLogCallback.onLog(msg);
         }
-        android.util.Log.d(TAG, msg);
+            }
+
+    /**
+     * 纭繚鎵€鏈夋帶鍒剁粍浠剁殑浜嬩欢閮藉凡缁戝畾
+     * 澶勭悊鍒濆鍖栭『搴忛棶棰?
+     * Requirements: 1.2, 3.1, 3.2
+     */
+    private void ensureEventBinding() {
+        if (mOrangeController == null) {
+            android.util.Log.w(TAG, "ensureEventBinding: mOrangeController is null");
+            return;
+        }
+        
+        VideoEventManager eventManager = mOrangeController.getVideoEventManager();
+        if (eventManager == null) {
+            android.util.Log.w(TAG, "ensureEventBinding: VideoEventManager is null");
+            return;
+        }
+        
+        // 缁戝畾 VodControlView 浜嬩欢
+        if (mVodControlView != null) {
+            android.util.Log.d(TAG, "ensureEventBinding: binding VodControlView events");
+            eventManager.bindControllerComponents(mVodControlView);
+        }
+        
+        // 缁戝畾 TitleView 浜嬩欢
+        if (mTitleView != null) {
+            android.util.Log.d(TAG, "ensureEventBinding: binding TitleView events");
+            eventManager.bindTitleView(mTitleView);
+        }
+        
+        android.util.Log.d(TAG, "ensureEventBinding: completed");
     }
 
     /**
-     * 创建 ControlWrapper 实现
+     * 锟斤拷锟斤拷 ControlWrapper 实锟斤拷
      */
     private com.orange.playerlibrary.interfaces.ControlWrapper createControlWrapper() {
         final OrangevideoView videoView = this;
@@ -365,7 +388,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void pause() {
-                // 调用橘子播放器的 pause() 方法，而不是直接调用 onVideoPause()
+                // 锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷 pause() 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷直锟接碉拷??onVideoPause()
                 videoView.pause();
             }
 
@@ -386,7 +409,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public boolean isPlaying() {
-                // 使用橘子播放器的状态，而不是 GSY 的状态
+                // 使锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷??GSY 锟斤拷状??
                 return videoView.isPlaying();
             }
 
@@ -395,25 +418,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 if (isPlaying()) {
                     pause();
                 } else {
-                    // 使用 resume() 方法而不是 onVideoResume()，确保状态正确更新
+                    // 使锟斤拷 resume() 锟斤拷锟斤拷锟斤拷锟斤拷??onVideoResume()锟斤拷确锟斤拷状态锟斤拷确锟斤拷??
                     videoView.resume();
                 }
             }
 
             @Override
             public void toggleFullScreen() {
-                android.util.Log.d(TAG, "toggleFullScreen: isFullScreen=" + isFullScreen());
-                if (isFullScreen()) {
-                    // 退出全屏 - 使用自定义全屏辅助类
-                    android.util.Log.d(TAG, "toggleFullScreen: 调用 CustomFullscreenHelper.exitFullscreen()");
-                    Activity activity = videoView.getActivity();
+                                if (isFullScreen()) {
+                    // 锟剿筹拷全??- 使锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷
+                                        Activity activity = videoView.getActivity();
                     if (activity != null && mFullscreenHelper != null) {
                         mFullscreenHelper.exitFullscreen(activity);
                     }
                 } else {
-                    // 进入全屏 - 使用自定义全屏辅助类
-                    android.util.Log.d(TAG, "toggleFullScreen: 调用 CustomFullscreenHelper.enterFullscreen()");
-                    Activity activity = videoView.getActivity();
+                    // 锟斤拷锟斤拷全锟斤拷 - 使锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷
+                                        Activity activity = videoView.getActivity();
                     if (activity != null && mFullscreenHelper != null) {
                         mFullscreenHelper.enterFullscreen(activity);
                     }
@@ -422,12 +442,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void toggleLockState() {
-                // GSY 不支持锁屏
+                // GSY 锟斤拷支锟斤拷锟斤拷??
             }
 
             @Override
             public boolean isFullScreen() {
-                // 使用自定义全屏辅助类判断
+                // 使锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟叫讹拷
                 return mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
             }
 
@@ -453,7 +473,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void setMute(boolean isMute) {
-                // 静音功能暂不实现
+                // 锟斤拷锟斤拷锟斤拷锟斤拷锟捷诧拷实锟斤拷
             }
 
             @Override
@@ -463,7 +483,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void setVolume(float volume) {
-                // GSY 不直接支持
+                // GSY 锟斤拷直锟斤拷支??
             }
 
             @Override
@@ -476,12 +496,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void hide() {
-                // 隐藏控制器
+                // 锟斤拷锟截匡拷锟斤拷??
             }
 
             @Override
             public void show() {
-                // 显示控制器
+                // 锟斤拷示锟斤拷锟斤拷??
             }
 
             @Override
@@ -497,81 +517,81 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 是否使用橘子组件
+     * 锟角凤拷使锟斤拷锟斤拷锟斤拷锟斤拷锟?
      */
     public boolean isUseOrangeComponents() {
         return mUseOrangeComponents;
     }
 
     /**
-     * 获取 PrepareView
+     * 锟斤拷取 PrepareView
      */
     public com.orange.playerlibrary.component.PrepareView getPrepareView() {
         return mPrepareView;
     }
 
     /**
-     * 获取 TitleView
+     * 锟斤拷取 TitleView
      */
     public com.orange.playerlibrary.component.TitleView getTitleView() {
         return mTitleView;
     }
 
     /**
-     * 获取 VodControlView
+     * 锟斤拷取 VodControlView
      */
     public com.orange.playerlibrary.component.VodControlView getVodControlView() {
         return mVodControlView;
     }
 
     /**
-     * 获取 LiveControlView
+     * 锟斤拷取 LiveControlView
      */
     public com.orange.playerlibrary.component.LiveControlView getLiveControlView() {
         return mLiveControlView;
     }
 
     /**
-     * 获取 CompleteView
+     * 锟斤拷取 CompleteView
      */
     public com.orange.playerlibrary.component.CompleteView getCompleteView() {
         return mCompleteView;
     }
 
     /**
-     * 获取 ErrorView
+     * 锟斤拷取 ErrorView
      */
     public com.orange.playerlibrary.component.ErrorView getErrorView() {
         return mErrorView;
     }
 
     /**
-     * 获取 ControlWrapper
-     * 用于外部调用全屏切换等功能
+     * 锟斤拷取 ControlWrapper
+     * 锟斤拷锟斤拷锟解部锟斤拷锟斤拷全锟斤拷锟叫伙拷锟饺癸拷??
      */
     public com.orange.playerlibrary.interfaces.ControlWrapper getControlWrapper() {
         return mControlWrapper;
     }
 
-    // ===== 视频地址设置方法 (Requirements: 1.2) =====
+    // ===== 锟斤拷频锟斤拷址锟斤拷锟矫凤拷锟斤拷 (Requirements: 1.2) =====
     
     /**
-     * 设置视频地址
-     * @param url 视频地址
+     * 锟斤拷锟斤拷锟斤拷频锟斤拷址
+     * @param url 锟斤拷频锟斤拷址
      */
     public void setUrl(String url) {
         setUrl(url, null);
     }
 
     /**
-     * 设置视频地址和请求头
-     * @param url 视频地址
-     * @param headers 请求头
+     * 锟斤拷锟斤拷锟斤拷频锟斤拷址锟斤拷锟斤拷锟斤拷头
+     * @param url 锟斤拷频锟斤拷址
+     * @param headers 锟斤拷锟斤拷??
      */
     public void setUrl(String url, Map<String, String> headers) {
         this.mVideoUrl = url;
         this.mVideoHeaders = headers;
-        // 使用 GSYVideoPlayer 的 setUp 方法
+        // 使锟斤拷 GSYVideoPlayer ??setUp 锟斤拷锟斤拷
         if (headers != null) {
             setUp(url, true, null, headers, "");
         } else {
@@ -580,26 +600,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取当前视频地址
-     * @return 视频地址
+     * 锟斤拷取锟斤拷前锟斤拷频锟斤拷址
+     * @return 锟斤拷频锟斤拷址
      */
     public String getUrl() {
         return mVideoUrl;
     }
 
-    // ===== 播放控制方法 (Requirements: 1.3, 1.4, 1.5, 1.6) =====
+    // ===== 锟斤拷锟脚匡拷锟狡凤拷锟斤拷 (Requirements: 1.3, 1.4, 1.5, 1.6) =====
 
     /**
-     * 开始播放
+     * 锟斤拷始锟斤拷??
      */
     public void start() {
         mIsSniffing = false;
         mIsLiveVideo = false;
-        // 重置跳过状态
+        // 锟斤拷锟斤拷锟斤拷锟斤拷状??
         if (mSkipManager != null) {
             mSkipManager.reset();
         }
-        // 启动错误恢复检测
+        // 锟斤拷锟斤拷锟斤拷锟斤拷指锟斤拷锟??
         if (mErrorRecoveryManager != null) {
             mErrorRecoveryManager.startBlackScreenDetection();
             mErrorRecoveryManager.startStateConsistencyCheck();
@@ -609,123 +629,106 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 暂停播放
+     * 锟斤拷停锟斤拷锟斤拷
      */
     public void pause() {
-        android.util.Log.d(TAG, "pause() 被调用, mCurrentPlayState=" + mCurrentPlayState + ", mCurrentState=" + mCurrentState);
-        // 保存播放进度
+                // 锟斤拷锟芥播锟脚斤拷锟斤拷
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
-        // 停止检查片尾
+        // 停止锟斤拷锟狡??
         if (mSkipManager != null) {
             mSkipManager.stopOutroCheck();
         }
-        // 调用 GSY 的暂停方法（会触发 onVideoPause，在那里更新状态）
+        // 锟斤拷锟斤拷 GSY 锟斤拷锟斤拷停锟斤拷锟斤拷锟斤拷锟结触??onVideoPause锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟?
         onVideoPause();
-        android.util.Log.d(TAG, "pause() 完成, mCurrentPlayState=" + mCurrentPlayState + ", mCurrentState=" + mCurrentState);
-    }
+            }
 
     /**
-     * 继续播放
+     * 锟斤拷锟斤拷锟斤拷锟斤拷
      */
     public void resume() {
-        android.util.Log.d(TAG, "resume() 被调用, mCurrentPlayState=" + mCurrentPlayState + ", mCurrentState=" + mCurrentState);
-        // 调用 GSY 的恢复播放方法（会触发 onVideoResume，在那里更新状态）
+                // 锟斤拷锟斤拷 GSY 锟侥恢革拷锟斤拷锟脚凤拷锟斤拷锟斤拷锟结触??onVideoResume锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟?
         onVideoResume();
-        android.util.Log.d(TAG, "resume() 完成, mCurrentPlayState=" + mCurrentPlayState + ", mCurrentState=" + mCurrentState);
-        // 开始检查片尾
+                // 锟斤拷始锟斤拷锟狡??
         if (mSkipManager != null) {
             mSkipManager.startOutroCheck();
         }
     }
 
     /**
-     * 重写 GSY 的 onVideoPause 方法
-     * 当 GSY 内部调用暂停时（如双击），确保更新橘子播放器状态
-     * 如果当前已经是暂停状态，则恢复播放（修复双击恢复播放的问题）
+     * 锟斤拷写 GSY ??onVideoPause 锟斤拷锟斤拷
+     * ??GSY 锟节诧拷锟斤拷锟斤拷锟斤拷停时锟斤拷锟斤拷双锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状??
+     * 锟斤拷锟斤拷锟角帮拷丫锟斤拷锟斤拷锟酵Ｗ刺拷锟斤拷锟街革拷锟斤拷锟脚ｏ拷锟睫革拷双锟斤拷锟街革拷锟斤拷锟脚碉拷锟斤拷锟解）
      */
     @Override
     public void onVideoPause() {
-        android.util.Log.d(TAG, "onVideoPause() 被调用, mCurrentPlayState=" + mCurrentPlayState + ", mCurrentState=" + mCurrentState);
-        
-        // 如果当前已经是暂停状态，说明这是第二次双击，应该恢复播放
+                
+        // 锟斤拷锟斤拷锟角帮拷丫锟斤拷锟斤拷锟酵Ｗ刺拷锟剿碉拷锟斤拷锟斤拷堑诙锟斤拷锟剿拷锟斤拷锟接︼拷没指锟斤拷锟斤拷锟?
         if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-            android.util.Log.d(TAG, "onVideoPause() 检测到已暂停，直接恢复播放");
-            // 不调用 onVideoResume()，直接调用 super.onVideoResume() 并更新状态
+                        // 锟斤拷锟斤拷??onVideoResume()锟斤拷直锟接碉拷??super.onVideoResume() 锟斤拷锟斤拷锟斤拷状??
             super.onVideoResume();
-            android.util.Log.d(TAG, "onVideoPause() 调用 super.onVideoResume() 后, mCurrentState=" + mCurrentState);
-            // 更新橘子播放器状态
+                        // 锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状??
             mCurrentPlayState = PlayerConstants.STATE_PLAYING;
-            // 直接通知组件，不使用 post，避免延迟导致状态混乱
+            // 直锟斤拷通知锟斤拷锟斤拷锟斤拷锟绞癸拷锟?post锟斤拷锟斤拷锟斤拷锟接迟碉拷锟斤拷状态锟斤拷??
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
-            android.util.Log.d(TAG, "onVideoPause() 已更新为播放状态");
-            return;
+                        return;
         }
         
-        // 只在播放状态时才暂停
+        // 只锟节诧拷锟斤拷状态时锟斤拷锟斤拷??
         boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERED);
         super.onVideoPause();
-        android.util.Log.d(TAG, "onVideoPause() super调用后, mCurrentState=" + mCurrentState);
-        if (shouldUpdateState) {
-            android.util.Log.d(TAG, "onVideoPause() 更新橘子状态为暂停");
-            // 直接更新橘子播放器状态，不触发其他回调
+                if (shouldUpdateState) {
+                        // 直锟接革拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
             mCurrentPlayState = PlayerConstants.STATE_PAUSED;
-            // 直接通知组件，不使用 post，避免延迟导致状态混乱
+            // 直锟斤拷通知锟斤拷锟斤拷锟斤拷锟绞癸拷锟?post锟斤拷锟斤拷锟斤拷锟接迟碉拷锟斤拷状态锟斤拷??
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PAUSED);
-            // 确保 GSY 的 mCurrentState 保持为暂停状态
+            // 确锟斤拷 GSY ??mCurrentState 锟斤拷锟斤拷为锟斤拷停状??
             if (mCurrentState != CURRENT_STATE_PAUSE) {
-                android.util.Log.d(TAG, "onVideoPause() 强制设置 mCurrentState 为暂停");
-                mCurrentState = CURRENT_STATE_PAUSE;
+                                mCurrentState = CURRENT_STATE_PAUSE;
             }
         } else {
-            android.util.Log.d(TAG, "onVideoPause() 跳过状态更新，当前已是暂停状态");
-        }
+                    }
     }
 
     /**
-     * 重写 GSY 的 onVideoResume 方法
-     * 当 GSY 内部调用恢复播放时（如双击），确保更新橘子播放器状态
+     * 锟斤拷写 GSY ??onVideoResume 锟斤拷锟斤拷
+     * ??GSY 锟节诧拷锟斤拷锟矫恢革拷锟斤拷锟斤拷时锟斤拷锟斤拷双锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状??
      */
     @Override
     public void onVideoResume() {
-        android.util.Log.d(TAG, "onVideoResume() 被调用, mCurrentPlayState=" + mCurrentPlayState + ", mCurrentState=" + mCurrentState);
-        // 只在暂停状态时才更新为播放状态，避免重复设置
+                // 只锟斤拷锟斤拷停状态时锟脚革拷锟斤拷为锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟截革拷锟斤拷锟斤拷
         boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PAUSED);
         super.onVideoResume();
-        android.util.Log.d(TAG, "onVideoResume() super调用后, mCurrentState=" + mCurrentState);
-        if (shouldUpdateState) {
-            android.util.Log.d(TAG, "onVideoResume() 更新橘子状态为播放");
-            // 直接更新橘子播放器状态，不触发其他回调
+                if (shouldUpdateState) {
+                        // 直锟接革拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
             mCurrentPlayState = PlayerConstants.STATE_PLAYING;
-            // 直接通知组件，不使用 post，避免延迟导致状态混乱
+            // 直锟斤拷通知锟斤拷锟斤拷锟斤拷锟绞癸拷锟?post锟斤拷锟斤拷锟斤拷锟接迟碉拷锟斤拷状态锟斤拷??
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
-            // 确保 GSY 的 mCurrentState 保持为播放状态
+            // 确锟斤拷 GSY ??mCurrentState 锟斤拷锟斤拷为锟斤拷锟斤拷状??
             if (mCurrentState != CURRENT_STATE_PLAYING) {
-                android.util.Log.d(TAG, "onVideoResume() 强制设置 mCurrentState 为播放");
-                mCurrentState = CURRENT_STATE_PLAYING;
+                                mCurrentState = CURRENT_STATE_PLAYING;
             }
         } else {
-            android.util.Log.d(TAG, "onVideoResume() 跳过状态更新，当前不是暂停状态: " + mCurrentPlayState);
-        }
+                    }
     }
 
     /**
-     * 释放播放器资源
+     * 锟酵放诧拷锟斤拷锟斤拷锟斤拷??
      */
     @Override
     public void release() {
-        // 保存播放进度
+        // 锟斤拷锟芥播锟脚斤拷锟斤拷
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
-        // 清理跳过管理器
+        // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
         if (mSkipManager != null) {
             mSkipManager.detachVideoView();
         }
-        // 清理错误恢复管理器
+        // 锟斤拷锟斤拷锟斤拷锟斤拷指锟斤拷锟斤拷锟??
         if (mErrorRecoveryManager != null) {
             mErrorRecoveryManager.detachVideoView();
         }
@@ -734,51 +737,48 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         GSYVideoManager.releaseAllVideos();
     }
 
-    // ===== 进度控制方法 (Requirements: 1.7, 1.8) =====
+    // ===== 锟斤拷锟饺匡拷锟狡凤拷锟斤拷 (Requirements: 1.7, 1.8) =====
 
     /**
-     * 获取当前播放位置（兼容原 API）
-     * @return 当前位置（毫秒）
+     * 锟斤拷取锟斤拷前锟斤拷锟斤拷位锟矫ｏ拷锟斤拷锟斤拷原 API??
+     * @return 锟斤拷前位锟矫ｏ拷锟斤拷锟诫）
      */
     public long getCurrentPosition() {
         return getCurrentPositionWhenPlaying();
     }
 
     /**
-     * 跳转到指定位置
-     * @param position 目标位置（毫秒）
+     * 锟斤拷转锟斤拷指锟斤拷位??
+     * @param position 目锟斤拷位锟矫ｏ拷锟斤拷锟诫）
      */
     public void seekTo(int position) {
         seekTo((long) position);
     }
 
     /**
-     * 跳转到指定位置
-     * @param position 目标位置（毫秒）
+     * 锟斤拷转锟斤拷指锟斤拷位??
+     * @param position 目锟斤拷位锟矫ｏ拷锟斤拷锟诫）
      */
     public void seekTo(long position) {
-        android.util.Log.d(TAG, "seekTo: position=" + position);
-        
-        // 首先尝试使用 GSYVideoManager
+                
+        // 锟斤拷锟饺筹拷锟斤拷使锟斤拷 GSYVideoManager
         if (GSYVideoManager.instance().getPlayer() != null) {
-            android.util.Log.d(TAG, "seekTo: 使用 GSYVideoManager.seekTo");
-            GSYVideoManager.instance().getPlayer().seekTo(position);
+                        GSYVideoManager.instance().getPlayer().seekTo(position);
         } else {
-            // 如果 GSYVideoManager 不可用，尝试使用父类方法
-            android.util.Log.d(TAG, "seekTo: GSYVideoManager.getPlayer() 为 null，尝试使用 seekOnStart");
-            setSeekOnStart(position);
+            // 锟斤拷锟?GSYVideoManager 锟斤拷锟斤拷锟矫ｏ拷锟斤拷锟斤拷使锟矫革拷锟洁方锟斤拷
+                        setSeekOnStart(position);
         }
     }
 
-    // ===== 倍速控制方法 (Requirements: 1.9) =====
+    // ===== 锟斤拷锟劫匡拷锟狡凤拷??(Requirements: 1.9) =====
 
     /**
-     * 设置播放倍速
-     * @param speed 倍速值 (0.5 - 3.0)
+     * 锟斤拷锟矫诧拷锟脚憋拷??
+     * @param speed 锟斤拷锟斤拷??(0.5 - 3.0)
      */
     @Override
     public void setSpeed(float speed) {
-        // 限制倍速范围
+        // 锟斤拷锟狡憋拷锟劫凤拷??
         if (speed < 0.5f) speed = 0.5f;
         if (speed > 3.0f) speed = 3.0f;
         sSpeed = speed;
@@ -786,16 +786,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取当前倍速
-     * @return 当前倍速
+     * 锟斤拷取锟斤拷前锟斤拷??
+     * @return 锟斤拷前锟斤拷??
      */
     public static float getSpeeds() {
         return sSpeed;
     }
 
     /**
-     * 设置倍速（静态方法）
-     * @param speed 倍速值
+     * 锟斤拷锟矫憋拷锟劫ｏ拷锟斤拷态锟斤拷锟斤拷锟斤拷
+     * @param speed 锟斤拷锟斤拷??
      */
     public static void setSpeeds(float speed) {
         if (speed < 0.5f) speed = 0.5f;
@@ -804,29 +804,28 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取长按倍速
-     * @return 长按倍速
+     * 锟斤拷取锟斤拷锟斤拷锟斤拷??
+     * @return 锟斤拷锟斤拷锟斤拷??
      */
     public static float getLongSpeeds() {
         return sLongSpeed;
     }
 
     /**
-     * 设置长按倍速
-     * @param speed 长按倍速
+     * 锟斤拷锟矫筹拷锟斤拷锟斤拷??
+     * @param speed 锟斤拷锟斤拷锟斤拷??
      */
     public static void setLongSpeeds(float speed) {
         sLongSpeed = speed;
     }
 
 
-    // ===== 全屏控制方法 (Requirements: 1.10) =====
+    // ===== 全锟斤拷锟斤拷锟狡凤拷锟斤拷 =====
 
     /**
-     * 进入全屏（兼容原 API）
+     * 锟斤拷锟斤拷全锟斤拷
      */
     public void startFullScreen() {
-        android.util.Log.d(TAG, "startFullScreen: 使用自定义全屏辅助类");
         Activity activity = getActivity();
         if (activity != null && mFullscreenHelper != null) {
             mFullscreenHelper.enterFullscreen(activity);
@@ -834,10 +833,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 退出全屏
+     * 锟剿筹拷全锟斤拷
      */
     public void stopFullScreen() {
-        android.util.Log.d(TAG, "stopFullScreen: 使用自定义全屏辅助类");
         Activity activity = getActivity();
         if (activity != null && mFullscreenHelper != null) {
             mFullscreenHelper.exitFullscreen(activity);
@@ -845,42 +843,42 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 是否全屏
-     * @return true 全屏
+     * 锟角凤拷全锟斤拷
+     * @return true 全锟斤拷
      */
     public boolean isFullScreen() {
         return mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
     }
 
     /**
-     * 是否小窗模式
-     * @return true 小窗
+     * 锟角凤拷小锟斤拷模式
+     * @return true 小锟斤拷
      */
     public boolean isTinyScreen() {
         return mCurrentPlayerState == PlayerConstants.PLAYER_TINY_SCREEN;
     }
 
     /**
-     * 设置全屏时是否自动旋转屏幕
-     * @param autoRotate true 自动旋转（默认）
+     * 锟斤拷锟斤拷全锟斤拷时锟角凤拷锟皆讹拷锟斤拷转锟斤拷??
+     * @param autoRotate true 锟皆讹拷锟斤拷转锟斤拷默锟较ｏ拷
      */
     public void setAutoRotateOnFullscreen(boolean autoRotate) {
         this.mAutoRotateOnFullscreen = autoRotate;
     }
 
     /**
-     * 是否全屏时自动旋转屏幕
-     * @return true 自动旋转
+     * 锟角凤拷全锟斤拷时锟皆讹拷锟斤拷转锟斤拷??
+     * @return true 锟皆讹拷锟斤拷转
      */
     public boolean isAutoRotateOnFullscreen() {
         return mAutoRotateOnFullscreen;
     }
 
-    // ===== 播放内核切换 (Requirements: 1.11) =====
+    // ===== 锟斤拷锟斤拷锟节猴拷锟叫伙拷 (Requirements: 1.11) =====
 
     /**
-     * 选择播放内核
-     * @param engineType 内核类型 (ijk, exo, ali, default)
+     * 选锟今播凤拷锟节猴拷
+     * @param engineType 锟节猴拷锟斤拷锟斤拷 (ijk, exo, ali, default)
      */
     @SuppressWarnings("unchecked")
     public void selectPlayerFactory(String engineType) {
@@ -890,56 +888,56 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
-                // IJK 播放器
+                // IJK 锟斤拷锟斤拷??
                 PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 break;
             case PlayerConstants.ENGINE_EXO:
-                // ExoPlayer - 需要额外依赖
+                // ExoPlayer - 锟斤拷要锟斤拷锟斤拷锟斤拷??
                 try {
                     Class<?> exoClass = Class.forName("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) exoClass);
                 } catch (ClassNotFoundException e) {
-                    // 回退到默认
+                    // 锟斤拷锟剿碉拷默??
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 }
                 break;
             case PlayerConstants.ENGINE_ALI:
-                // 阿里云播放器 - 需要额外依赖
+                // 锟斤拷锟斤拷锟狡诧拷锟斤拷锟斤拷 - 锟斤拷要锟斤拷锟斤拷锟斤拷??
                 try {
                     Class<?> aliClass = Class.forName("com.shuyu.gsyvideoplayer.player.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
                 } catch (ClassNotFoundException e) {
-                    // 回退到默认
+                    // 锟斤拷锟剿碉拷默??
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 }
                 break;
             case PlayerConstants.ENGINE_DEFAULT:
             default:
-                // 使用系统 MediaPlayer
+                // 使锟斤拷系统 MediaPlayer
                 PlayerFactory.setPlayManager(SystemPlayerManager.class);
                 break;
         }
     }
 
-    // ===== 状态管理 =====
+    // ===== 状态锟斤拷??=====
 
     /**
-     * 设置播放状态
-     * @param playState 播放状态
+     * 锟斤拷锟矫诧拷锟斤拷状??
+     * @param playState 锟斤拷锟斤拷状??
      */
     protected void setOrangePlayState(int playState) {
         mCurrentPlayState = playState;
         notifyPlayStateChanged(playState);
         
-        // 使用 post 确保在组件状态更新后再显示/隐藏控制器
+        // 使锟斤拷 post 确锟斤拷锟斤拷锟斤拷锟阶刺拷锟斤拷潞锟斤拷锟斤拷锟??锟斤拷锟截匡拷锟斤拷??
         post(new Runnable() {
             @Override
             public void run() {
-                // 播放状态时显示控制器并启动自动隐藏定时器
+                // 锟斤拷锟斤拷状态时锟斤拷示锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
                 if (playState == PlayerConstants.STATE_PLAYING) {
                     showController();
                 } else if (playState == PlayerConstants.STATE_PAUSED) {
-                    // 暂停时显示控制器但不自动隐藏
+                    // 锟斤拷停时锟斤拷示锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷
                     showController();
                     cancelAutoHideTimer();
                 } else {
@@ -950,8 +948,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 设置播放器状态
-     * @param playerState 播放器状态
+     * 锟斤拷锟矫诧拷锟斤拷锟斤拷状??
+     * @param playerState 锟斤拷锟斤拷锟斤拷状??
      */
     protected void setOrangePlayerState(int playerState) {
         mCurrentPlayerState = playerState;
@@ -959,26 +957,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取当前播放状态
-     * @return 播放状态
+     * 锟斤拷取锟斤拷前锟斤拷锟斤拷状??
+     * @return 锟斤拷锟斤拷状??
      */
     public int getPlayState() {
         return mCurrentPlayState;
     }
 
     /**
-     * 获取当前播放器状态
-     * @return 播放器状态
+     * 锟斤拷取锟斤拷前锟斤拷锟斤拷锟斤拷状??
+     * @return 锟斤拷锟斤拷锟斤拷状??
      */
     public int getPlayerState() {
         return mCurrentPlayerState;
     }
 
-    // ===== 监听器管理 =====
+    // ===== 锟斤拷锟斤拷锟斤拷锟斤拷??=====
 
     /**
-     * 添加状态监听器
-     * @param listener 监听器
+     * 锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
+     * @param listener 锟斤拷锟斤拷??
      */
     public void addOnStateChangeListener(OnStateChangeListener listener) {
         if (listener != null && !mStateChangeListeners.contains(listener)) {
@@ -987,22 +985,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 移除状态监听器
-     * @param listener 监听器
+     * 锟狡筹拷状态锟斤拷锟斤拷锟斤拷
+     * @param listener 锟斤拷锟斤拷??
      */
     public void removeOnStateChangeListener(OnStateChangeListener listener) {
         mStateChangeListeners.remove(listener);
     }
 
     /**
-     * 清除所有状态监听器
+     * 锟斤拷锟斤拷锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
      */
     public void clearOnStateChangeListeners() {
         mStateChangeListeners.clear();
     }
 
     /**
-     * 通知播放状态改变
+     * 通知锟斤拷锟斤拷状态锟斤拷??
      */
     private void notifyPlayStateChanged(int playState) {
         if (mStateChangeListeners != null) {
@@ -1010,14 +1008,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 listener.onPlayStateChanged(playState);
             }
         }
-        // 通知橘子组件
+        // 通知锟斤拷锟斤拷锟斤拷锟?
         if (mUseOrangeComponents) {
             notifyComponentsPlayStateChanged(playState);
         }
     }
 
     /**
-     * 通知播放器状态改变
+     * 通知锟斤拷锟斤拷锟斤拷状态锟斤拷??
      */
     private void notifyPlayerStateChanged(int playerState) {
         if (mStateChangeListeners != null) {
@@ -1025,14 +1023,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 listener.onPlayerStateChanged(playerState);
             }
         }
-        // 通知橘子组件
+        // 通知锟斤拷锟斤拷锟斤拷锟?
         if (mUseOrangeComponents) {
             notifyComponentsPlayerStateChanged(playerState);
         }
     }
 
     /**
-     * 通知组件播放状态改变
+     * 通知锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
      */
     private void notifyComponentsPlayStateChanged(int playState) {
         debugLog("PlayState=" + playState + " PrepareView=" + (mPrepareView != null ? mPrepareView.getVisibility() : "null"));
@@ -1046,11 +1044,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 通知组件播放器状态改变
+     * 通知锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
      */
     private void notifyComponentsPlayerStateChanged(int playerState) {
-        debugLog("PlayerState=" + playerState);
-        if (mPrepareView != null) mPrepareView.onPlayerStateChanged(playerState);
+                if (mPrepareView != null) mPrepareView.onPlayerStateChanged(playerState);
         if (mCompleteView != null) mCompleteView.onPlayerStateChanged(playerState);
         if (mErrorView != null) mErrorView.onPlayerStateChanged(playerState);
         if (mTitleView != null) mTitleView.onPlayerStateChanged(playerState);
@@ -1059,24 +1056,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 更新组件进度
+     * 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
      * Requirements: 3.2, 3.3, 6.4
      * 
-     * 优化说明：
-     * - 添加空指针检查，确保组件已初始化
-     * - 确保在主线程更新 UI
-     * - 处理组件未初始化的情况
+     * 锟脚伙拷说锟斤拷??
+     * - 锟斤拷锟接匡拷指锟斤拷锟介，确锟斤拷锟斤拷锟斤拷殉锟绞硷拷锟?
+     * - 确锟斤拷锟斤拷锟斤拷锟竭程革拷锟斤拷 UI
+     * - 锟斤拷锟斤拷锟斤拷锟轿达拷锟绞硷拷锟斤拷锟斤拷锟??
      */
     public void updateComponentsProgress(int duration, int position) {
         // 空指针检查：确保组件已初始化
         if (mVodControlView == null && mLiveControlView == null) {
-            android.util.Log.w(TAG, "updateComponentsProgress: 所有控制组件都未初始化");
+            android.util.Log.w(TAG, "updateComponentsProgress: 控制组件未初始化");
             return;
         }
         
-        // 确保在主线程更新 UI
+        // 确锟斤拷锟斤拷锟斤拷锟竭程革拷锟斤拷 UI
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            // 如果不在主线程，post 到主线程执行
+            // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷叱蹋锟絧ost 锟斤拷锟斤拷锟竭筹拷执锟斤拷
             final int finalDuration = duration;
             final int finalPosition = position;
             post(new Runnable() {
@@ -1086,119 +1083,126 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             });
         } else {
-            // 已在主线程，直接执行
+            // 锟斤拷锟斤拷锟斤拷锟竭程ｏ拷直锟斤拷执锟斤拷
             updateComponentsProgressInternal(duration, position);
         }
     }
     
     /**
-     * 内部方法：更新组件进度（必须在主线程调用）
+     * 锟节诧拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷龋锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷叱痰锟斤拷锟??
      */
     private void updateComponentsProgressInternal(int duration, int position) {
-        // 更新点播控制组件
+        // 锟斤拷锟铰点播锟斤拷锟斤拷锟斤拷锟?
         if (mVodControlView != null) {
             try {
                 mVodControlView.setProgress(duration, position);
             } catch (Exception e) {
-                android.util.Log.e(TAG, "updateComponentsProgress: VodControlView 更新失败", e);
+                android.util.Log.e(TAG, "updateComponentsProgress: VodControlView 锟斤拷锟斤拷失锟斤拷", e);
             }
         }
         
-        // 更新直播控制组件
+        // 锟斤拷锟斤拷直锟斤拷锟斤拷锟斤拷锟斤拷锟?
         if (mLiveControlView != null) {
             try {
                 mLiveControlView.setProgress(duration, position);
             } catch (Exception e) {
-                android.util.Log.e(TAG, "updateComponentsProgress: LiveControlView 更新失败", e);
+                android.util.Log.e(TAG, "updateComponentsProgress: LiveControlView 锟斤拷锟斤拷失锟斤拷", e);
             }
         }
     }
 
     /**
-     * 设置进度监听器
-     * @param listener 监听器
+     * 锟斤拷锟矫斤拷锟饺硷拷锟斤拷??
+     * @param listener 锟斤拷锟斤拷??
      */
     public void setOnProgressListener(OnProgressListener listener) {
         this.mProgressListener = listener;
     }
 
     /**
-     * 设置播放完成监听器
-     * @param listener 监听器
+     * 锟斤拷锟矫诧拷锟斤拷锟斤拷杉锟斤拷锟??
+     * @param listener 锟斤拷锟斤拷??
      */
     public void setOnPlayCompleteListener(OnPlayCompleteListener listener) {
         this.mPlayCompleteListener = listener;
     }
 
 
-    // ===== 控制器管理 =====
+    // ===== 锟斤拷锟斤拷锟斤拷锟斤拷??=====
 
     /**
-     * 获取视频控制器
-     * @return 控制器
+     * 锟斤拷取锟斤拷频锟斤拷锟斤拷??
+     * @return 锟斤拷锟斤拷??
      */
     public OrangeVideoController getVideoController() {
         return mOrangeController;
     }
 
     /**
-     * 设置视频控制器
-     * @param controller 控制器
+     * 锟斤拷锟斤拷锟斤拷频锟斤拷锟斤拷??
+     * @param controller 锟斤拷锟斤拷??
      */
     public void setVideoController(OrangeVideoController controller) {
         this.mOrangeController = controller;
-        
+
         // 通知控制器关联的播放器视图，以便初始化 VideoEventManager
         if (controller != null) {
             controller.setVideoView(this);
-            
+
             // 绑定 TitleView 事件
             if (mTitleView != null) {
                 mTitleView.setController(controller);
-                debugLog("TitleView 事件绑定完成");
             }
+            
+            // 设置 VodControlView 的控制器引用
+            if (mVodControlView != null) {
+                mVodControlView.setOrangeVideoController(controller);
+            }
+            
+            // 确保事件绑定（处理控制器在组件创建后设置的情况）
+            ensureEventBinding();
         }
     }
 
-    // ===== 特殊功能 =====
+    // ===== 锟斤拷锟解功锟斤拷 =====
 
     /**
-     * 设置是否启用自动获取缩略图功能
-     * Requirements: 6.2 - THE OrangevideoView SHALL 支持自动获取视频缩略图功能
-     * @param enabled true 启用，false 禁用
+     * 锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷锟皆讹拷锟斤拷取锟斤拷锟斤拷图锟斤拷??
+     * Requirements: 6.2 - THE OrangevideoView SHALL 支锟斤拷锟皆讹拷锟斤拷取锟斤拷频锟斤拷锟斤拷图锟斤拷??
+     * @param enabled true 锟斤拷锟矫ｏ拷false 锟斤拷锟斤拷
      */
     public void setAutoThumbnailEnabled(boolean enabled) {
         this.mAutoThumbnailEnabled = enabled;
     }
 
     /**
-     * 是否启用自动缩略图
-     * @return true 启用
+     * 锟角凤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷??
+     * @return true 锟斤拷锟斤拷
      */
     public boolean isAutoThumbnailEnabled() {
         return mAutoThumbnailEnabled;
     }
 
     /**
-     * 设置默认缩略图
-     * @param thumbnail 缩略图
+     * 锟斤拷锟斤拷默锟斤拷锟斤拷锟斤拷??
+     * @param thumbnail 锟斤拷锟斤拷??
      */
     public void setDefaultThumbnail(Object thumbnail) {
         this.mDefaultThumbnail = thumbnail;
     }
 
     /**
-     * 获取默认缩略图
-     * @return 缩略图
+     * 锟斤拷取默锟斤拷锟斤拷锟斤拷??
+     * @return 锟斤拷锟斤拷??
      */
     public Object getDefaultThumbnail() {
         return mDefaultThumbnail;
     }
 
     /**
-     * 异步获取视频第一帧作为缩略图
-     * Requirements: 6.2 - THE OrangevideoView SHALL 支持自动获取视频缩略图功能
-     * @param callback 回调
+     * 锟届步锟斤拷取锟斤拷频锟斤拷一帧锟斤拷为锟斤拷锟斤拷图
+     * Requirements: 6.2 - THE OrangevideoView SHALL 支锟斤拷锟皆讹拷锟斤拷取锟斤拷频锟斤拷锟斤拷图锟斤拷??
+     * @param callback 锟截碉拷
      */
     public void getVideoFirstFrameAsync(VideoThumbnailHelper.ThumbnailCallback callback) {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1211,9 +1215,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 异步获取指定时间的视频帧
-     * @param timeUs 时间（微秒）
-     * @param callback 回调
+     * 锟届步锟斤拷取指锟斤拷时锟斤拷锟斤拷锟狡抵?
+     * @param timeUs 时锟戒（微锟诫）
+     * @param callback 锟截碉拷
      */
     public void getFrameAtTimeAsync(long timeUs, VideoThumbnailHelper.ThumbnailCallback callback) {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1226,7 +1230,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 自动加载缩略图（如果启用）
+     * 锟皆讹拷锟斤拷锟斤拷锟斤拷锟斤拷图锟斤拷锟斤拷锟斤拷锟斤拷锟??
      */
     private void autoLoadThumbnail() {
         if (!mAutoThumbnailEnabled || mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1237,7 +1241,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void onSuccess(android.graphics.Bitmap bitmap) {
                 mDefaultThumbnail = bitmap;
-                // 设置封面
+                // 锟斤拷锟矫凤拷锟斤拷
                 if (mThumbImageView != null && mThumbImageView instanceof android.widget.ImageView) {
                     ((android.widget.ImageView) mThumbImageView).setImageBitmap(bitmap);
                 }
@@ -1252,24 +1256,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 设置是否记忆播放位置
-     * Requirements: 6.3 - THE OrangevideoView SHALL 支持记忆播放位置功能 (setKeepVideoPlaying)
-     * @param keep true 记忆
+     * 锟斤拷锟斤拷锟角凤拷锟斤拷洳ワ拷锟轿伙拷锟?
+     * Requirements: 6.3 - THE OrangevideoView SHALL 支锟街硷拷锟戒播锟斤拷位锟矫癸拷锟斤拷 (setKeepVideoPlaying)
+     * @param keep true 锟斤拷锟斤拷
      */
     public void setKeepVideoPlaying(boolean keep) {
         this.mKeepVideoPlaying = keep;
     }
 
     /**
-     * 是否记忆播放位置
-     * @return true 记忆
+     * 锟角凤拷锟斤拷洳ワ拷锟轿伙拷锟?
+     * @return true 锟斤拷锟斤拷
      */
     public boolean isKeepVideoPlaying() {
         return mKeepVideoPlaying;
     }
 
     /**
-     * 保存当前播放进度
+     * 锟斤拷锟芥当前锟斤拷锟脚斤拷锟斤拷
      * Requirements: 6.3
      */
     public void savePlaybackProgress() {
@@ -1288,9 +1292,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 恢复播放进度
+     * 锟街革拷锟斤拷锟脚斤拷锟斤拷
      * Requirements: 6.3
-     * @return true 成功恢复
+     * @return true 锟缴癸拷锟街革拷
      */
     public boolean restorePlaybackProgress() {
         if (!mKeepVideoPlaying || mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1309,8 +1313,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取保存的播放进度
-     * @return 播放位置（毫秒）
+     * 锟斤拷取锟斤拷锟斤拷牟锟斤拷沤锟??
+     * @return 锟斤拷锟斤拷位锟矫ｏ拷锟斤拷锟诫）
      */
     public long getSavedProgress() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1320,8 +1324,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 检查是否有保存的进度
-     * @return true 有保存的进度
+     * 锟斤拷锟斤拷欠锟斤拷斜锟斤拷锟侥斤拷??
+     * @return true 锟叫憋拷锟斤拷慕锟斤拷锟?
      */
     public boolean hasSavedProgress() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1331,7 +1335,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 清除当前视频的保存进度
+     * 锟斤拷锟斤拷锟角帮拷锟狡碉拷谋锟斤拷锟斤拷??
      */
     public void clearSavedProgress() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1340,12 +1344,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         PlaybackProgressManager.getInstance(getContext()).removeProgress(mVideoUrl);
     }
 
-    // ===== 跳过片头片尾功能 (Requirements: 6.4) =====
+    // ===== 锟斤拷锟斤拷片头片尾锟斤拷锟斤拷 (Requirements: 6.4) =====
 
     /**
-     * 设置跳过片头时长
-     * Requirements: 6.4 - THE OrangevideoView SHALL 支持跳过片头片尾功能
-     * @param timeMs 时长（毫秒）
+     * 锟斤拷锟斤拷锟斤拷锟斤拷片头时锟斤拷
+     * Requirements: 6.4 - THE OrangevideoView SHALL 支锟斤拷锟斤拷锟斤拷片头片尾锟斤拷锟斤拷
+     * @param timeMs 时锟斤拷锟斤拷锟斤拷锟诫）
      */
     public void setSkipIntroTime(long timeMs) {
         if (mSkipManager != null) {
@@ -1354,8 +1358,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 设置跳过片头时长（秒）
-     * @param seconds 时长（秒）
+     * 锟斤拷锟斤拷锟斤拷锟斤拷片头时锟斤拷锟斤拷锟斤拷??
+     * @param seconds 时锟斤拷锟斤拷锟斤拷??
      */
     public void setSkipIntroSeconds(int seconds) {
         if (mSkipManager != null) {
@@ -1364,16 +1368,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取跳过片头时长
-     * @return 时长（毫秒）
+     * 锟斤拷取锟斤拷锟斤拷片头时锟斤拷
+     * @return 时锟斤拷锟斤拷锟斤拷锟诫）
      */
     public long getSkipIntroTime() {
         return mSkipManager != null ? mSkipManager.getSkipIntroTime() : 0;
     }
 
     /**
-     * 设置是否启用跳过片头
-     * @param enabled 是否启用
+     * 锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片头
+     * @param enabled 锟角凤拷锟斤拷锟斤拷
      */
     public void setSkipIntroEnabled(boolean enabled) {
         if (mSkipManager != null) {
@@ -1382,17 +1386,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 是否启用跳过片头
-     * @return true 启用
+     * 锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片头
+     * @return true 锟斤拷锟斤拷
      */
     public boolean isSkipIntroEnabled() {
         return mSkipManager != null && mSkipManager.isSkipIntroEnabled();
     }
 
     /**
-     * 设置跳过片尾时长
-     * Requirements: 6.4 - THE OrangevideoView SHALL 支持跳过片头片尾功能
-     * @param timeMs 时长（毫秒）
+     * 锟斤拷锟斤拷锟斤拷锟斤拷片尾时锟斤拷
+     * Requirements: 6.4 - THE OrangevideoView SHALL 支锟斤拷锟斤拷锟斤拷片头片尾锟斤拷锟斤拷
+     * @param timeMs 时锟斤拷锟斤拷锟斤拷锟诫）
      */
     public void setSkipOutroTime(long timeMs) {
         if (mSkipManager != null) {
@@ -1401,8 +1405,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 设置跳过片尾时长（秒）
-     * @param seconds 时长（秒）
+     * 锟斤拷锟斤拷锟斤拷锟斤拷片尾时锟斤拷锟斤拷锟斤拷??
+     * @param seconds 时锟斤拷锟斤拷锟斤拷??
      */
     public void setSkipOutroSeconds(int seconds) {
         if (mSkipManager != null) {
@@ -1411,16 +1415,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取跳过片尾时长
-     * @return 时长（毫秒）
+     * 锟斤拷取锟斤拷锟斤拷片尾时锟斤拷
+     * @return 时锟斤拷锟斤拷锟斤拷锟诫）
      */
     public long getSkipOutroTime() {
         return mSkipManager != null ? mSkipManager.getSkipOutroTime() : 0;
     }
 
     /**
-     * 设置是否启用跳过片尾
-     * @param enabled 是否启用
+     * 锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片尾
+     * @param enabled 锟角凤拷锟斤拷锟斤拷
      */
     public void setSkipOutroEnabled(boolean enabled) {
         if (mSkipManager != null) {
@@ -1429,16 +1433,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 是否启用跳过片尾
-     * @return true 启用
+     * 锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片尾
+     * @return true 锟斤拷锟斤拷
      */
     public boolean isSkipOutroEnabled() {
         return mSkipManager != null && mSkipManager.isSkipOutroEnabled();
     }
 
     /**
-     * 设置跳过监听器
-     * @param listener 监听器
+     * 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
+     * @param listener 锟斤拷锟斤拷??
      */
     public void setOnSkipListener(SkipManager.OnSkipListener listener) {
         if (mSkipManager != null) {
@@ -1447,80 +1451,80 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取跳过管理器
-     * @return 跳过管理器
+     * 锟斤拷取锟斤拷锟斤拷锟斤拷锟斤拷??
+     * @return 锟斤拷锟斤拷锟斤拷锟斤拷??
      */
     public SkipManager getSkipManager() {
         return mSkipManager;
     }
 
     /**
-     * 获取视频比例管理器
-     * @return 视频比例管理器
+     * 锟斤拷取锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷??
+     * @return 锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷??
      */
     public VideoScaleManager getVideoScaleManager() {
         return mVideoScaleManager;
     }
     
     /**
-     * 获取播放状态管理器
-     * @return 播放状态管理器
+     * 锟斤拷取锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
+     * @return 锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
      */
     public PlaybackStateManager getPlaybackStateManager() {
         return mPlaybackStateManager;
     }
     
     /**
-     * 获取组件状态管理器
-     * @return 组件状态管理器
+     * 锟斤拷取锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
+     * @return 锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
      */
     public ComponentStateManager getComponentStateManager() {
         return mComponentStateManager;
     }
     
     /**
-     * 获取错误恢复管理器
-     * @return 错误恢复管理器
+     * 锟斤拷取锟斤拷锟斤拷指锟斤拷锟斤拷锟??
+     * @return 锟斤拷锟斤拷指锟斤拷锟斤拷锟??
      */
     public ErrorRecoveryManager getErrorRecoveryManager() {
         return mErrorRecoveryManager;
     }
 
     /**
-     * 刷新视频显示类型
-     * 用于在改变视频比例后刷新显示
+     * 刷锟斤拷锟斤拷频锟斤拷示锟斤拷锟斤拷
+     * 锟斤拷锟斤拷锟节改憋拷锟斤拷频锟斤拷锟斤拷锟斤拷刷锟斤拷锟斤拷示
      */
     public void refreshVideoShowType() {
         changeTextureViewShowType();
     }
 
     /**
-     * 是否为直播视频
-     * @return true 直播
+     * 锟角凤拷为直锟斤拷锟斤拷??
+     * @return true 直锟斤拷
      */
     public boolean isLiveVideo() {
         return mIsLiveVideo;
     }
 
     /**
-     * 设置是否为直播视频
-     * @param isLive true 直播
+     * 锟斤拷锟斤拷锟角凤拷为直锟斤拷锟斤拷??
+     * @param isLive true 直锟斤拷
      */
     public void setLiveVideo(boolean isLive) {
         this.mIsLiveVideo = isLive;
     }
 
     /**
-     * 是否正在嗅探
-     * @return true 正在嗅探
+     * 锟角凤拷锟斤拷锟斤拷锟斤拷探
+     * @return true 锟斤拷锟斤拷锟斤拷探
      */
     public boolean isSniffing() {
         return mIsSniffing;
     }
 
     /**
-     * 开始视频嗅探
-     * Requirements: 6.1 - THE OrangevideoView SHALL 支持视频嗅探功能 (startSniffing)
+     * 锟斤拷始锟斤拷频锟斤拷??
+     * Requirements: 6.1 - THE OrangevideoView SHALL 支锟斤拷锟斤拷频锟斤拷探锟斤拷锟斤拷 (startSniffing)
      */
     public void startSniffing() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1531,9 +1535,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 开始视频嗅探（带自定义请求头）
-     * @param url 网页地址
-     * @param headers 自定义请求头
+     * 锟斤拷始锟斤拷频锟斤拷探锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷锟斤拷头锟斤拷
+     * @param url 锟斤拷页锟斤拷址
+     * @param headers 锟皆讹拷锟斤拷锟斤拷锟斤拷头
      */
     public void startSniffing(String url, java.util.Map<String, String> headers) {
         mIsSniffing = true;
@@ -1545,7 +1549,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void received(String contentType, java.util.HashMap<String, String> respHeaders, 
                                String title, String videoUrl) {
                 debug("Sniffing received: " + videoUrl);
-                // 通知监听器
+                // 通知锟斤拷锟斤拷??
                 for (OnStateChangeListener listener : mStateChangeListeners) {
                     if (listener instanceof OnSniffingListener) {
                         ((OnSniffingListener) listener).onSniffingReceived(contentType, respHeaders, title, videoUrl);
@@ -1558,7 +1562,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mIsSniffing = false;
                 setOrangePlayState(STATE_ENDSNIFFING);
                 debug("Sniffing finished: " + videoSize + " videos found");
-                // 通知监听器
+                // 通知锟斤拷锟斤拷??
                 for (OnStateChangeListener listener : mStateChangeListeners) {
                     if (listener instanceof OnSniffingListener) {
                         ((OnSniffingListener) listener).onSniffingFinish(videoList, videoSize);
@@ -1569,7 +1573,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 结束视频嗅探
+     * 锟斤拷锟斤拷锟斤拷频锟斤拷探
      */
     public void stopSniffing() {
         mIsSniffing = false;
@@ -1578,53 +1582,52 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 嗅探监听器接口
+     * 锟斤拷探锟斤拷锟斤拷锟斤拷锟斤拷??
      */
     public interface OnSniffingListener {
         /**
-         * 接收到视频资源
+         * 锟斤拷锟秸碉拷锟斤拷频锟斤拷??
          */
         void onSniffingReceived(String contentType, java.util.HashMap<String, String> headers, 
                                String title, String url);
         
         /**
-         * 嗅探完成
+         * 锟斤拷探锟斤拷锟?
          */
         void onSniffingFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize);
     }
 
-    // ===== 调试模式 =====
+    // ===== 锟斤拷锟斤拷模式 =====
 
     /**
-     * 设置调试模式
-     * @param debug true 开启调试
+     * 锟斤拷锟矫碉拷锟斤拷模式
+     * @param debug true 锟斤拷锟斤拷锟斤拷??
      */
     public void setDebug(boolean debug) {
         this.mDebug = debug;
     }
 
     /**
-     * 是否调试模式
-     * @return true 调试模式
+     * 锟角凤拷锟斤拷锟侥Ｊ?
+     * @return true 锟斤拷锟斤拷模式
      */
     public boolean isDebug() {
         return mDebug;
     }
 
     /**
-     * 调试日志
-     * @param message 日志信息
+     * 锟斤拷锟斤拷锟斤拷志
+     * @param message 锟斤拷志锟斤拷息
      */
     protected void debug(Object message) {
         if (mDebug) {
-            android.util.Log.d(TAG, String.valueOf(message));
-        }
+                    }
     }
 
-    // ===== 工具方法 =====
+    // ===== 锟斤拷锟竭凤拷锟斤拷 =====
 
     /**
-     * 获取 Activity
+     * 锟斤拷取 Activity
      * @return Activity
      */
     public Activity getActivity() {
@@ -1636,26 +1639,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 是否正在播放
-     * @return true 正在播放
+     * 锟角凤拷锟斤拷锟节诧拷锟斤拷
+     * @return true 锟斤拷锟节诧拷锟斤拷
      */
     public boolean isPlaying() {
         return mCurrentPlayState == PlayerConstants.STATE_PLAYING;
     }
 
     /**
-     * 是否处于普通状态（非全屏、非小窗）
-     * @return true 普通状态
+     * 锟角凤拷锟斤拷锟斤拷通状态锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷小锟斤拷??
+     * @return true 锟斤拷通状??
      */
     public boolean isInNormalState() {
         return !isFullScreen() && !isTinyScreen();
     }
 
-    // ===== 手势提示 GestureView =====
+    // ===== 锟斤拷锟斤拷锟斤拷示 GestureView =====
     private com.orange.playerlibrary.component.GestureView mGestureView;
 
     /**
-     * 重写显示亮度对话框，使用 GestureView 替代 Dialog
+     * 锟斤拷写锟斤拷示锟斤拷锟饺对伙拷锟斤拷使锟斤拷 GestureView 锟斤拷锟?Dialog
      */
     @Override
     protected void showBrightnessDialog(float percent) {
@@ -1667,7 +1670,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写显示音量对话框，使用 GestureView 替代 Dialog
+     * 锟斤拷写锟斤拷示锟斤拷锟斤拷锟皆伙拷锟斤拷使锟斤拷 GestureView 锟斤拷锟?Dialog
      */
     @Override
     protected void showVolumeDialog(float deltaY, int volumePercent) {
@@ -1679,7 +1682,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写显示进度对话框，使用 GestureView 替代 Dialog
+     * 锟斤拷写锟斤拷示锟斤拷锟饺对伙拷锟斤拷使锟斤拷 GestureView 锟斤拷锟?Dialog
      */
     @Override
     protected void showProgressDialog(float deltaX, String seekTime, long seekTimePosition, String totalTime, long totalTimeDuration) {
@@ -1691,7 +1694,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写隐藏亮度对话框
+     * 锟斤拷写锟斤拷锟斤拷锟斤拷锟饺对伙拷??
      */
     @Override
     protected void dismissBrightnessDialog() {
@@ -1701,7 +1704,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写隐藏音量对话框
+     * 锟斤拷写锟斤拷锟斤拷锟斤拷锟斤拷锟皆伙拷??
      */
     @Override
     protected void dismissVolumeDialog() {
@@ -1711,7 +1714,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写隐藏进度对话框
+     * 锟斤拷写锟斤拷锟截斤拷锟饺对伙拷??
      */
     @Override
     protected void dismissProgressDialog() {
@@ -1721,12 +1724,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 确保 GestureView 已初始化
+     * 确锟斤拷 GestureView 锟窖筹拷始锟斤拷
      */
     private void ensureGestureView() {
         if (mGestureView == null) {
             mGestureView = new com.orange.playerlibrary.component.GestureView(getContext());
-            // 设置布局参数，填充整个播放器
+            // 锟斤拷锟矫诧拷锟街诧拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
             android.widget.RelativeLayout.LayoutParams lp = new android.widget.RelativeLayout.LayoutParams(
                     android.widget.RelativeLayout.LayoutParams.MATCH_PARENT,
                     android.widget.RelativeLayout.LayoutParams.MATCH_PARENT);
@@ -1735,7 +1738,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取 GestureView
+     * 锟斤拷取 GestureView
      */
     public com.orange.playerlibrary.component.GestureView getGestureView() {
         ensureGestureView();
@@ -1743,22 +1746,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 设置播放状态（兼容原 API）
-     * @param state 状态
+     * 锟斤拷锟矫诧拷锟斤拷状态锟斤拷锟斤拷锟斤拷??API??
+     * @param state 状??
      */
     public void setThisPlayState(int state) {
         setOrangePlayState(state);
     }
 
     /**
-     * 设置播放器状态（兼容原 API）
-     * @param state 状态
+     * 锟斤拷锟矫诧拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷??API??
+     * @param state 状??
      */
     public void setThisPlayerState(int state) {
         setOrangePlayerState(state);
     }
 
-    // ===== GSYBaseVideoPlayer 抽象方法实现 =====
+    // ===== GSYBaseVideoPlayer 锟斤拷锟襟方凤拷实锟斤拷 =====
 
     @Override
     public int getLayoutId() {
@@ -1776,8 +1779,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写返回按钮获取方法，返回 null 让 GSY 不操作返回按钮
-     * 返回按钮由 TitleView 组件控制
+     * 锟斤拷写锟斤拷锟截帮拷钮锟斤拷取锟斤拷锟斤拷锟斤拷锟斤拷??null ??GSY 锟斤拷锟斤拷锟斤拷锟斤拷锟截帮拷??
+     * 锟斤拷锟截帮拷钮??TitleView 锟斤拷锟斤拷锟斤拷锟?
      */
     @Override
     public android.widget.ImageView getBackButton() {
@@ -1785,8 +1788,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 获取全屏播放器对象（橘子播放器版本）
-     * @return OrangevideoView 如果没有则返回空
+     * 锟斤拷取全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟芥本锟斤拷
+     * @return OrangevideoView 锟斤拷锟矫伙拷锟斤拷蚍祷乜锟?
      */
     @SuppressWarnings("ResourceType")
     public OrangevideoView getOrangeFullWindowPlayer() {
@@ -1804,8 +1807,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写检查状态方法，避免调用父类的 getFullWindowPlayer 导致 ClassCastException
-     * 因为 OrangevideoView 继承自 GSYBaseVideoPlayer 而不是 GSYVideoPlayer
+     * 锟斤拷写锟斤拷锟阶刺拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟矫革拷锟斤拷??getFullWindowPlayer 锟斤拷锟斤拷 ClassCastException
+     * 锟斤拷为 OrangevideoView 锟教筹拷??GSYBaseVideoPlayer 锟斤拷锟斤拷??GSYVideoPlayer
      */
     @Override
     protected void checkoutState() {
@@ -1814,7 +1817,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 橘子播放器的状态检查任务
+     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟??
      */
     private Runnable mOrangeCheckoutTask = new Runnable() {
         @Override
@@ -1830,100 +1833,99 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     };
 
     /**
-     * 重写进入全屏方法，确保全屏播放器正确初始化橘子组件状态
+     * 锟斤拷写锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷确锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷确锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷锟阶??
      */
     @Override
     @SuppressWarnings({"ResourceType", "unchecked"})
     public GSYBaseVideoPlayer startWindowFullscreen(Context context, boolean actionBar, boolean statusBar) {
-        debugLog("=== 进入全屏方法 ===");
-        
-        // 强制隐藏状态栏和导航栏（忽略传入的参数）
+                
+        // 强锟斤拷锟斤拷锟斤拷状态锟斤拷锟酵碉拷锟斤拷锟斤拷锟斤拷锟斤拷锟皆达拷锟斤拷牟锟斤拷锟??
         hideStatusBarAndNavigation(context);
         
-        // 如果启用了自动旋转，则旋转屏幕到横屏
+        // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷远锟斤拷锟阶拷锟斤拷锟斤拷锟阶拷锟侥伙拷锟斤拷锟斤拷锟?
         if (mAutoRotateOnFullscreen) {
             Activity activity = getActivity();
             if (activity != null) {
-                debugLog("旋转屏幕到横屏");
-                activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                                activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             }
         }
         
-        // 调用父类方法创建全屏播放器（传入 true 让父类也处理）
+        // 锟斤拷锟矫革拷锟洁方锟斤拷锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 true 锟矫革拷锟斤拷也锟斤拷锟斤拷??
         GSYBaseVideoPlayer fullPlayer = super.startWindowFullscreen(context, true, true);
-        debugLog("父类全屏方法返回: " + (fullPlayer != null ? fullPlayer.getClass().getSimpleName() : "null"));
+        debugLog("锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷: " + (fullPlayer != null ? fullPlayer.getClass().getSimpleName() : "null"));
         
-        // 如果是 OrangevideoView，同步状态
+        // 锟斤拷锟??OrangevideoView锟斤拷同锟斤拷状??
         if (fullPlayer instanceof OrangevideoView) {
             final OrangevideoView orangeFullPlayer = (OrangevideoView) fullPlayer;
-            debugLog("全屏播放器是 OrangevideoView");
-            
-            // 立即设置全屏标志
+                        
+            // 锟斤拷锟斤拷锟斤拷锟斤拷全锟斤拷锟斤拷志
             orangeFullPlayer.mIfCurrentIsFullscreen = true;
             
-            // 延迟同步状态，确保布局完成后再显示控制器
+            // 锟接筹拷同锟斤拷状态锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷珊锟斤拷锟斤拷锟绞撅拷锟斤拷锟??
             orangeFullPlayer.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    debugLog("=== postDelayed 回调执行 ===");
-                    
-                    // 同步标题
+                                        
+                    // 同锟斤拷锟斤拷锟斤拷
                     if (mTitleView != null && orangeFullPlayer.mTitleView != null) {
                         String title = mTitleView.getTitle();
                         orangeFullPlayer.mTitleView.setTitle(title);
-                        debugLog("同步标题: " + title);
-                        
-                        // 绑定全屏 TitleView 的事件
+                                                
+                        // 锟斤拷全锟斤拷 TitleView bindController
                         if (mOrangeController != null) {
                             orangeFullPlayer.mTitleView.setController(mOrangeController);
-                            debugLog("全屏 TitleView 事件绑定完成");
                         }
                     }
                     
-                    // 同步当前播放状态到全屏播放器的橘子组件
+                    // 缁戝畾鍏ㄥ睆鎾斁鍣ㄧ殑 VodControlView 鍒?VideoEventManager
+                    if (mOrangeController != null && orangeFullPlayer.mVodControlView != null) {
+                        com.orange.playerlibrary.VideoEventManager eventManager = 
+                                mOrangeController.getVideoEventManager();
+                        if (eventManager != null) {
+                            eventManager.bindControllerComponents(orangeFullPlayer.mVodControlView);
+                        }
+                    }
+                    
+                    // 同锟斤拷锟斤拷前锟斤拷锟斤拷状态锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
                     orangeFullPlayer.setOrangePlayState(mCurrentPlayState);
                     orangeFullPlayer.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
-                    debugLog("同步播放状态: playState=" + mCurrentPlayState);
-                    
-                    // 重新注册全屏播放器的进度监听器，确保进度更新正常工作
+                                        
+                    // 锟斤拷锟斤拷注锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟侥斤拷锟饺硷拷锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟饺革拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
                     if (orangeFullPlayer.mComponentStateManager != null) {
                         orangeFullPlayer.mComponentStateManager.reregisterProgressListener(orangeFullPlayer);
-                        debugLog("全屏播放器进度监听器已重新注册");
                     }
                     
-                    // 全屏时显示控制器（包括标题栏和弹幕区）
+                    // 全锟斤拷时锟斤拷示锟斤拷锟斤拷锟斤拷
                     orangeFullPlayer.showController();
-                    // 强制显示 TitleView
-                    debugLog("TitleView=" + orangeFullPlayer.mTitleView + " VodControlView=" + orangeFullPlayer.mVodControlView);
-                    if (orangeFullPlayer.mTitleView != null) {
+                    // 强锟斤拷锟斤拷示 TitleView
+                                        if (orangeFullPlayer.mTitleView != null) {
                         orangeFullPlayer.mTitleView.setVisibility(android.view.View.VISIBLE);
                         orangeFullPlayer.mTitleView.bringToFront();
-                        debugLog("强制显示 TitleView, visibility=" + orangeFullPlayer.mTitleView.getVisibility());
+                        debugLog("强锟斤拷锟斤拷示 TitleView, visibility=" + orangeFullPlayer.mTitleView.getVisibility());
                     }
-                    // 强制通知 VodControlView 进入全屏状态（显示弹幕区）
+                    // 强锟斤拷通知 VodControlView 锟斤拷锟斤拷全锟斤拷状态锟斤拷锟斤拷示锟斤拷幕锟斤拷锟斤拷
                     if (orangeFullPlayer.mVodControlView != null) {
                         orangeFullPlayer.mVodControlView.setVisibility(android.view.View.VISIBLE);
                         orangeFullPlayer.mVodControlView.bringToFront();
                         orangeFullPlayer.mVodControlView.onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
-                        debugLog("通知 VodControlView 全屏状态, visibility=" + orangeFullPlayer.mVodControlView.getVisibility());
+                        debugLog("通知 VodControlView 全锟斤拷状?? visibility=" + orangeFullPlayer.mVodControlView.getVisibility());
                     }
                     orangeFullPlayer.requestLayout();
                     
-                    debugLog("全屏播放器初始化完成");
-                }
+                                    }
             }, 300);
         } else {
-            debugLog("全屏播放器不是 OrangevideoView: " + (fullPlayer != null ? fullPlayer.getClass().getName() : "null"));
+            debugLog("全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??OrangevideoView: " + (fullPlayer != null ? fullPlayer.getClass().getName() : "null"));
         }
         
-        // 通知当前播放器进入全屏状态
+        // 通知锟斤拷前锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷全锟斤拷状??
         setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
         
         return fullPlayer;
     }
     
     /**
-     * 隐藏状态栏和导航栏
+     * 锟斤拷锟斤拷状态锟斤拷锟酵碉拷锟斤拷锟斤拷
      */
     private void hideStatusBarAndNavigation(Context context) {
         Activity activity = com.shuyu.gsyvideoplayer.utils.CommonUtil.scanForActivity(context);
@@ -1937,7 +1939,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
             decorView.setSystemUiVisibility(uiOptions);
             
-            // 隐藏 ActionBar
+            // 锟斤拷锟斤拷 ActionBar
             if (activity.getActionBar() != null) {
                 activity.getActionBar().hide();
             }
@@ -1951,30 +1953,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写退出全屏方法，避免 ClassCastException
+     * 锟斤拷写锟剿筹拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 ClassCastException
      */
     @Override
     @SuppressWarnings("ResourceType")
     protected void clearFullscreenLayout() {
-        android.util.Log.d(TAG, "clearFullscreenLayout: 开始退出全屏, mFullAnimEnd=" + mFullAnimEnd);
-        
+                
         if (!mFullAnimEnd) {
-            android.util.Log.d(TAG, "clearFullscreenLayout: 动画未结束，跳过");
-            return;
+                        return;
         }
         
-        // 保存全屏播放器的状态
+        // 锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷状??
         final android.view.ViewGroup vp = getViewGroup();
         final android.view.View oldF = vp.findViewById(getFullId());
         if (oldF != null && oldF instanceof OrangevideoView) {
             OrangevideoView orangeVideoPlayer = (OrangevideoView) oldF;
-            android.util.Log.d(TAG, "clearFullscreenLayout: 保存全屏播放器状态");
-            
-            // 使用 PlaybackStateManager 保存状态
+                        
+            // 使锟斤拷 PlaybackStateManager 锟斤拷锟斤拷状??
             if (mPlaybackStateManager != null) {
                 mPlaybackStateManager.saveState(orangeVideoPlayer);
-                android.util.Log.d(TAG, "clearFullscreenLayout: 状态已保存 position=" + orangeVideoPlayer.getCurrentPositionWhenPlaying());
-            }
+                            }
             
             orangeVideoPlayer.mIfCurrentIsFullscreen = false;
         }
@@ -1994,8 +1992,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             delay = 0;
         }
 
-        android.util.Log.d(TAG, "clearFullscreenLayout: 延迟 " + delay + "ms 后恢复正常");
-        mInnerHandler.postDelayed(new Runnable() {
+                mInnerHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 orangeBackToNormal();
@@ -2004,7 +2001,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 橘子播放器回到正常效果
+     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟截碉拷锟斤拷锟斤拷效??
      */
     @SuppressWarnings("ResourceType")
     protected void orangeBackToNormal() {
@@ -2014,8 +2011,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         if (oldF != null && oldF instanceof OrangevideoView) {
             orangeVideoPlayer = (OrangevideoView) oldF;
-            // 如果暂停了 - 跳过 pauseFullBackCoverLogic，因为它需要 GSYVideoPlayer 类型
-            // 添加空检查，避免 NPE
+            // 锟斤拷锟斤拷锟酵??- 锟斤拷锟斤拷 pauseFullBackCoverLogic锟斤拷锟斤拷为锟斤拷锟斤拷??GSYVideoPlayer 锟斤拷锟斤拷
+            // 锟斤拷锟接空硷拷椋拷锟斤拷锟?NPE
             if (mShowFullAnimation && mListItemRect != null && mListItemSize != null) {
                 android.transition.TransitionManager.beginDelayedTransition(vp);
                 android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) orangeVideoPlayer.getLayoutParams();
@@ -2039,25 +2036,21 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 橘子播放器恢复正常显示
+     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟街革拷锟斤拷锟斤拷锟斤拷??
      */
     protected void orangeResolveNormalVideoShow(android.view.View oldF, android.view.ViewGroup vp, OrangevideoView orangeVideoPlayer) {
-        android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 开始恢复正常显示");
-        
-        // 保存全屏播放器的播放位置（关键：在 cloneParams 之前保存）
+                
+        // 锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟侥诧拷锟斤拷位锟矫ｏ拷锟截硷拷锟斤拷??cloneParams 之前锟斤拷锟斤拷??
         final long savedPosition = (orangeVideoPlayer != null) ? orangeVideoPlayer.getCurrentPositionWhenPlaying() : 0;
         final boolean wasPlaying = (orangeVideoPlayer != null) ? orangeVideoPlayer.isPlaying() : false;
-        android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 保存全屏状态 position=" + savedPosition + ", wasPlaying=" + wasPlaying);
-        
+                
         if (oldF != null && oldF.getParent() != null) {
             android.view.ViewGroup viewGroup = (android.view.ViewGroup) oldF.getParent();
             vp.removeView(viewGroup);
-            android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 移除全屏视图");
-        }
+                    }
         
         mCurrentState = getGSYVideoManager().getLastState();
-        android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 恢复状态 mCurrentState=" + mCurrentState);
-        
+                
         if (orangeVideoPlayer != null) {
             cloneParams(orangeVideoPlayer, this);
         }
@@ -2071,28 +2064,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         getGSYVideoManager().setLastListener(null);
         setStateAndUi(mCurrentState);
         
-        // 关键：重新添加 TextureView，确保 Surface 正确恢复
-        android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 重新添加 TextureView");
-        addTextureView();
+        // 锟截硷拷锟斤拷锟斤拷锟斤拷锟斤拷??TextureView锟斤拷确??Surface 锟斤拷确锟街革拷
+                addTextureView();
         
-        // 延迟恢复播放位置，确保 Surface 已经准备好
+        // 锟接迟恢革拷锟斤拷锟斤拷位锟矫ｏ拷确??Surface 锟窖撅拷准锟斤拷??
         postDelayed(new Runnable() {
             @Override
             public void run() {
-                android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 延迟恢复播放位置");
-                
-                // 恢复播放位置（关键修复）
+                                
+                // 锟街革拷锟斤拷锟斤拷位锟矫ｏ拷锟截硷拷锟睫革拷锟斤拷
                 if (savedPosition > 0) {
-                    android.util.Log.d(TAG, "orangeResolveNormalVideoShow: seekTo " + savedPosition);
-                    seekTo(savedPosition);
+                                        seekTo(savedPosition);
                     
-                    // 如果之前在播放，继续播放
+                    // 锟斤拷锟街帮拷诓锟斤拷牛锟斤拷锟斤拷锟斤拷锟斤拷锟?
                     if (wasPlaying) {
                         postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 恢复播放");
-                                if (mCurrentState == CURRENT_STATE_PAUSE) {
+                                                                if (mCurrentState == CURRENT_STATE_PAUSE) {
                                     onVideoResume();
                                 }
                             }
@@ -2100,14 +2089,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     }
                 }
                 
-                // 恢复组件状态
+                // 锟街革拷锟斤拷锟阶??
                 if (mComponentStateManager != null) {
                     mComponentStateManager.restoreComponentState(OrangevideoView.this);
                     mComponentStateManager.reregisterProgressListener(OrangevideoView.this);
-                    android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 组件状态已恢复");
-                }
+                                    }
                 
-                // 通知组件状态更新
+                // 通知锟斤拷锟阶刺拷锟??
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
             }
@@ -2125,11 +2113,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (getFullscreenButton() != null) {
             getFullscreenButton().setImageResource(getEnlargeImageRes());
         }
-        // 通知橘子组件状态变化
+        // 通知锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
         setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
         
-        android.util.Log.d(TAG, "orangeResolveNormalVideoShow: 完成");
-    }
+            }
 
     @Override
     public GSYVideoManager getGSYVideoManager() {
@@ -2143,7 +2130,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public boolean backFromFull(Context context) {
-        // 从全屏返回
+        // 锟斤拷全锟斤拷锟斤拷??
         if (mIfCurrentIsFullscreen) {
             mIfCurrentIsFullscreen = false;
             setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
@@ -2157,13 +2144,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void showWifiDialog() {
-        // 橘子组件处理移动网络提示
+        // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷贫锟斤拷锟斤拷锟斤拷锟绞?
         if (mPrepareView != null) {
-            setOrangePlayState(8); // 移动网络警告状态
+            setOrangePlayState(8); // 锟狡讹拷锟斤拷锟界警锟斤拷状??
         }
     }
 
-    // UI 状态变化方法 - 空实现，由橘子组件处理
+    // UI 状态锟戒化锟斤拷??- 锟斤拷实锟街ｏ拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟??
     protected void changeUiToNormal() {}
     protected void changeUiToPreparingShow() {}
     protected void changeUiToPlayingShow() {}
@@ -2178,13 +2165,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void changeUiToCompleteClear() {}
     protected void hideAllWidget() {}
     
-    // 自动隐藏控制器的定时器
-    private static final int AUTO_HIDE_DELAY = 4000; // 4秒后自动隐藏
+    // 锟皆讹拷锟斤拷锟截匡拷锟斤拷锟斤拷锟侥讹拷时??
+    private static final int AUTO_HIDE_DELAY = 4000; // 4锟斤拷锟斤拷远锟斤拷锟斤拷锟?
     private Runnable mAutoHideRunnable;
 
     @Override
     protected void onClickUiToggle(android.view.MotionEvent e) {
-        // 只在播放或暂停状态时才切换控制器显示/隐藏
+        // 只锟节诧拷锟脚伙拷锟斤拷停状态时锟斤拷锟叫伙拷锟斤拷锟斤拷锟斤拷锟斤拷示/锟斤拷锟斤拷
         if (mCurrentPlayState != PlayerConstants.STATE_PLAYING && 
             mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
@@ -2192,7 +2179,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return;
         }
         
-        // 点击切换控制器显示/隐藏
+        // 锟斤拷锟斤拷谢锟斤拷锟斤拷锟斤拷锟斤拷锟??锟斤拷锟斤拷
         if (isControllerShowing()) {
             hideController();
         } else {
@@ -2201,22 +2188,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 显示控制器
+     * 锟斤拷示锟斤拷锟斤拷??
      */
     public void showController() {
         if (mVodControlView != null) {
             mVodControlView.setVisibility(android.view.View.VISIBLE);
         }
-        // 全屏时显示标题栏
+        // 全锟斤拷时锟斤拷示锟斤拷锟斤拷锟斤拷
         if (mTitleView != null && (mIfCurrentIsFullscreen || mCurrentPlayerState == PlayerConstants.PLAYER_FULL_SCREEN)) {
             mTitleView.setVisibility(android.view.View.VISIBLE);
         }
-        // 启动自动隐藏定时器
+        // 锟斤拷锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
         startAutoHideTimer();
     }
     
     /**
-     * 隐藏控制器
+     * 锟斤拷锟截匡拷锟斤拷??
      */
     public void hideController() {
         if (mVodControlView != null) {
@@ -2225,19 +2212,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mTitleView != null) {
             mTitleView.setVisibility(android.view.View.GONE);
         }
-        // 取消自动隐藏定时器
+        // 取锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
         cancelAutoHideTimer();
     }
     
     /**
-     * 控制器是否显示
+     * 锟斤拷锟斤拷锟斤拷锟角凤拷锟斤拷??
      */
     public boolean isControllerShowing() {
         return mVodControlView != null && mVodControlView.getVisibility() == android.view.View.VISIBLE;
     }
     
     /**
-     * 获取或创建自动隐藏 Runnable
+     * 锟斤拷取锟津创斤拷锟皆讹拷锟斤拷??Runnable
      */
     private Runnable getAutoHideRunnable() {
         if (mAutoHideRunnable == null) {
@@ -2252,7 +2239,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 启动自动隐藏定时器
+     * 锟斤拷锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
      */
     private void startAutoHideTimer() {
         cancelAutoHideTimer();
@@ -2262,7 +2249,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 取消自动隐藏定时器
+     * 取锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
      */
     private void cancelAutoHideTimer() {
         if (mInnerHandler != null && mAutoHideRunnable != null) {
@@ -2271,24 +2258,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写双击方法，完全使用橘子播放器的状态判断，不依赖 GSY 的 mCurrentState
+     * 锟斤拷写双锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷全使锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟叫断ｏ拷锟斤拷锟斤拷??GSY ??mCurrentState
      */
     protected void touchDoubleUp() {
-        android.util.Log.d(TAG, "touchDoubleUp() 被调用, mCurrentState=" + mCurrentState + ", mCurrentPlayState=" + mCurrentPlayState);
-        // 双击暂停/播放 - 完全使用橘子播放器的状态判断
+                // 双锟斤拷锟斤拷停/锟斤拷锟斤拷 - 锟斤拷全使锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟斤拷??
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
             mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
             mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
-            android.util.Log.d(TAG, "双击暂停");
-            // 直接调用我们的 pause() 方法
+                        // 直锟接碉拷锟斤拷锟斤拷锟斤拷??pause() 锟斤拷锟斤拷
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-            android.util.Log.d(TAG, "双击恢复播放");
-            // 直接调用我们的 resume() 方法
+                        // 直锟接碉拷锟斤拷锟斤拷锟斤拷??resume() 锟斤拷锟斤拷
             resume();
         } else {
-            android.util.Log.d(TAG, "双击无效，当前状态: " + mCurrentPlayState);
-        }
+                    }
     }
 
     @Override
@@ -2297,33 +2280,30 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 重写 startAfterPrepared，确保 TextureView 正确添加
+     * 锟斤拷写 startAfterPrepared锟斤拷确??TextureView 锟斤拷确锟斤拷锟斤拷
      */
     @Override
     public void startAfterPrepared() {
         super.startAfterPrepared();
     }
 
-    // ===== 配置改变处理 (Requirements: 2.3, 2.4, 5.1, 5.2) =====
+    // ===== 锟斤拷锟矫改变处锟斤拷 (Requirements: 2.3, 2.4, 5.1, 5.2) =====
     
     /**
-     * 处理配置改变（如屏幕旋转）
-     * 保存当前播放状态，避免黑屏和状态丢失
+     * 锟斤拷锟斤拷锟斤拷锟矫改变（锟斤拷锟斤拷幕锟斤拷转??
+     * 锟斤拷锟芥当前锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
      * Requirements: 2.1, 2.2, 5.3, 5.4, 5.5
      * 
-     * @param newConfig 新的配置
+     * @param newConfig 锟铰碉拷锟斤拷锟斤拷
      */
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
-        android.util.Log.d(TAG, "onConfigurationChanged: orientation=" + newConfig.orientation 
-                + ", playState=" + mCurrentPlayState 
-                + ", playerState=" + mCurrentPlayerState);
-        
-        // 使用 PlaybackStateManager 保存当前状态
+                
+        // 使锟斤拷 PlaybackStateManager 锟斤拷锟芥当前状??
         if (mPlaybackStateManager != null) {
             mPlaybackStateManager.saveState(this);
         }
         
-        // 使用 ComponentStateManager 保存组件状态
+        // 使锟斤拷 ComponentStateManager 锟斤拷锟斤拷锟斤拷锟阶??
         if (mComponentStateManager != null) {
             mComponentStateManager.saveComponentState(
                 (int) getDuration(), 
@@ -2331,57 +2311,52 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             );
         }
         
-        // 处理全屏/竖屏切换
+        // 锟斤拷锟斤拷全锟斤拷/锟斤拷锟斤拷锟叫伙拷
         if (newConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-            // 横屏 - 如果不是全屏状态，可能需要进入全屏
-            android.util.Log.d(TAG, "横屏方向");
-        } else if (newConfig.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
-            // 竖屏 - 如果是全屏状态，可能需要退出全屏
-            android.util.Log.d(TAG, "竖屏方向");
-        }
+            // 锟斤拷锟斤拷 - 锟斤拷锟斤拷锟斤拷锟饺拷锟阶刺拷锟斤拷锟斤拷锟斤拷锟揭拷锟斤拷锟饺??
+                    } else if (newConfig.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+            // 锟斤拷锟斤拷 - 锟斤拷锟斤拷锟饺拷锟阶刺拷锟斤拷锟斤拷锟斤拷锟揭拷顺锟饺??
+                    }
         
-        // 延迟恢复状态，确保布局完成
+        // 锟接迟恢革拷状态锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟?
         postDelayed(new Runnable() {
             @Override
             public void run() {
-                android.util.Log.d(TAG, "开始恢复状态");
-                
-                // 使用 PlaybackStateManager 恢复状态
+                                
+                // 使锟斤拷 PlaybackStateManager 锟街革拷状??
                 if (mPlaybackStateManager != null) {
                     mPlaybackStateManager.restoreState(OrangevideoView.this);
                 }
                 
-                // 使用 ComponentStateManager 恢复组件状态
+                // 使锟斤拷 ComponentStateManager 锟街革拷锟斤拷锟阶??
                 if (mComponentStateManager != null) {
                     mComponentStateManager.restoreComponentState(OrangevideoView.this);
-                    // 重新注册进度监听器，确保组件重建后进度更新正常
+                    // 锟斤拷锟斤拷注锟斤拷锟斤拷燃锟斤拷锟斤拷锟斤拷锟饺凤拷锟斤拷锟斤拷锟截斤拷锟斤拷锟斤拷雀锟斤拷锟斤拷锟??
                     mComponentStateManager.reregisterProgressListener(OrangevideoView.this);
-                    android.util.Log.d(TAG, "组件状态已恢复，进度监听器已重新注册");
-                }
+                                    }
                 
-                // 重新应用视频比例
+                // 锟斤拷锟斤拷应锟斤拷锟斤拷频锟斤拷锟斤拷
                 if (mVideoScaleManager != null) {
                     mVideoScaleManager.applyVideoScale();
                 }
                 
-                // 通知组件状态更新
+                // 通知锟斤拷锟阶刺拷锟??
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(mCurrentPlayerState);
                 
-                android.util.Log.d(TAG, "配置改变处理完成");
-            }
+                            }
         }, 100);
     }
 
     /**
-     * 重写 getLayoutParams 方法，确保全屏播放器使用正确的布局参数
-     * 这是解决全屏黑屏问题的关键
+     * 锟斤拷写 getLayoutParams 锟斤拷锟斤拷锟斤拷确锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷使锟斤拷锟斤拷确锟侥诧拷锟街诧拷锟斤拷
+     * 锟斤拷锟角斤拷锟饺拷锟斤拷锟斤拷锟斤拷锟斤拷锟侥癸拷??
      */
     @Override
     public android.view.ViewGroup.LayoutParams getLayoutParams() {
         android.view.ViewGroup.LayoutParams params = super.getLayoutParams();
         if (params == null) {
-            // 如果没有布局参数，创建一个 MATCH_PARENT 的参数
+            // 锟斤拷锟矫伙拷胁锟斤拷植锟斤拷锟斤拷锟斤拷锟斤拷锟揭??MATCH_PARENT 锟侥诧拷??
             params = new android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT

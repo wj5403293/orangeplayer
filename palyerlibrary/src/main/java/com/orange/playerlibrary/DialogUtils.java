@@ -122,7 +122,20 @@ public class DialogUtils {
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.setWindowAnimations(getAnimationStyle(position));
         
+        // 设置边距
+        setDialogMargins(window, position, context);
+        
         setImmersiveMode(window);
+    }
+    
+    /**
+     * 设置弹窗边距
+     */
+    private static void setDialogMargins(Window window, DialogPosition position, Context context) {
+        if (window == null) return;
+        
+        // 暂时不设置边距，避免点击区域偏移问题
+        // 边距通过布局文件的 padding 来实现
     }
     
     /**
@@ -133,6 +146,20 @@ public class DialogUtils {
                                              DialogPosition position,
                                              Float ratio,
                                              Context context) {
+        // 对于左右位置的弹窗，高度默认使用全屏
+        if (!isWidth && (position == DialogPosition.LEFT || position == DialogPosition.RIGHT)) {
+            if (ratio == null || ratio <= 0) {
+                return ViewGroup.LayoutParams.MATCH_PARENT;
+            }
+        }
+        
+        // 对于上下位置的弹窗，宽度默认使用全屏
+        if (isWidth && (position == DialogPosition.TOP || position == DialogPosition.BOTTOM)) {
+            if (ratio == null || ratio <= 0) {
+                return ViewGroup.LayoutParams.MATCH_PARENT;
+            }
+        }
+        
         // 如果ratio为null，表示使用布局默认尺寸
         if (ratio == null) {
             return isWidth ? ViewGroup.LayoutParams.WRAP_CONTENT : 
@@ -192,10 +219,10 @@ public class DialogUtils {
     
     private static int getGravity(DialogPosition position) {
         switch (position) {
-            case LEFT: return Gravity.LEFT;
-            case RIGHT: return Gravity.RIGHT;
-            case TOP: return Gravity.TOP;
-            case BOTTOM: return Gravity.BOTTOM;
+            case LEFT: return Gravity.LEFT | Gravity.CENTER_VERTICAL;
+            case RIGHT: return Gravity.RIGHT | Gravity.CENTER_VERTICAL;
+            case TOP: return Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            case BOTTOM: return Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
             default: return Gravity.CENTER;
         }
     }
@@ -205,27 +232,8 @@ public class DialogUtils {
     }
     
     private static void setImmersiveMode(Window window) {
-        if (window != null) {
-            window.getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-            );
-            
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-            );
-            
-            window.getDecorView().setSystemUiVisibility(
-                window.getDecorView().getSystemUiVisibility()
-            );
-            
-            window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
-        }
+        // 暂时禁用沉浸式模式，避免触摸坐标偏移问题
+        // 如果需要沉浸式模式，可以在调用方单独设置
     }
     
     public static void showBlurEffect(Activity activity, String str, String str2) {

@@ -4,7 +4,10 @@
     android:layout_width="match_parent" 
     android:layout_height="match_parent" 
     android:orientation="vertical" 
-    android:gravity="center_horizontal|right">
+    android:gravity="center_horizontal|right"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:paddingEnd="48dp">
 
     <androidx.core.widget.NestedScrollView 
         android:layout_width="wrap_content" 
@@ -36,14 +39,18 @@
                     android:layout_margin="10dp" 
                     android:padding="5dp" 
                     android:background="@drawable/round" 
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <ImageView 
                         android:layout_width="40dp" 
                         android:layout_height="40dp" 
                         android:padding="10dp" 
                         android:src="@mipmap/huamian" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
@@ -51,7 +58,9 @@
                         android:text="画面比例" 
                         android:textColor="#ffffffff" 
                         android:textSize="12dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
                 </LinearLayout>
 
                 <LinearLayout 
@@ -63,13 +72,17 @@
                     android:layout_margin="10dp" 
                     android:padding="5dp" 
                     android:background="@drawable/round" 
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <ImageView 
                         android:layout_width="40dp" 
                         android:layout_height="40dp" 
                         android:src="@mipmap/longspeeds" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
@@ -77,7 +90,9 @@
                         android:text="长按倍速" 
                         android:textColor="#ffffffff" 
                         android:textSize="12dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
                 </LinearLayout>
 
                 <LinearLayout 
@@ -89,14 +104,18 @@
                     android:layout_margin="10dp" 
                     android:padding="5dp" 
                     android:background="@drawable/round" 
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <ImageView 
                         android:layout_width="40dp" 
                         android:layout_height="40dp" 
                         android:src="@mipmap/times" 
                         android:padding="10dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
@@ -104,7 +123,9 @@
                         android:text="定时关闭" 
                         android:textColor="#ffffffff" 
                         android:textSize="12dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -126,14 +147,18 @@
                     android:layout_margin="10dp" 
                     android:padding="5dp" 
                     android:background="@drawable/round" 
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <ImageView 
                         android:layout_width="40dp" 
                         android:layout_height="40dp" 
                         android:padding="10dp" 
                         android:src="@mipmap/playtop" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
@@ -141,7 +166,9 @@
                         android:text="跳过片头" 
                         android:textColor="#ffffffff" 
                         android:textSize="12dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
                 </LinearLayout>
 
                 <LinearLayout 
@@ -153,14 +180,18 @@
                     android:layout_margin="10dp" 
                     android:padding="5dp" 
                     android:background="@drawable/round" 
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <ImageView 
                         android:layout_width="40dp" 
                         android:layout_height="40dp" 
                         android:src="@mipmap/playbottom" 
                         android:padding="10dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
@@ -168,7 +199,9 @@
                         android:text="跳过片尾" 
                         android:textColor="#ffffffff" 
                         android:textSize="12dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
                 </LinearLayout>
 
                 <LinearLayout 
@@ -180,14 +213,18 @@
                     android:layout_margin="10dp" 
                     android:padding="5dp" 
                     android:background="@drawable/round" 
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <ImageView 
                         android:layout_width="40dp" 
                         android:layout_height="40dp" 
                         android:src="@mipmap/window" 
                         android:padding="10dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
@@ -195,7 +232,9 @@
                         android:text="小窗播放" 
                         android:textColor="#ffffffff" 
                         android:textSize="12dp" 
-                        android:layout_margin="2dp"/>
+                        android:layout_margin="2dp"
+                        android:clickable="false"
+                        android:focusable="false"/>
                 </LinearLayout>
             </LinearLayout>
 

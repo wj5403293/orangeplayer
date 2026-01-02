@@ -34,7 +34,6 @@ public class VideoScaleManager {
      */
     public void applyVideoScale() {
         String scale = mSettingsManager.getVideoScale();
-        android.util.Log.d(TAG, "applyVideoScale: 应用视频比例 = " + scale);
         applyScaleType(scale);
     }
     
@@ -50,37 +49,34 @@ public class VideoScaleManager {
             scaleType = "默认";
         }
         
-        android.util.Log.d(TAG, "applyScaleType: 设置视频比例类型 = " + scaleType);
-        
         switch (scaleType) {
             case "默认":
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_DEFAULT);
-                android.util.Log.d(TAG, "applyScaleType: 应用默认比例");
                 break;
             case "16:9":
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_16_9);
-                android.util.Log.d(TAG, "applyScaleType: 应用 16:9 比例");
                 break;
             case "4:3":
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_4_3);
-                android.util.Log.d(TAG, "applyScaleType: 应用 4:3 比例");
                 break;
             case "全屏裁剪":
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_FULL);
-                android.util.Log.d(TAG, "applyScaleType: 应用全屏裁剪");
                 break;
             case "全屏拉伸":
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_MATCH_FULL);
-                android.util.Log.d(TAG, "applyScaleType: 应用全屏拉伸");
                 break;
             default:
-                android.util.Log.w(TAG, "applyScaleType: 未知的比例类型 = " + scaleType + ", 使用默认比例");
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_DEFAULT);
                 break;
         }
         
-        // 刷新视频显示
-        mVideoView.refreshVideoShowType();
+        // 在主线程刷新视频显示
+        mVideoView.post(new Runnable() {
+            @Override
+            public void run() {
+                mVideoView.refreshVideoShowType();
+            }
+        });
     }
     
     /**
@@ -100,7 +96,6 @@ public class VideoScaleManager {
      * Requirements: 1.1
      */
     public void setAndSaveScale(String scaleType) {
-        android.util.Log.d(TAG, "setAndSaveScale: 保存并应用视频比例 = " + scaleType);
         mSettingsManager.setVideoScale(scaleType);
         applyScaleType(scaleType);
     }

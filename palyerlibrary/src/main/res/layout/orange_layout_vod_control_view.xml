@@ -184,6 +184,15 @@
             android:orientation="horizontal"
             android:visibility="gone">
 
+            <!-- 播放按钮（全屏时显示在弹幕区） -->
+            <ImageView
+                android:id="@+id/iv_play_fullscreen"
+                android:layout_width="@dimen/orange_controller_height"
+                android:layout_height="@dimen/orange_controller_height"
+                android:contentDescription="@string/orange_play_desc"
+                android:padding="@dimen/orange_controller_icon_padding"
+                android:src="@drawable/orange_selector_play_button" />
+
             <!-- 下一集按钮 -->
             <ImageView
                 android:id="@+id/playnext"
@@ -273,15 +282,6 @@
                 android:text="@string/orange_episode_select"
                 android:textColor="@android:color/white"
                 android:textSize="@dimen/orange_control_button_text_size" />
-
-            <!-- 播放按钮（全屏时显示在弹幕区） -->
-            <ImageView
-                android:id="@+id/iv_play_fullscreen"
-                android:layout_width="@dimen/orange_controller_height"
-                android:layout_height="@dimen/orange_controller_height"
-                android:contentDescription="@string/orange_play_desc"
-                android:padding="@dimen/orange_controller_icon_padding"
-                android:src="@drawable/orange_selector_play_button" />
 
             <!-- 全屏按钮（全屏时显示在弹幕区） -->
             <ImageView

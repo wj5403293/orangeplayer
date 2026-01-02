@@ -194,7 +194,6 @@ public class TitleView extends FrameLayout implements IControlComponent {
      * 投屏按钮点击处理
      */
     private void onCastClick() {
-        android.util.Log.d(TAG, "投屏按钮被点击");
         if (mOnCastClickListener != null) {
             mOnCastClickListener.onClick(mCast);
         }
@@ -204,12 +203,8 @@ public class TitleView extends FrameLayout implements IControlComponent {
      * 设置按钮点击处理
      */
     private void onSettingsClick() {
-        android.util.Log.d(TAG, "设置按钮被点击");
         if (mOnSettingsClickListener != null) {
-            android.util.Log.d(TAG, "调用设置按钮监听器");
             mOnSettingsClickListener.onClick(mSettings);
-        } else {
-            android.util.Log.d(TAG, "设置按钮监听器为 null");
         }
     }
     
@@ -217,7 +212,6 @@ public class TitleView extends FrameLayout implements IControlComponent {
      * 小窗按钮点击处理
      */
     private void onWindowClick() {
-        android.util.Log.d(TAG, "小窗按钮被点击");
         if (mOnWindowClickListener != null) {
             mOnWindowClickListener.onClick(mWindow);
         }
@@ -227,7 +221,6 @@ public class TitleView extends FrameLayout implements IControlComponent {
      * 定时按钮点击处理
      */
     private void onTimerClick() {
-        android.util.Log.d(TAG, "定时按钮被点击");
         if (mOnTimerClickListener != null) {
             mOnTimerClickListener.onClick(mTimer);
         }
@@ -351,7 +344,6 @@ public class TitleView extends FrameLayout implements IControlComponent {
             com.orange.playerlibrary.VideoEventManager eventManager = 
                     controller.getVideoEventManager();
             if (eventManager != null) {
-                android.util.Log.d(TAG, "setController: 调用 bindTitleView");
                 eventManager.bindTitleView(this);
             }
         }
