@@ -3,6 +3,7 @@ package com.orange.playerlibrary;
 import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.Surface;
 
 import com.orange.playerlibrary.interfaces.OnPlayCompleteListener;
 import com.orange.playerlibrary.interfaces.OnProgressListener;
@@ -21,82 +22,82 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷??
- * 锟教筹拷 GSYBaseVideoPlayer锟斤拷锟斤拷全使锟斤拷锟斤拷锟斤拷锟斤拷??UI
+ * 閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+ * 閿熸暀绛规嫹 GSYBaseVideoPlayer閿熸枻鎷烽敓鏂ゆ嫹鍏ㄤ娇閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??UI
  */
 public class OrangevideoView extends GSYBaseVideoPlayer {
 
     private static final String TAG = "OrangevideoView";
     
-    // ===== 状态锟斤拷??=====
+    // ===== 鐘舵€侀敓鏂ゆ嫹??=====
     public static final int STATE_STARTSNIFFING = PlayerConstants.STATE_STARTSNIFFING;
     public static final int STATE_ENDSNIFFING = PlayerConstants.STATE_ENDSNIFFING;
     
-    // ===== 全锟斤拷 SQLite 锟芥储 =====
+    // ===== 鍏ㄩ敓鏂ゆ嫹 SQLite 閿熻姤鍌?=====
     public static OrangeSharedSqlite sqlite;
     
-    // ===== 锟斤拷员锟斤拷锟斤拷 =====
-    private String mVideoUrl;                     // 锟斤拷前锟斤拷频锟斤拷址
-    private Map<String, String> mVideoHeaders;    // 锟斤拷锟斤拷??
-    private static float sSpeed = 1.0f;           // 锟斤拷前锟斤拷??
-    private static float sLongSpeed = 3.0f;       // 锟斤拷锟斤拷锟斤拷??
-    private boolean mKeepVideoPlaying = false;    // 锟角凤拷锟斤拷洳ワ拷锟轿伙拷锟?
-    private boolean mAutoThumbnailEnabled = true; // 锟角凤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷??
-    private Object mDefaultThumbnail = null;      // 默锟斤拷锟斤拷锟斤拷??
-    private boolean mIsLiveVideo = false;         // 锟角凤拷直锟斤拷
-    private boolean mIsSniffing = false;          // 锟角凤拷锟斤拷锟斤拷锟斤拷探
-    private boolean mAutoRotateOnFullscreen = true; // 全锟斤拷时锟角凤拷锟皆讹拷锟斤拷转锟斤拷??
+    // ===== 閿熸枻鎷峰憳閿熸枻鎷烽敓鏂ゆ嫹 =====
+    private String mVideoUrl;                     // 閿熸枻鎷峰墠閿熸枻鎷烽閿熸枻鎷峰潃
+    private Map<String, String> mVideoHeaders;    // 閿熸枻鎷烽敓鏂ゆ嫹??
+    private static float sSpeed = 1.0f;           // 閿熸枻鎷峰墠閿熸枻鎷??
+    private static float sLongSpeed = 3.0f;       // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
+    private boolean mKeepVideoPlaying = false;    // 閿熻鍑ゆ嫹閿熸枻鎷锋闯銉嫹閿熻娇浼欐嫹閿?
+    private boolean mAutoThumbnailEnabled = true; // 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鏂ゆ嫹??
+    private Object mDefaultThumbnail = null;      // 榛橀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+    private boolean mIsLiveVideo = false;         // 閿熻鍑ゆ嫹鐩撮敓鏂ゆ嫹
+    private boolean mIsSniffing = false;          // 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷锋帰
+    private boolean mAutoRotateOnFullscreen = true; // 鍏ㄩ敓鏂ゆ嫹鏃堕敓瑙掑嚖鎷烽敓鐨嗚鎷烽敓鏂ゆ嫹杞敓鏂ゆ嫹??
     
-    // ===== 锟斤拷锟斤拷片头片尾锟斤拷锟斤拷??=====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鐗囧熬閿熸枻鎷烽敓鏂ゆ嫹??=====
     private SkipManager mSkipManager;
     
-    // ===== 锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷??=====
+    // ===== 閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??=====
     private VideoScaleManager mVideoScaleManager;
     
-    // ===== 锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷 =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹 =====
     private PlaybackStateManager mPlaybackStateManager;
     
-    // ===== 锟斤拷锟阶刺拷锟斤拷锟斤拷锟?=====
+    // ===== 閿熸枻鎷烽敓闃跺埡顒婃嫹閿熸枻鎷烽敓鏂ゆ嫹閿?=====
     private ComponentStateManager mComponentStateManager;
     
-    // ===== 锟斤拷锟斤拷指锟斤拷锟斤拷锟??=====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹鎸囬敓鏂ゆ嫹閿熸枻鎷烽敓??=====
     private ErrorRecoveryManager mErrorRecoveryManager;
     
-    // ===== 锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷 =====
+    // ===== 閿熺殕璁规嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹 =====
     private CustomFullscreenHelper mFullscreenHelper;
     
     // ===== ControlWrapper =====
     private com.orange.playerlibrary.interfaces.ControlWrapper mControlWrapper;
     
-    // ===== 锟斤拷锟斤拷??=====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹??=====
     private OrangeVideoController mOrangeController;
     
-    // ===== UI 锟斤拷锟?=====
+    // ===== UI 閿熸枻鎷烽敓?=====
     private com.orange.playerlibrary.component.PrepareView mPrepareView;
     private com.orange.playerlibrary.component.TitleView mTitleView;
     private com.orange.playerlibrary.component.VodControlView mVodControlView;
     private com.orange.playerlibrary.component.LiveControlView mLiveControlView;
     private com.orange.playerlibrary.component.CompleteView mCompleteView;
     private com.orange.playerlibrary.component.ErrorView mErrorView;
-    private boolean mUseOrangeComponents = true; // 默锟斤拷使锟斤拷锟斤拷锟斤拷锟斤拷锟?
+    private boolean mUseOrangeComponents = true; // 榛橀敓鏂ゆ嫹浣块敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
     
-    // ===== 锟斤拷锟斤拷??=====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹??=====
     private final List<OnStateChangeListener> mStateChangeListeners = new ArrayList<>();
     private OnProgressListener mProgressListener;
     private OnPlayCompleteListener mPlayCompleteListener;
     
-    // ===== 锟斤拷前状??=====
+    // ===== 閿熸枻鎷峰墠鐘??=====
     private int mCurrentPlayState = PlayerConstants.STATE_IDLE;
     private int mCurrentPlayerState = PlayerConstants.PLAYER_NORMAL;
     
-    // ===== 锟斤拷锟斤拷模式 =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹妯″紡 =====
     private boolean mDebug = false;
     
-    // ===== 画中画模式标志 =====
-    private boolean mEnteringPiPMode = false;  // 是否正在进入画中画模式
+    // ===== 鐢讳腑鐢绘ā寮忔爣蹇?=====
+    private boolean mEnteringPiPMode = false;  // 鏄惁姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮?
 
     /**
-     * 锟斤拷锟届函??
+     * 閿熸枻鎷烽敓灞婂嚱??
      */
     public OrangevideoView(Context context) {
         super(context);
@@ -111,7 +112,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷始??- 锟斤拷写锟斤拷锟洁方锟斤拷
+     * 閿熸枻鎷峰??- 閿熸枻鎷峰啓閿熸枻鎷烽敓娲佹柟閿熸枻鎷?
      */
     @Override
     protected void init(Context context) {
@@ -120,104 +121,106 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷始锟斤拷
+     * 閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹濮嬮敓鏂ゆ嫹
      */
     private void initOrangePlayer() {
-        // 强锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷始锟斤拷顺锟斤拷锟斤拷锟斤拷??
+        // 寮洪敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰閿熸枻鎷烽『閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
         mUseOrangeComponents = true;
         
-        // 锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+        // 閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
         mSkipManager = new SkipManager();
         mSkipManager.attachVideoView(this);
         
-        // 锟斤拷始锟斤拷锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+        // 閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹棰戦敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
         mVideoScaleManager = new VideoScaleManager(this, PlayerSettingsManager.getInstance(getContext()));
                 
-        // 锟斤拷始锟斤拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
+        // 閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
         mPlaybackStateManager = new PlaybackStateManager();
                 
-        // 锟斤拷始锟斤拷锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
+        // 閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熼樁鍒侯剨鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         mComponentStateManager = new ComponentStateManager();
                 
-        // 锟斤拷始锟斤拷锟斤拷锟斤拷指锟斤拷锟斤拷锟斤拷锟?
+        // 閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷锋寚閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         mErrorRecoveryManager = new ErrorRecoveryManager();
         mErrorRecoveryManager.attachVideoView(this);
                 
-        // 锟斤拷始锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷??
+        // 閿熸枻鎷峰閿熸枻鎷烽敓鐨嗚鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
         mFullscreenHelper = new CustomFullscreenHelper(this);
                 
-        // 锟斤拷锟斤拷锟斤拷转锟斤拷锟斤拷锟斤拷直锟斤拷锟斤拷??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷疯浆閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风洿閿熸枻鎷烽敓鏂ゆ嫹??
         setShowFullAnimation(false);
         setRotateViewAuto(false);
         setNeedLockFull(false);
         setLockLand(false);
         setRotateWithSystem(false);
-        // 锟斤拷锟斤拷全锟斤拷锟叫伙拷锟斤拷锟斤拷
+        // 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熷彨浼欐嫹閿熸枻鎷烽敓鏂ゆ嫹
         setNeedShowWifiTip(false);
-        // 锟斤拷锟斤拷 OrientationUtils锟斤拷锟斤拷锟斤拷转锟斤拷幕
+        // 閿熸枻鎷烽敓鏂ゆ嫹 OrientationUtils閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷疯浆閿熸枻鎷峰箷
         setNeedOrientationUtils(false);
         
-        // 锟斤拷锟矫达拷锟斤拷锟斤拷锟狡ｏ拷双锟斤拷锟斤拷??锟斤拷锟脚★拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??锟斤拷锟斤拷/锟斤拷锟斤拷??
+        // 閿熸枻鎷烽敓鐭揪鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鐙★綇鎷峰弻閿熸枻鎷烽敓鏂ゆ嫹??閿熸枻鎷烽敓鑴氣槄鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??閿熸枻鎷烽敓鏂ゆ嫹/閿熸枻鎷烽敓鏂ゆ嫹??
         setIsTouchWiget(true);
         setIsTouchWigetFull(true);
         
-        // 默锟较筹拷始锟斤拷锟斤拷锟斤拷锟斤拷??
+        // 榛橀敓杈冪鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
         if (mUseOrangeComponents) {
             initOrangeComponents();
         }
         
-        // 使锟斤拷 ComponentStateManager 注锟斤拷锟斤拷燃锟斤拷锟??
-        // 锟斤拷锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟截革拷注锟结，锟斤拷锟斤拷锟斤拷锟斤拷亟锟斤拷锟斤拷远锟斤拷锟斤拷锟阶拷锟?
+        // 浣块敓鏂ゆ嫹 ComponentStateManager 娉ㄩ敓鏂ゆ嫹閿熸枻鎷风噧閿熸枻鎷烽敓??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸埅闈╂嫹娉ㄩ敓缁擄紝閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹浜熼敓鏂ゆ嫹閿熸枻鎷疯繙閿熸枻鎷烽敓鏂ゆ嫹閿熼樁顫嫹閿?
         if (mComponentStateManager != null) {
             mComponentStateManager.reregisterProgressListener(this);
                     }
         
-        // 锟斤拷锟矫回碉拷锟斤拷锟斤拷
+        // 閿熸枻鎷烽敓鐭洖纰夋嫹閿熸枻鎷烽敓鏂ゆ嫹
         setVideoAllCallBack(new GSYSampleCallBack() {
             @Override
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
+                android.util.Log.d(TAG, "=== onPrepared callback ===");
+                android.util.Log.d(TAG, "mEnteringPiPMode: " + mEnteringPiPMode);
                 setOrangePlayState(PlayerConstants.STATE_PREPARED);
-                // 锟斤拷锟斤拷欠锟轿憋拷锟?
+                // 閿熸枻鎷烽敓鏂ゆ嫹娆犻敓杞款€垫唻鎷烽敓?
                 if (getDuration() <= 0) {
                     mIsLiveVideo = true;
                 }
-                // 应锟矫憋拷锟斤拷锟斤拷锟狡碉拷锟斤拷锟斤拷锟??
+                // 搴旈敓鐭唻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鐙＄鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓??
                 if (mVideoScaleManager != null) {
                     mVideoScaleManager.applyVideoScale();
                                     }
                 
-                // 锟斤拷锟斤拷欠锟斤拷锟揭拷指锟饺拷锟斤拷谢锟绞憋拷锟斤拷锟侥诧拷锟斤拷位??
+                // 閿熸枻鎷烽敓鏂ゆ嫹娆犻敓鏂ゆ嫹閿熸彮顏庢嫹鎸囬敓楗侯偓鎷烽敓鏂ゆ嫹璋㈤敓缁炴唻鎷烽敓鏂ゆ嫹閿熶茎璇ф嫹閿熸枻鎷蜂綅??
                 if (mFullscreenHelper != null && mFullscreenHelper.getPendingSeekPosition() > 0) {
                     final long pendingPosition = mFullscreenHelper.getPendingSeekPosition();
                     final boolean pendingResume = mFullscreenHelper.isPendingResume();
                                         
-                    // 锟斤拷锟斤拷锟斤拷指锟阶??
+                    // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷锋寚閿熼樁??
                     mFullscreenHelper.clearPendingSeekPosition();
                     
-                    // 锟接筹拷执锟斤拷 seekTo锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷全准锟斤拷??
+                    // 閿熸帴绛规嫹鎵ч敓鏂ゆ嫹 seekTo閿熸枻鎷风‘閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰叏鍑嗛敓鏂ゆ嫹??
                     postDelayed(new Runnable() {
                         @Override
                         public void run() {
                                                         seekTo(pendingPosition);
                             
-                            // 锟斤拷锟街帮拷诓锟斤拷牛锟饺凤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
+                            // 閿熸枻鎷烽敓琛楊啚甯嫹璇撻敓鏂ゆ嫹鐗涢敓楗哄嚖鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
                             if (pendingResume && !isPlaying()) {
                                                                 resume();
                             }
                         }
                     }, 100);
                 } else {
-                    // 锟街革拷锟斤拷锟脚斤拷锟饺ｏ拷锟斤拷全锟斤拷锟叫伙拷锟斤拷锟斤拷锟斤拷锟?
+                    // 閿熻闈╂嫹閿熸枻鎷烽敓鑴氭枻鎷烽敓楗猴綇鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熷彨浼欐嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
                     if (mKeepVideoPlaying) {
                         restorePlaybackProgress();
                     }
                 }
-                // 执锟斤拷锟斤拷锟斤拷片头
+                // 鎵ч敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご
                 if (mSkipManager != null) {
                     mSkipManager.performSkipIntro();
                 }
-                // 准锟斤拷锟斤拷珊锟斤拷远锟斤拷锟斤拷氩ワ拷锟阶??
+                // 鍑嗛敓鏂ゆ嫹閿熸枻鎷风強閿熸枻鎷疯繙閿熸枻鎷烽敓鏂ゆ嫹姘┿儻鎷烽敓闃??
                 setOrangePlayState(PlayerConstants.STATE_PLAYING);
             }
 
@@ -225,11 +228,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onAutoComplete(String url, Object... objects) {
                 super.onAutoComplete(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PLAYBACK_COMPLETED);
-                // 锟斤拷锟斤拷锟斤拷桑锟斤拷锟斤拷锟斤拷锟斤拷慕锟斤拷锟?
+                // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷锋閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鎱曢敓鏂ゆ嫹閿?
                 if (mKeepVideoPlaying) {
                     clearSavedProgress();
                 }
-                // 锟斤拷锟斤拷锟斤拷锟斤拷状??
+                // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘??
                 if (mSkipManager != null) {
                     mSkipManager.reset();
                 }
@@ -248,14 +251,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onEnterFullscreen(String url, Object... objects) {
                 super.onEnterFullscreen(url, objects);
                 setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
-                // 锟斤拷锟斤拷转锟斤拷幕锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+                // 閿熸枻鎷烽敓鏂ゆ嫹杞敓鏂ゆ嫹骞曢敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
             }
 
             @Override
             public void onQuitFullscreen(String url, Object... objects) {
                 super.onQuitFullscreen(url, objects);
                 setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
-                // 锟斤拷锟斤拷转锟斤拷幕锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+                // 閿熸枻鎷烽敓鏂ゆ嫹杞敓鏂ゆ嫹骞曢敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                 if (mAutoRotateOnFullscreen) {
                     Activity activity = getActivity();
                     if (activity != null) {
@@ -267,10 +270,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?UI锟斤拷锟斤拷??GSY 锟斤拷锟斤拷 UI??
-     * 锟斤拷锟矫此凤拷锟斤拷锟斤拷锟斤拷锟??PrepareView锟斤拷TitleView锟斤拷VodControlView锟斤拷CompleteView锟斤拷ErrorView 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?UI閿熸枻鎷烽敓鏂ゆ嫹??GSY 閿熸枻鎷烽敓鏂ゆ嫹 UI??
+     * 閿熸枻鎷烽敓鐭鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓??PrepareView閿熸枻鎷稵itleView閿熸枻鎷稸odControlView閿熸枻鎷稢ompleteView閿熸枻鎷稥rrorView 閿熸枻鎷烽敓鏂ゆ嫹??
      */
-    // ===== 锟斤拷锟斤拷锟斤拷志锟截碉拷 =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰織閿熸埅纰夋嫹 =====
     private DebugLogCallback mDebugLogCallback;
 
     public interface DebugLogCallback {
@@ -288,7 +291,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     private void initOrangeComponents() {
         Context context = getContext();
@@ -297,48 +300,48 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 android.widget.RelativeLayout.LayoutParams.MATCH_PARENT);
 
         
-        // 锟斤拷锟斤拷 ControlWrapper 锟斤拷锟斤拷锟芥到锟斤拷员锟斤拷锟斤拷
+        // 閿熸枻鎷烽敓鏂ゆ嫹 ControlWrapper 閿熸枻鎷烽敓鏂ゆ嫹閿熻姤鍒伴敓鏂ゆ嫹鍛橀敓鏂ゆ嫹閿熸枻鎷?
         mControlWrapper = createControlWrapper();
         
-        // 1. PrepareView - 准锟斤拷/锟斤拷锟斤拷锟斤拷图
+        // 1. PrepareView - 鍑嗛敓鏂ゆ嫹/閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰浘
         mPrepareView = new com.orange.playerlibrary.component.PrepareView(context);
         mPrepareView.attach(mControlWrapper);
-        mPrepareView.setClickStart(); // 锟斤拷锟矫碉拷锟斤拷锟绞硷拷锟??
+        mPrepareView.setClickStart(); // 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹閿熺粸纭锋嫹閿??
         addView(mPrepareView, matchParentParams);
         
-        // 2. CompleteView - 锟斤拷锟斤拷锟斤拷锟斤拷锟酵?
+        // 2. CompleteView - 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熼叺?
         mCompleteView = new com.orange.playerlibrary.component.CompleteView(context);
         mCompleteView.attach(mControlWrapper);
         addView(mCompleteView, matchParentParams);
 
-        // 3. ErrorView - 锟斤拷锟斤拷锟斤拷图
+        // 3. ErrorView - 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰浘
         mErrorView = new com.orange.playerlibrary.component.ErrorView(context);
         mErrorView.attach(mControlWrapper);
         addView(mErrorView, matchParentParams);
 
-        // 4. TitleView - 锟斤拷锟斤拷锟斤拷锟斤拷全锟斤拷时锟斤拷示锟斤拷
+        // 4. TitleView - 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹鏃堕敓鏂ゆ嫹绀洪敓鏂ゆ嫹
         mTitleView = new com.orange.playerlibrary.component.TitleView(context);
         mTitleView.attach(mControlWrapper);
         addView(mTitleView, matchParentParams);
 
-        // 5. VodControlView - 鐐规挱鎺у埗
+        // 5. VodControlView - 閻愯鎸遍幒褍鍩?
         mVodControlView = new com.orange.playerlibrary.component.VodControlView(context);
-        // 璁剧疆鎺у埗鍣ㄥ紩鐢紝纭繚浜嬩欢鑳藉琚粦瀹氾紙鍦?attach 涔嬪墠璁剧疆锛?
+        // 鐠佸墽鐤嗛幒褍鍩楅崳銊ョ穿閻㈩煉绱濈涵顔荤箽娴滃娆㈤懗钘夘檮鐞氼偆绮︾€规熬绱欓崷?attach 娑斿澧犵拋鍓х枂閿?
         if (mOrangeController != null) {
             mVodControlView.setOrangeVideoController(mOrangeController);
         }
         mVodControlView.attach(mControlWrapper);
         addView(mVodControlView, matchParentParams);
         
-        // 鍒濆鐘舵€佽缃负 IDLE锛屾樉绀哄噯澶囪鍥?
+        // 閸掓繂顫愰悩鑸碘偓浣筋啎缂冾喕璐?IDLE閿涘本妯夌粈鍝勫櫙婢跺洩顫嬮崶?
         setOrangePlayState(PlayerConstants.STATE_IDLE);
         
-        // 纭繚浜嬩欢缁戝畾
+        // 绾喕绻氭禍瀣╂缂佹垵鐣?
         ensureEventBinding();
             }
 
     /**
-     * 娣诲姞璋冭瘯鏃ュ織
+     * 濞ｈ濮炵拫鍐槸閺冦儱绻?
      */
     public void debugLog(String msg) {
         if (mDebugLogCallback != null) {
@@ -347,8 +350,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
 
     /**
-     * 纭繚鎵€鏈夋帶鍒剁粍浠剁殑浜嬩欢閮藉凡缁戝畾
-     * 澶勭悊鍒濆鍖栭『搴忛棶棰?
+     * 绾喕绻氶幍鈧張澶嬪付閸掑墎绮嶆禒鍓佹畱娴滃娆㈤柈钘夊嚒缂佹垵鐣?
+     * 婢跺嫮鎮婇崚婵嗩潗閸栨牠銆庢惔蹇涙６妫?
      * Requirements: 1.2, 3.1, 3.2
      */
     private void ensureEventBinding() {
@@ -363,13 +366,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return;
         }
         
-        // 缁戝畾 VodControlView 浜嬩欢
+        // 缂佹垵鐣?VodControlView 娴滃娆?
         if (mVodControlView != null) {
             android.util.Log.d(TAG, "ensureEventBinding: binding VodControlView events");
             eventManager.bindControllerComponents(mVodControlView);
         }
         
-        // 缁戝畾 TitleView 浜嬩欢
+        // 缂佹垵鐣?TitleView 娴滃娆?
         if (mTitleView != null) {
             android.util.Log.d(TAG, "ensureEventBinding: binding TitleView events");
             eventManager.bindTitleView(mTitleView);
@@ -379,7 +382,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷 ControlWrapper 实锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹 ControlWrapper 瀹為敓鏂ゆ嫹
      */
     private com.orange.playerlibrary.interfaces.ControlWrapper createControlWrapper() {
         final OrangevideoView videoView = this;
@@ -391,7 +394,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void pause() {
-                // 锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷 pause() 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷直锟接碉拷??onVideoPause()
+                // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹 pause() 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐩撮敓鎺ョ鎷??onVideoPause()
                 videoView.pause();
             }
 
@@ -412,7 +415,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public boolean isPlaying() {
-                // 使锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷??GSY 锟斤拷状??
+                // 浣块敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??GSY 閿熸枻鎷风姸??
                 return videoView.isPlaying();
             }
 
@@ -421,7 +424,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 if (isPlaying()) {
                     pause();
                 } else {
-                    // 使锟斤拷 resume() 锟斤拷锟斤拷锟斤拷锟斤拷??onVideoResume()锟斤拷确锟斤拷状态锟斤拷确锟斤拷??
+                    // 浣块敓鏂ゆ嫹 resume() 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??onVideoResume()閿熸枻鎷风‘閿熸枻鎷风姸鎬侀敓鏂ゆ嫹纭敓鏂ゆ嫹??
                     videoView.resume();
                 }
             }
@@ -429,13 +432,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void toggleFullScreen() {
                                 if (isFullScreen()) {
-                    // 锟剿筹拷全??- 使锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷
+                    // 閿熷壙绛规嫹鍏??- 浣块敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                                         Activity activity = videoView.getActivity();
                     if (activity != null && mFullscreenHelper != null) {
                         mFullscreenHelper.exitFullscreen(activity);
                     }
                 } else {
-                    // 锟斤拷锟斤拷全锟斤拷 - 使锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷
+                    // 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹 - 浣块敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                                         Activity activity = videoView.getActivity();
                     if (activity != null && mFullscreenHelper != null) {
                         mFullscreenHelper.enterFullscreen(activity);
@@ -445,12 +448,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void toggleLockState() {
-                // GSY 锟斤拷支锟斤拷锟斤拷??
+                // GSY 閿熸枻鎷锋敮閿熸枻鎷烽敓鏂ゆ嫹??
             }
 
             @Override
             public boolean isFullScreen() {
-                // 使锟斤拷锟皆讹拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟叫讹拷
+                // 浣块敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熷彨璁规嫹
                 return mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
             }
 
@@ -476,7 +479,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void setMute(boolean isMute) {
-                // 锟斤拷锟斤拷锟斤拷锟斤拷锟捷诧拷实锟斤拷
+                // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸嵎璇ф嫹瀹為敓鏂ゆ嫹
             }
 
             @Override
@@ -486,7 +489,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void setVolume(float volume) {
-                // GSY 锟斤拷直锟斤拷支??
+                // GSY 閿熸枻鎷风洿閿熸枻鎷锋敮??
             }
 
             @Override
@@ -499,12 +502,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void hide() {
-                // 锟斤拷锟截匡拷锟斤拷??
+                // 閿熸枻鎷烽敓鎴尅鎷烽敓鏂ゆ嫹??
             }
 
             @Override
             public void show() {
-                // 锟斤拷示锟斤拷锟斤拷??
+                // 閿熸枻鎷风ず閿熸枻鎷烽敓鏂ゆ嫹??
             }
 
             @Override
@@ -520,81 +523,81 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟角凤拷使锟斤拷锟斤拷锟斤拷锟斤拷锟?
+     * 閿熻鍑ゆ嫹浣块敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
      */
     public boolean isUseOrangeComponents() {
         return mUseOrangeComponents;
     }
 
     /**
-     * 锟斤拷取 PrepareView
+     * 閿熸枻鎷峰彇 PrepareView
      */
     public com.orange.playerlibrary.component.PrepareView getPrepareView() {
         return mPrepareView;
     }
 
     /**
-     * 锟斤拷取 TitleView
+     * 閿熸枻鎷峰彇 TitleView
      */
     public com.orange.playerlibrary.component.TitleView getTitleView() {
         return mTitleView;
     }
 
     /**
-     * 锟斤拷取 VodControlView
+     * 閿熸枻鎷峰彇 VodControlView
      */
     public com.orange.playerlibrary.component.VodControlView getVodControlView() {
         return mVodControlView;
     }
 
     /**
-     * 锟斤拷取 LiveControlView
+     * 閿熸枻鎷峰彇 LiveControlView
      */
     public com.orange.playerlibrary.component.LiveControlView getLiveControlView() {
         return mLiveControlView;
     }
 
     /**
-     * 锟斤拷取 CompleteView
+     * 閿熸枻鎷峰彇 CompleteView
      */
     public com.orange.playerlibrary.component.CompleteView getCompleteView() {
         return mCompleteView;
     }
 
     /**
-     * 锟斤拷取 ErrorView
+     * 閿熸枻鎷峰彇 ErrorView
      */
     public com.orange.playerlibrary.component.ErrorView getErrorView() {
         return mErrorView;
     }
 
     /**
-     * 锟斤拷取 ControlWrapper
-     * 锟斤拷锟斤拷锟解部锟斤拷锟斤拷全锟斤拷锟叫伙拷锟饺癸拷??
+     * 閿熸枻鎷峰彇 ControlWrapper
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻В閮ㄩ敓鏂ゆ嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鍙紮鎷烽敓楗虹櫢鎷??
      */
     public com.orange.playerlibrary.interfaces.ControlWrapper getControlWrapper() {
         return mControlWrapper;
     }
 
-    // ===== 锟斤拷频锟斤拷址锟斤拷锟矫凤拷锟斤拷 (Requirements: 1.2) =====
+    // ===== 閿熸枻鎷烽閿熸枻鎷峰潃閿熸枻鎷烽敓鐭嚖鎷烽敓鏂ゆ嫹 (Requirements: 1.2) =====
     
     /**
-     * 锟斤拷锟斤拷锟斤拷频锟斤拷址
-     * @param url 锟斤拷频锟斤拷址
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷峰潃
+     * @param url 閿熸枻鎷烽閿熸枻鎷峰潃
      */
     public void setUrl(String url) {
         setUrl(url, null);
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷频锟斤拷址锟斤拷锟斤拷锟斤拷头
-     * @param url 锟斤拷频锟斤拷址
-     * @param headers 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷峰潃閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰ご
+     * @param url 閿熸枻鎷烽閿熸枻鎷峰潃
+     * @param headers 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setUrl(String url, Map<String, String> headers) {
         this.mVideoUrl = url;
         this.mVideoHeaders = headers;
-        // 使锟斤拷 GSYVideoPlayer ??setUp 锟斤拷锟斤拷
+        // 浣块敓鏂ゆ嫹 GSYVideoPlayer ??setUp 閿熸枻鎷烽敓鏂ゆ嫹
         if (headers != null) {
             setUp(url, true, null, headers, "");
         } else {
@@ -603,26 +606,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷前锟斤拷频锟斤拷址
-     * @return 锟斤拷频锟斤拷址
+     * 閿熸枻鎷峰彇閿熸枻鎷峰墠閿熸枻鎷烽閿熸枻鎷峰潃
+     * @return 閿熸枻鎷烽閿熸枻鎷峰潃
      */
     public String getUrl() {
         return mVideoUrl;
     }
 
-    // ===== 锟斤拷锟脚匡拷锟狡凤拷锟斤拷 (Requirements: 1.3, 1.4, 1.5, 1.6) =====
+    // ===== 閿熸枻鎷烽敓鑴氬尅鎷烽敓鐙″嚖鎷烽敓鏂ゆ嫹 (Requirements: 1.3, 1.4, 1.5, 1.6) =====
 
     /**
-     * 锟斤拷始锟斤拷??
+     * 閿熸枻鎷峰閿熸枻鎷??
      */
     public void start() {
         mIsSniffing = false;
         mIsLiveVideo = false;
-        // 锟斤拷锟斤拷锟斤拷锟斤拷状??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘??
         if (mSkipManager != null) {
             mSkipManager.reset();
         }
-        // 锟斤拷锟斤拷锟斤拷锟斤拷指锟斤拷锟??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鎸囬敓鏂ゆ嫹閿??
         if (mErrorRecoveryManager != null) {
             mErrorRecoveryManager.startBlackScreenDetection();
             mErrorRecoveryManager.startStateConsistencyCheck();
@@ -632,77 +635,120 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷停锟斤拷锟斤拷
+     * 閿熸枻鎷峰仠閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void pause() {
-                // 锟斤拷锟芥播锟脚斤拷锟斤拷
+                // 閿熸枻鎷烽敓鑺ユ挱閿熻剼鏂ゆ嫹閿熸枻鎷?
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
-        // 停止锟斤拷锟狡??
+        // 鍋滄閿熸枻鎷烽敓鐙??
         if (mSkipManager != null) {
             mSkipManager.stopOutroCheck();
         }
-        // 锟斤拷锟斤拷 GSY 锟斤拷锟斤拷停锟斤拷锟斤拷锟斤拷锟结触??onVideoPause锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟?
+        // 閿熸枻鎷烽敓鏂ゆ嫹 GSY 閿熸枻鎷烽敓鏂ゆ嫹鍋滈敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺粨瑙??onVideoPause閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃跺埡顒婃嫹閿?
         onVideoPause();
             }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void resume() {
-                // 锟斤拷锟斤拷 GSY 锟侥恢革拷锟斤拷锟脚凤拷锟斤拷锟斤拷锟结触??onVideoResume锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟?
+                // 閿熸枻鎷烽敓鏂ゆ嫹 GSY 閿熶茎鎭㈤潻鎷烽敓鏂ゆ嫹閿熻剼鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺粨瑙??onVideoResume閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃跺埡顒婃嫹閿?
         onVideoResume();
-                // 锟斤拷始锟斤拷锟狡??
+                // 閿熸枻鎷峰閿熸枻鎷烽敓鐙??
         if (mSkipManager != null) {
             mSkipManager.startOutroCheck();
         }
     }
 
     /**
-     * 锟斤拷写 GSY ??onVideoPause 锟斤拷锟斤拷
-     * ??GSY 锟节诧拷锟斤拷锟斤拷锟斤拷停时锟斤拷锟斤拷双锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状??
-     * 锟斤拷锟斤拷锟角帮拷丫锟斤拷锟斤拷锟酵Ｗ刺拷锟斤拷锟街革拷锟斤拷锟脚ｏ拷锟睫革拷双锟斤拷锟街革拷锟斤拷锟脚碉拷锟斤拷锟解）
+     * 閿熸枻鎷峰啓 GSY ??onVideoPause 閿熸枻鎷烽敓鏂ゆ嫹
+     * ??GSY 閿熻妭璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰仠鏃堕敓鏂ゆ嫹閿熸枻鎷峰弻閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风‘閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸帴璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹鐘??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻甯嫹涓敓鏂ゆ嫹閿熸枻鎷烽敓閰碉挤鍒侯剨鎷烽敓鏂ゆ嫹閿熻闈╂嫹閿熸枻鎷烽敓鑴氾綇鎷烽敓鐫潻鎷峰弻閿熸枻鎷烽敓琛楅潻鎷烽敓鏂ゆ嫹閿熻剼纰夋嫹閿熸枻鎷烽敓瑙ｏ級
+     */
+    /**
+     * 閲嶅啓 onSurfaceDestroyed 鏂规硶
+     * 鍦ㄧ敾涓敾妯″紡涓嬶紝涓嶉噴鏀?Surface锛岄伩鍏嶈棰戦噸鏂版挱鏀?
+     * 鍙傝€?GSY 鐨?SmartPickVideo 鍜?MediaCodecVideo 瀹炵幇
      */
     @Override
-    public void onVideoPause() {
-        // 检查是否正在进入画中画模式
+    public boolean onSurfaceDestroyed(Surface surface) {
+        android.util.Log.d(TAG, "=== onSurfaceDestroyed called ===");
+        android.util.Log.d(TAG, "mEnteringPiPMode: " + mEnteringPiPMode);
+        android.util.Log.d(TAG, "current position: " + getCurrentPositionWhenPlaying());
+        
+        // 妫€鏌ユ槸鍚︽鍦ㄨ繘鍏ョ敾涓敾妯″紡鎴栧凡缁忓浜庣敾涓敾妯″紡
         if (mEnteringPiPMode) {
-            // 正在进入画中画模式，不做暂停操作
+            // 姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮忥紝涓嶉噴鏀?Surface
+            android.util.Log.d(TAG, "onSurfaceDestroyed: SKIP - entering PiP mode");
+            return true;
+        }
+        
+        // 妫€鏌ユ槸鍚﹀浜庣敾涓敾妯″紡
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            android.app.Activity activity = getActivity();
+            boolean isInPiP = activity != null && activity.isInPictureInPictureMode();
+            android.util.Log.d(TAG, "isInPictureInPictureMode: " + isInPiP);
+            if (isInPiP) {
+                // 褰撳墠澶勪簬鐢讳腑鐢绘ā寮忥紝涓嶉噴鏀?Surface
+                android.util.Log.d(TAG, "onSurfaceDestroyed: SKIP - in PiP mode");
+                return true;
+            }
+        }
+        
+        // 姝ｅ父鎯呭喌涓嬶紝璋冪敤鐖剁被鏂规硶閲婃斁 Surface
+        android.util.Log.d(TAG, "onSurfaceDestroyed: calling super");
+        return super.onSurfaceDestroyed(surface);
+    }
+
+    @Override
+    public void onVideoPause() {
+        android.util.Log.d(TAG, "=== onVideoPause called ===");
+        android.util.Log.d(TAG, "mEnteringPiPMode: " + mEnteringPiPMode);
+        android.util.Log.d(TAG, "current position: " + getCurrentPositionWhenPlaying());
+        
+        // 妫€鏌ユ槸鍚︽鍦ㄨ繘鍏ョ敾涓敾妯″紡
+        if (mEnteringPiPMode) {
+            // 姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮忥紝涓嶅仛鏆傚仠鎿嶄綔
+            android.util.Log.d(TAG, "onVideoPause: SKIP - entering PiP mode");
             return;
         }
         
-        // 检查是否处于画中画模式，如果是则不暂停
+        // 妫€鏌ユ槸鍚﹀浜庣敾涓敾妯″紡锛屽鏋滄槸鍒欎笉鏆傚仠
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
-            if (activity != null && activity.isInPictureInPictureMode()) {
-                // 当前处于画中画模式，不做暂停操作
+            boolean isInPiP = activity != null && activity.isInPictureInPictureMode();
+            android.util.Log.d(TAG, "isInPictureInPictureMode: " + isInPiP);
+            if (isInPiP) {
+                // 褰撳墠澶勪簬鐢讳腑鐢绘ā寮忥紝涓嶅仛鏆傚仠鎿嶄綔
+                android.util.Log.d(TAG, "onVideoPause: SKIP - in PiP mode");
                 return;
             }
         }
                 
-        // 锟斤拷锟斤拷锟角帮拷丫锟斤拷锟斤拷锟酵Ｗ刺拷锟剿碉拷锟斤拷锟斤拷堑诙锟斤拷锟剿拷锟斤拷锟接︼拷没指锟斤拷锟斤拷锟?
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熻甯嫹涓敓鏂ゆ嫹閿熸枻鎷烽敓閰碉挤鍒侯剨鎷烽敓鍓跨鎷烽敓鏂ゆ嫹閿熸枻鎷峰爲璇欓敓鏂ゆ嫹閿熷壙顐嫹閿熸枻鎷烽敓鎺ワ讣鎷锋病鎸囬敓鏂ゆ嫹閿熸枻鎷烽敓?
         if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-                        // 锟斤拷锟斤拷??onVideoResume()锟斤拷直锟接碉拷??super.onVideoResume() 锟斤拷锟斤拷锟斤拷状??
+                        // 閿熸枻鎷烽敓鏂ゆ嫹??onVideoResume()閿熸枻鎷风洿閿熸帴纰夋嫹??super.onVideoResume() 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸??
             super.onVideoResume();
-                        // 锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状??
+                        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷风姸??
             mCurrentPlayState = PlayerConstants.STATE_PLAYING;
-            // 直锟斤拷通知锟斤拷锟斤拷锟斤拷锟绞癸拷锟?post锟斤拷锟斤拷锟斤拷锟接迟碉拷锟斤拷状态锟斤拷??
+            // 鐩撮敓鏂ゆ嫹閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓缁炵櫢鎷烽敓?post閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ繜纰夋嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹??
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
                         return;
         }
         
-        // 只锟节诧拷锟斤拷状态时锟斤拷锟斤拷??
+        // 鍙敓鑺傝鎷烽敓鏂ゆ嫹鐘舵€佹椂閿熸枻鎷烽敓鏂ゆ嫹??
         boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERED);
         super.onVideoPause();
                 if (shouldUpdateState) {
-                        // 直锟接革拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
+                        // 鐩撮敓鎺ラ潻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
             mCurrentPlayState = PlayerConstants.STATE_PAUSED;
-            // 直锟斤拷通知锟斤拷锟斤拷锟斤拷锟绞癸拷锟?post锟斤拷锟斤拷锟斤拷锟接迟碉拷锟斤拷状态锟斤拷??
+            // 鐩撮敓鏂ゆ嫹閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓缁炵櫢鎷烽敓?post閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ繜纰夋嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹??
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PAUSED);
-            // 确锟斤拷 GSY ??mCurrentState 锟斤拷锟斤拷为锟斤拷停状??
+            // 纭敓鏂ゆ嫹 GSY ??mCurrentState 閿熸枻鎷烽敓鏂ゆ嫹涓洪敓鏂ゆ嫹鍋滅姸??
             if (mCurrentState != CURRENT_STATE_PAUSE) {
                                 mCurrentState = CURRENT_STATE_PAUSE;
             }
@@ -711,28 +757,28 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写 GSY ??onVideoResume 锟斤拷锟斤拷
-     * ??GSY 锟节诧拷锟斤拷锟矫恢革拷锟斤拷锟斤拷时锟斤拷锟斤拷双锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状??
+     * 閿熸枻鎷峰啓 GSY ??onVideoResume 閿熸枻鎷烽敓鏂ゆ嫹
+     * ??GSY 閿熻妭璇ф嫹閿熸枻鎷烽敓鐭仮闈╂嫹閿熸枻鎷烽敓鏂ゆ嫹鏃堕敓鏂ゆ嫹閿熸枻鎷峰弻閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风‘閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸帴璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹鐘??
      */
     @Override
     public void onVideoResume() {
-        // 检查是否处于画中画模式，如果是则不需要恢复（视频一直在播放）
+        // 妫€鏌ユ槸鍚﹀浜庣敾涓敾妯″紡锛屽鏋滄槸鍒欎笉闇€瑕佹仮澶嶏紙瑙嗛涓€鐩村湪鎾斁锛?
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
-                // 当前处于画中画模式，不做恢复操作
+                // 褰撳墠澶勪簬鐢讳腑鐢绘ā寮忥紝涓嶅仛鎭㈠鎿嶄綔
                 return;
             }
         }
-                // 只锟斤拷锟斤拷停状态时锟脚革拷锟斤拷为锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟截革拷锟斤拷锟斤拷
+                // 鍙敓鏂ゆ嫹閿熸枻鎷峰仠鐘舵€佹椂閿熻剼闈╂嫹閿熸枻鎷蜂负閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸埅闈╂嫹閿熸枻鎷烽敓鏂ゆ嫹
         boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PAUSED);
         super.onVideoResume();
                 if (shouldUpdateState) {
-                        // 直锟接革拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
+                        // 鐩撮敓鎺ラ潻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
             mCurrentPlayState = PlayerConstants.STATE_PLAYING;
-            // 直锟斤拷通知锟斤拷锟斤拷锟斤拷锟绞癸拷锟?post锟斤拷锟斤拷锟斤拷锟接迟碉拷锟斤拷状态锟斤拷??
+            // 鐩撮敓鏂ゆ嫹閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓缁炵櫢鎷烽敓?post閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ繜纰夋嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹??
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
-            // 确锟斤拷 GSY ??mCurrentState 锟斤拷锟斤拷为锟斤拷锟斤拷状??
+            // 纭敓鏂ゆ嫹 GSY ??mCurrentState 閿熸枻鎷烽敓鏂ゆ嫹涓洪敓鏂ゆ嫹閿熸枻鎷风姸??
             if (mCurrentState != CURRENT_STATE_PLAYING) {
                                 mCurrentState = CURRENT_STATE_PLAYING;
             }
@@ -741,35 +787,35 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 设置是否正在进入画中画模式
-     * @param entering true 表示正在进入画中画模式
+     * 璁剧疆鏄惁姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮?
+     * @param entering true 琛ㄧず姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮?
      */
     public void setEnteringPiPMode(boolean entering) {
         this.mEnteringPiPMode = entering;
     }
     
     /**
-     * 获取是否正在进入画中画模式
-     * @return true 表示正在进入画中画模式
+     * 鑾峰彇鏄惁姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮?
+     * @return true 琛ㄧず姝ｅ湪杩涘叆鐢讳腑鐢绘ā寮?
      */
     public boolean isEnteringPiPMode() {
         return mEnteringPiPMode;
     }
 
     /**
-     * 锟酵放诧拷锟斤拷锟斤拷锟斤拷??
+     * 閿熼叺鏀捐鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     @Override
     public void release() {
-        // 锟斤拷锟芥播锟脚斤拷锟斤拷
+        // 閿熸枻鎷烽敓鑺ユ挱閿熻剼鏂ゆ嫹閿熸枻鎷?
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
-        // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
         if (mSkipManager != null) {
             mSkipManager.detachVideoView();
         }
-        // 锟斤拷锟斤拷锟斤拷锟斤拷指锟斤拷锟斤拷锟??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鎸囬敓鏂ゆ嫹閿熸枻鎷烽敓??
         if (mErrorRecoveryManager != null) {
             mErrorRecoveryManager.detachVideoView();
         }
@@ -778,48 +824,48 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         GSYVideoManager.releaseAllVideos();
     }
 
-    // ===== 锟斤拷锟饺匡拷锟狡凤拷锟斤拷 (Requirements: 1.7, 1.8) =====
+    // ===== 閿熸枻鎷烽敓楗哄尅鎷烽敓鐙″嚖鎷烽敓鏂ゆ嫹 (Requirements: 1.7, 1.8) =====
 
     /**
-     * 锟斤拷取锟斤拷前锟斤拷锟斤拷位锟矫ｏ拷锟斤拷锟斤拷原 API??
-     * @return 锟斤拷前位锟矫ｏ拷锟斤拷锟诫）
+     * 閿熸枻鎷峰彇閿熸枻鎷峰墠閿熸枻鎷烽敓鏂ゆ嫹浣嶉敓鐭綇鎷烽敓鏂ゆ嫹閿熸枻鎷峰師 API??
+     * @return 閿熸枻鎷峰墠浣嶉敓鐭綇鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public long getCurrentPosition() {
         return getCurrentPositionWhenPlaying();
     }
 
     /**
-     * 锟斤拷转锟斤拷指锟斤拷位??
-     * @param position 目锟斤拷位锟矫ｏ拷锟斤拷锟诫）
+     * 閿熸枻鎷疯浆閿熸枻鎷锋寚閿熸枻鎷蜂綅??
+     * @param position 鐩敓鏂ゆ嫹浣嶉敓鐭綇鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public void seekTo(int position) {
         seekTo((long) position);
     }
 
     /**
-     * 锟斤拷转锟斤拷指锟斤拷位??
-     * @param position 目锟斤拷位锟矫ｏ拷锟斤拷锟诫）
+     * 閿熸枻鎷疯浆閿熸枻鎷锋寚閿熸枻鎷蜂綅??
+     * @param position 鐩敓鏂ゆ嫹浣嶉敓鐭綇鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public void seekTo(long position) {
                 
-        // 锟斤拷锟饺筹拷锟斤拷使锟斤拷 GSYVideoManager
+        // 閿熸枻鎷烽敓楗虹鎷烽敓鏂ゆ嫹浣块敓鏂ゆ嫹 GSYVideoManager
         if (GSYVideoManager.instance().getPlayer() != null) {
                         GSYVideoManager.instance().getPlayer().seekTo(position);
         } else {
-            // 锟斤拷锟?GSYVideoManager 锟斤拷锟斤拷锟矫ｏ拷锟斤拷锟斤拷使锟矫革拷锟洁方锟斤拷
+            // 閿熸枻鎷烽敓?GSYVideoManager 閿熸枻鎷烽敓鏂ゆ嫹閿熺煫锝忔嫹閿熸枻鎷烽敓鏂ゆ嫹浣块敓鐭潻鎷烽敓娲佹柟閿熸枻鎷?
                         setSeekOnStart(position);
         }
     }
 
-    // ===== 锟斤拷锟劫匡拷锟狡凤拷??(Requirements: 1.9) =====
+    // ===== 閿熸枻鎷烽敓鍔尅鎷烽敓鐙″嚖鎷??(Requirements: 1.9) =====
 
     /**
-     * 锟斤拷锟矫诧拷锟脚憋拷??
-     * @param speed 锟斤拷锟斤拷??(0.5 - 3.0)
+     * 閿熸枻鎷烽敓鐭鎷烽敓鑴氭唻鎷??
+     * @param speed 閿熸枻鎷烽敓鏂ゆ嫹??(0.5 - 3.0)
      */
     @Override
     public void setSpeed(float speed) {
-        // 锟斤拷锟狡憋拷锟劫凤拷??
+        // 閿熸枻鎷烽敓鐙℃唻鎷烽敓鍔嚖鎷??
         if (speed < 0.5f) speed = 0.5f;
         if (speed > 3.0f) speed = 3.0f;
         sSpeed = speed;
@@ -827,16 +873,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷前锟斤拷??
-     * @return 锟斤拷前锟斤拷??
+     * 閿熸枻鎷峰彇閿熸枻鎷峰墠閿熸枻鎷??
+     * @return 閿熸枻鎷峰墠閿熸枻鎷??
      */
     public static float getSpeeds() {
         return sSpeed;
     }
 
     /**
-     * 锟斤拷锟矫憋拷锟劫ｏ拷锟斤拷态锟斤拷锟斤拷锟斤拷
-     * @param speed 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鐭唻鎷烽敓鍔綇鎷烽敓鏂ゆ嫹鎬侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
+     * @param speed 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public static void setSpeeds(float speed) {
         if (speed < 0.5f) speed = 0.5f;
@@ -845,26 +891,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷锟斤拷锟斤拷??
-     * @return 锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
      */
     public static float getLongSpeeds() {
         return sLongSpeed;
     }
 
     /**
-     * 锟斤拷锟矫筹拷锟斤拷锟斤拷??
-     * @param speed 锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹閿熸枻鎷??
+     * @param speed 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
      */
     public static void setLongSpeeds(float speed) {
         sLongSpeed = speed;
     }
 
 
-    // ===== 全锟斤拷锟斤拷锟狡凤拷锟斤拷 =====
+    // ===== 鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鐙″嚖鎷烽敓鏂ゆ嫹 =====
 
     /**
-     * 锟斤拷锟斤拷全锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹
      */
     public void startFullScreen() {
         Activity activity = getActivity();
@@ -874,7 +920,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟剿筹拷全锟斤拷
+     * 閿熷壙绛规嫹鍏ㄩ敓鏂ゆ嫹
      */
     public void stopFullScreen() {
         Activity activity = getActivity();
@@ -884,42 +930,42 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟角凤拷全锟斤拷
-     * @return true 全锟斤拷
+     * 閿熻鍑ゆ嫹鍏ㄩ敓鏂ゆ嫹
+     * @return true 鍏ㄩ敓鏂ゆ嫹
      */
     public boolean isFullScreen() {
         return mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
     }
 
     /**
-     * 锟角凤拷小锟斤拷模式
-     * @return true 小锟斤拷
+     * 閿熻鍑ゆ嫹灏忛敓鏂ゆ嫹妯″紡
+     * @return true 灏忛敓鏂ゆ嫹
      */
     public boolean isTinyScreen() {
         return mCurrentPlayerState == PlayerConstants.PLAYER_TINY_SCREEN;
     }
 
     /**
-     * 锟斤拷锟斤拷全锟斤拷时锟角凤拷锟皆讹拷锟斤拷转锟斤拷??
-     * @param autoRotate true 锟皆讹拷锟斤拷转锟斤拷默锟较ｏ拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹鏃堕敓瑙掑嚖鎷烽敓鐨嗚鎷烽敓鏂ゆ嫹杞敓鏂ゆ嫹??
+     * @param autoRotate true 閿熺殕璁规嫹閿熸枻鎷疯浆閿熸枻鎷烽粯閿熻緝锝忔嫹
      */
     public void setAutoRotateOnFullscreen(boolean autoRotate) {
         this.mAutoRotateOnFullscreen = autoRotate;
     }
 
     /**
-     * 锟角凤拷全锟斤拷时锟皆讹拷锟斤拷转锟斤拷??
-     * @return true 锟皆讹拷锟斤拷转
+     * 閿熻鍑ゆ嫹鍏ㄩ敓鏂ゆ嫹鏃堕敓鐨嗚鎷烽敓鏂ゆ嫹杞敓鏂ゆ嫹??
+     * @return true 閿熺殕璁规嫹閿熸枻鎷疯浆
      */
     public boolean isAutoRotateOnFullscreen() {
         return mAutoRotateOnFullscreen;
     }
 
-    // ===== 锟斤拷锟斤拷锟节猴拷锟叫伙拷 (Requirements: 1.11) =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹閿熻妭鐚存嫹閿熷彨浼欐嫹 (Requirements: 1.11) =====
 
     /**
-     * 选锟今播凤拷锟节猴拷
-     * @param engineType 锟节猴拷锟斤拷锟斤拷 (ijk, exo, ali, default)
+     * 閫夐敓浠婃挱鍑ゆ嫹閿熻妭鐚存嫹
+     * @param engineType 閿熻妭鐚存嫹閿熸枻鎷烽敓鏂ゆ嫹 (ijk, exo, ali, default)
      */
     @SuppressWarnings("unchecked")
     public void selectPlayerFactory(String engineType) {
@@ -929,56 +975,56 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
-                // IJK 锟斤拷锟斤拷??
+                // IJK 閿熸枻鎷烽敓鏂ゆ嫹??
                 PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 break;
             case PlayerConstants.ENGINE_EXO:
-                // ExoPlayer - 锟斤拷要锟斤拷锟斤拷锟斤拷??
+                // ExoPlayer - 閿熸枻鎷疯閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
                 try {
                     Class<?> exoClass = Class.forName("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) exoClass);
                 } catch (ClassNotFoundException e) {
-                    // 锟斤拷锟剿碉拷默??
+                    // 閿熸枻鎷烽敓鍓跨鎷烽粯??
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 }
                 break;
             case PlayerConstants.ENGINE_ALI:
-                // 锟斤拷锟斤拷锟狡诧拷锟斤拷锟斤拷 - 锟斤拷要锟斤拷锟斤拷锟斤拷??
+                // 閿熸枻鎷烽敓鏂ゆ嫹閿熺嫛璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹 - 閿熸枻鎷疯閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
                 try {
                     Class<?> aliClass = Class.forName("com.shuyu.gsyvideoplayer.player.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
                 } catch (ClassNotFoundException e) {
-                    // 锟斤拷锟剿碉拷默??
+                    // 閿熸枻鎷烽敓鍓跨鎷烽粯??
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 }
                 break;
             case PlayerConstants.ENGINE_DEFAULT:
             default:
-                // 使锟斤拷系统 MediaPlayer
+                // 浣块敓鏂ゆ嫹绯荤粺 MediaPlayer
                 PlayerFactory.setPlayManager(SystemPlayerManager.class);
                 break;
         }
     }
 
-    // ===== 状态锟斤拷??=====
+    // ===== 鐘舵€侀敓鏂ゆ嫹??=====
 
     /**
-     * 锟斤拷锟矫诧拷锟斤拷状??
-     * @param playState 锟斤拷锟斤拷状??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹鐘??
+     * @param playState 閿熸枻鎷烽敓鏂ゆ嫹鐘??
      */
     protected void setOrangePlayState(int playState) {
         mCurrentPlayState = playState;
         notifyPlayStateChanged(playState);
         
-        // 使锟斤拷 post 确锟斤拷锟斤拷锟斤拷锟阶刺拷锟斤拷潞锟斤拷锟斤拷锟??锟斤拷锟截匡拷锟斤拷??
+        // 浣块敓鏂ゆ嫹 post 纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熼樁鍒侯剨鎷烽敓鏂ゆ嫹娼為敓鏂ゆ嫹閿熸枻鎷烽敓??閿熸枻鎷烽敓鎴尅鎷烽敓鏂ゆ嫹??
         post(new Runnable() {
             @Override
             public void run() {
-                // 锟斤拷锟斤拷状态时锟斤拷示锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
+                // 閿熸枻鎷烽敓鏂ゆ嫹鐘舵€佹椂閿熸枻鎷风ず閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鎴鎷锋椂??
                 if (playState == PlayerConstants.STATE_PLAYING) {
                     showController();
                 } else if (playState == PlayerConstants.STATE_PAUSED) {
-                    // 锟斤拷停时锟斤拷示锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷
+                    // 閿熸枻鎷峰仠鏃堕敓鏂ゆ嫹绀洪敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鏂ゆ嫹
                     showController();
                     cancelAutoHideTimer();
                 } else {
@@ -989,8 +1035,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟矫诧拷锟斤拷锟斤拷状??
-     * @param playerState 锟斤拷锟斤拷锟斤拷状??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹閿熸枻鎷风姸??
+     * @param playerState 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸??
      */
     protected void setOrangePlayerState(int playerState) {
         mCurrentPlayerState = playerState;
@@ -998,26 +1044,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷前锟斤拷锟斤拷状??
-     * @return 锟斤拷锟斤拷状??
+     * 閿熸枻鎷峰彇閿熸枻鎷峰墠閿熸枻鎷烽敓鏂ゆ嫹鐘??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹鐘??
      */
     public int getPlayState() {
         return mCurrentPlayState;
     }
 
     /**
-     * 锟斤拷取锟斤拷前锟斤拷锟斤拷锟斤拷状??
-     * @return 锟斤拷锟斤拷锟斤拷状??
+     * 閿熸枻鎷峰彇閿熸枻鎷峰墠閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸??
      */
     public int getPlayerState() {
         return mCurrentPlayerState;
     }
 
-    // ===== 锟斤拷锟斤拷锟斤拷锟斤拷??=====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??=====
 
     /**
-     * 锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
-     * @param listener 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
+     * @param listener 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void addOnStateChangeListener(OnStateChangeListener listener) {
         if (listener != null && !mStateChangeListeners.contains(listener)) {
@@ -1026,22 +1072,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟狡筹拷状态锟斤拷锟斤拷锟斤拷
-     * @param listener 锟斤拷锟斤拷??
+     * 閿熺嫛绛规嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
+     * @param listener 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void removeOnStateChangeListener(OnStateChangeListener listener) {
         mStateChangeListeners.remove(listener);
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃跺埡顒婃嫹閿熸枻鎷烽敓鏂ゆ嫹閿?
      */
     public void clearOnStateChangeListeners() {
         mStateChangeListeners.clear();
     }
 
     /**
-     * 通知锟斤拷锟斤拷状态锟斤拷??
+     * 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹??
      */
     private void notifyPlayStateChanged(int playState) {
         if (mStateChangeListeners != null) {
@@ -1049,14 +1095,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 listener.onPlayStateChanged(playState);
             }
         }
-        // 通知锟斤拷锟斤拷锟斤拷锟?
+        // 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         if (mUseOrangeComponents) {
             notifyComponentsPlayStateChanged(playState);
         }
     }
 
     /**
-     * 通知锟斤拷锟斤拷锟斤拷状态锟斤拷??
+     * 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹??
      */
     private void notifyPlayerStateChanged(int playerState) {
         if (mStateChangeListeners != null) {
@@ -1064,14 +1110,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 listener.onPlayerStateChanged(playerState);
             }
         }
-        // 通知锟斤拷锟斤拷锟斤拷锟?
+        // 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         if (mUseOrangeComponents) {
             notifyComponentsPlayerStateChanged(playerState);
         }
     }
 
     /**
-     * 通知锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
+     * 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃跺埡顒婃嫹閿??
      */
     private void notifyComponentsPlayStateChanged(int playState) {
         debugLog("PlayState=" + playState + " PrepareView=" + (mPrepareView != null ? mPrepareView.getVisibility() : "null"));
@@ -1085,7 +1131,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 通知锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
+     * 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熼樁鍒侯剨鎷烽敓??
      */
     private void notifyComponentsPlayerStateChanged(int playerState) {
                 if (mPrepareView != null) mPrepareView.onPlayerStateChanged(playerState);
@@ -1097,24 +1143,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
      * Requirements: 3.2, 3.3, 6.4
      * 
-     * 锟脚伙拷说锟斤拷??
-     * - 锟斤拷锟接匡拷指锟斤拷锟介，确锟斤拷锟斤拷锟斤拷殉锟绞硷拷锟?
-     * - 确锟斤拷锟斤拷锟斤拷锟竭程革拷锟斤拷 UI
-     * - 锟斤拷锟斤拷锟斤拷锟轿达拷锟绞硷拷锟斤拷锟斤拷锟??
+     * 閿熻剼浼欐嫹璇撮敓鏂ゆ嫹??
+     * - 閿熸枻鎷烽敓鎺ュ尅鎷锋寚閿熸枻鎷烽敓浠嬶紝纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹娈夐敓缁炵》鎷烽敓?
+     * - 纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺绋嬮潻鎷烽敓鏂ゆ嫹 UI
+     * - 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓杞胯揪鎷烽敓缁炵》鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓??
      */
     public void updateComponentsProgress(int duration, int position) {
-        // 空指针检查：确保组件已初始化
+        // 绌烘寚閽堟鏌ワ細纭繚缁勪欢宸插垵濮嬪寲
         if (mVodControlView == null && mLiveControlView == null) {
-            android.util.Log.w(TAG, "updateComponentsProgress: 控制组件未初始化");
+            android.util.Log.w(TAG, "updateComponentsProgress: 鎺у埗缁勪欢鏈垵濮嬪寲");
             return;
         }
         
-        // 确锟斤拷锟斤拷锟斤拷锟竭程革拷锟斤拷 UI
+        // 纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺绋嬮潻鎷烽敓鏂ゆ嫹 UI
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷叱蹋锟絧ost 锟斤拷锟斤拷锟竭筹拷执锟斤拷
+            // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰彵韫嬮敓绲st 閿熸枻鎷烽敓鏂ゆ嫹閿熺绛规嫹鎵ч敓鏂ゆ嫹
             final int finalDuration = duration;
             final int finalPosition = position;
             post(new Runnable() {
@@ -1124,126 +1170,126 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             });
         } else {
-            // 锟斤拷锟斤拷锟斤拷锟竭程ｏ拷直锟斤拷执锟斤拷
+            // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓绔▼锝忔嫹鐩撮敓鏂ゆ嫹鎵ч敓鏂ゆ嫹
             updateComponentsProgressInternal(duration, position);
         }
     }
     
     /**
-     * 锟节诧拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷龋锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷叱痰锟斤拷锟??
+     * 閿熻妭璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹榫嬮敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鍙辩棸閿熸枻鎷烽敓??
      */
     private void updateComponentsProgressInternal(int duration, int position) {
-        // 锟斤拷锟铰点播锟斤拷锟斤拷锟斤拷锟?
+        // 閿熸枻鎷烽敓閾扮偣鎾敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿?
         if (mVodControlView != null) {
             try {
                 mVodControlView.setProgress(duration, position);
             } catch (Exception e) {
-                android.util.Log.e(TAG, "updateComponentsProgress: VodControlView 锟斤拷锟斤拷失锟斤拷", e);
+                android.util.Log.e(TAG, "updateComponentsProgress: VodControlView 閿熸枻鎷烽敓鏂ゆ嫹澶遍敓鏂ゆ嫹", e);
             }
         }
         
-        // 锟斤拷锟斤拷直锟斤拷锟斤拷锟斤拷锟斤拷锟?
+        // 閿熸枻鎷烽敓鏂ゆ嫹鐩撮敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         if (mLiveControlView != null) {
             try {
                 mLiveControlView.setProgress(duration, position);
             } catch (Exception e) {
-                android.util.Log.e(TAG, "updateComponentsProgress: LiveControlView 锟斤拷锟斤拷失锟斤拷", e);
+                android.util.Log.e(TAG, "updateComponentsProgress: LiveControlView 閿熸枻鎷烽敓鏂ゆ嫹澶遍敓鏂ゆ嫹", e);
             }
         }
     }
 
     /**
-     * 锟斤拷锟矫斤拷锟饺硷拷锟斤拷??
-     * @param listener 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鐭枻鎷烽敓楗虹》鎷烽敓鏂ゆ嫹??
+     * @param listener 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setOnProgressListener(OnProgressListener listener) {
         this.mProgressListener = listener;
     }
 
     /**
-     * 锟斤拷锟矫诧拷锟斤拷锟斤拷杉锟斤拷锟??
-     * @param listener 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹閿熸枻鎷锋潐閿熸枻鎷烽敓??
+     * @param listener 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setOnPlayCompleteListener(OnPlayCompleteListener listener) {
         this.mPlayCompleteListener = listener;
     }
 
 
-    // ===== 锟斤拷锟斤拷锟斤拷锟斤拷??=====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??=====
 
     /**
-     * 锟斤拷取锟斤拷频锟斤拷锟斤拷??
-     * @return 锟斤拷锟斤拷??
+     * 閿熸枻鎷峰彇閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public OrangeVideoController getVideoController() {
         return mOrangeController;
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷频锟斤拷锟斤拷??
-     * @param controller 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹??
+     * @param controller 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setVideoController(OrangeVideoController controller) {
         this.mOrangeController = controller;
 
-        // 通知控制器关联的播放器视图，以便初始化 VideoEventManager
+        // 閫氱煡鎺у埗鍣ㄥ叧鑱旂殑鎾斁鍣ㄨ鍥撅紝浠ヤ究鍒濆鍖?VideoEventManager
         if (controller != null) {
             controller.setVideoView(this);
 
-            // 绑定 TitleView 事件
+            // 缁戝畾 TitleView 浜嬩欢
             if (mTitleView != null) {
                 mTitleView.setController(controller);
             }
             
-            // 设置 VodControlView 的控制器引用
+            // 璁剧疆 VodControlView 鐨勬帶鍒跺櫒寮曠敤
             if (mVodControlView != null) {
                 mVodControlView.setOrangeVideoController(controller);
             }
             
-            // 确保事件绑定（处理控制器在组件创建后设置的情况）
+            // 纭繚浜嬩欢缁戝畾锛堝鐞嗘帶鍒跺櫒鍦ㄧ粍浠跺垱寤哄悗璁剧疆鐨勬儏鍐碉級
             ensureEventBinding();
         }
     }
 
-    // ===== 锟斤拷锟解功锟斤拷 =====
+    // ===== 閿熸枻鎷烽敓瑙ｅ姛閿熸枻鎷?=====
 
     /**
-     * 锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷锟皆讹拷锟斤拷取锟斤拷锟斤拷图锟斤拷??
-     * Requirements: 6.2 - THE OrangevideoView SHALL 支锟斤拷锟皆讹拷锟斤拷取锟斤拷频锟斤拷锟斤拷图锟斤拷??
-     * @param enabled true 锟斤拷锟矫ｏ拷false 锟斤拷锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹鍥鹃敓鏂ゆ嫹??
+     * Requirements: 6.2 - THE OrangevideoView SHALL 鏀敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷峰彇閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹鍥鹃敓鏂ゆ嫹??
+     * @param enabled true 閿熸枻鎷烽敓鐭綇鎷穎alse 閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void setAutoThumbnailEnabled(boolean enabled) {
         this.mAutoThumbnailEnabled = enabled;
     }
 
     /**
-     * 锟角凤拷锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷??
-     * @return true 锟斤拷锟斤拷
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @return true 閿熸枻鎷烽敓鏂ゆ嫹
      */
     public boolean isAutoThumbnailEnabled() {
         return mAutoThumbnailEnabled;
     }
 
     /**
-     * 锟斤拷锟斤拷默锟斤拷锟斤拷锟斤拷??
-     * @param thumbnail 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹榛橀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @param thumbnail 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setDefaultThumbnail(Object thumbnail) {
         this.mDefaultThumbnail = thumbnail;
     }
 
     /**
-     * 锟斤拷取默锟斤拷锟斤拷锟斤拷??
-     * @return 锟斤拷锟斤拷??
+     * 閿熸枻鎷峰彇榛橀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public Object getDefaultThumbnail() {
         return mDefaultThumbnail;
     }
 
     /**
-     * 锟届步锟斤拷取锟斤拷频锟斤拷一帧锟斤拷为锟斤拷锟斤拷图
-     * Requirements: 6.2 - THE OrangevideoView SHALL 支锟斤拷锟皆讹拷锟斤拷取锟斤拷频锟斤拷锟斤拷图锟斤拷??
-     * @param callback 锟截碉拷
+     * 閿熷眾姝ラ敓鏂ゆ嫹鍙栭敓鏂ゆ嫹棰戦敓鏂ゆ嫹涓€甯ч敓鏂ゆ嫹涓洪敓鏂ゆ嫹閿熸枻鎷峰浘
+     * Requirements: 6.2 - THE OrangevideoView SHALL 鏀敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷峰彇閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹鍥鹃敓鏂ゆ嫹??
+     * @param callback 閿熸埅纰夋嫹
      */
     public void getVideoFirstFrameAsync(VideoThumbnailHelper.ThumbnailCallback callback) {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1256,9 +1302,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟届步锟斤拷取指锟斤拷时锟斤拷锟斤拷锟狡抵?
-     * @param timeUs 时锟戒（微锟诫）
-     * @param callback 锟截碉拷
+     * 閿熷眾姝ラ敓鏂ゆ嫹鍙栨寚閿熸枻鎷锋椂閿熸枻鎷烽敓鏂ゆ嫹閿熺嫛鎶?
+     * @param timeUs 鏃堕敓鎴掞紙寰敓璇級
+     * @param callback 閿熸埅纰夋嫹
      */
     public void getFrameAtTimeAsync(long timeUs, VideoThumbnailHelper.ThumbnailCallback callback) {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1271,7 +1317,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟皆讹拷锟斤拷锟斤拷锟斤拷锟斤拷图锟斤拷锟斤拷锟斤拷锟斤拷锟??
+     * 閿熺殕璁规嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鍥鹃敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓??
      */
     private void autoLoadThumbnail() {
         if (!mAutoThumbnailEnabled || mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1282,7 +1328,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void onSuccess(android.graphics.Bitmap bitmap) {
                 mDefaultThumbnail = bitmap;
-                // 锟斤拷锟矫凤拷锟斤拷
+                // 閿熸枻鎷烽敓鐭嚖鎷烽敓鏂ゆ嫹
                 if (mThumbImageView != null && mThumbImageView instanceof android.widget.ImageView) {
                     ((android.widget.ImageView) mThumbImageView).setImageBitmap(bitmap);
                 }
@@ -1297,24 +1343,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟角凤拷锟斤拷洳ワ拷锟轿伙拷锟?
-     * Requirements: 6.3 - THE OrangevideoView SHALL 支锟街硷拷锟戒播锟斤拷位锟矫癸拷锟斤拷 (setKeepVideoPlaying)
-     * @param keep true 锟斤拷锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻鍑ゆ嫹閿熸枻鎷锋闯銉嫹閿熻娇浼欐嫹閿?
+     * Requirements: 6.3 - THE OrangevideoView SHALL 鏀敓琛楃》鎷烽敓鎴掓挱閿熸枻鎷蜂綅閿熺煫鐧告嫹閿熸枻鎷?(setKeepVideoPlaying)
+     * @param keep true 閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void setKeepVideoPlaying(boolean keep) {
         this.mKeepVideoPlaying = keep;
     }
 
     /**
-     * 锟角凤拷锟斤拷洳ワ拷锟轿伙拷锟?
-     * @return true 锟斤拷锟斤拷
+     * 閿熻鍑ゆ嫹閿熸枻鎷锋闯銉嫹閿熻娇浼欐嫹閿?
+     * @return true 閿熸枻鎷烽敓鏂ゆ嫹
      */
     public boolean isKeepVideoPlaying() {
         return mKeepVideoPlaying;
     }
 
     /**
-     * 锟斤拷锟芥当前锟斤拷锟脚斤拷锟斤拷
+     * 閿熸枻鎷烽敓鑺ュ綋鍓嶉敓鏂ゆ嫹閿熻剼鏂ゆ嫹閿熸枻鎷?
      * Requirements: 6.3
      */
     public void savePlaybackProgress() {
@@ -1333,9 +1379,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟街革拷锟斤拷锟脚斤拷锟斤拷
+     * 閿熻闈╂嫹閿熸枻鎷烽敓鑴氭枻鎷烽敓鏂ゆ嫹
      * Requirements: 6.3
-     * @return true 锟缴癸拷锟街革拷
+     * @return true 閿熺即鐧告嫹閿熻闈╂嫹
      */
     public boolean restorePlaybackProgress() {
         if (!mKeepVideoPlaying || mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1354,8 +1400,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷锟斤拷牟锟斤拷沤锟??
-     * @return 锟斤拷锟斤拷位锟矫ｏ拷锟斤拷锟诫）
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹鐗熼敓鏂ゆ嫹娌ら敓??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹浣嶉敓鐭綇鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public long getSavedProgress() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1365,8 +1411,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷欠锟斤拷斜锟斤拷锟侥斤拷??
-     * @return true 锟叫憋拷锟斤拷慕锟斤拷锟?
+     * 閿熸枻鎷烽敓鏂ゆ嫹娆犻敓鏂ゆ嫹鏂滈敓鏂ゆ嫹閿熶茎鏂ゆ嫹??
+     * @return true 閿熷彨鎲嬫嫹閿熸枻鎷锋厱閿熸枻鎷烽敓?
      */
     public boolean hasSavedProgress() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1376,7 +1422,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟角帮拷锟狡碉拷谋锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻甯嫹閿熺嫛纰夋嫹璋嬮敓鏂ゆ嫹閿熸枻鎷??
      */
     public void clearSavedProgress() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1385,12 +1431,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         PlaybackProgressManager.getInstance(getContext()).removeProgress(mVideoUrl);
     }
 
-    // ===== 锟斤拷锟斤拷片头片尾锟斤拷锟斤拷 (Requirements: 6.4) =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鐗囧熬閿熸枻鎷烽敓鏂ゆ嫹 (Requirements: 6.4) =====
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷片头时锟斤拷
-     * Requirements: 6.4 - THE OrangevideoView SHALL 支锟斤拷锟斤拷锟斤拷片头片尾锟斤拷锟斤拷
-     * @param timeMs 时锟斤拷锟斤拷锟斤拷锟诫）
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鏃堕敓鏂ゆ嫹
+     * Requirements: 6.4 - THE OrangevideoView SHALL 鏀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鐗囧熬閿熸枻鎷烽敓鏂ゆ嫹
+     * @param timeMs 鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public void setSkipIntroTime(long timeMs) {
         if (mSkipManager != null) {
@@ -1399,8 +1445,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷片头时锟斤拷锟斤拷锟斤拷??
-     * @param seconds 时锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @param seconds 鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setSkipIntroSeconds(int seconds) {
         if (mSkipManager != null) {
@@ -1409,16 +1455,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷锟斤拷片头时锟斤拷
-     * @return 时锟斤拷锟斤拷锟斤拷锟诫）
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鏃堕敓鏂ゆ嫹
+     * @return 鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public long getSkipIntroTime() {
         return mSkipManager != null ? mSkipManager.getSkipIntroTime() : 0;
     }
 
     /**
-     * 锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片头
-     * @param enabled 锟角凤拷锟斤拷锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご
+     * @param enabled 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void setSkipIntroEnabled(boolean enabled) {
         if (mSkipManager != null) {
@@ -1427,17 +1473,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片头
-     * @return true 锟斤拷锟斤拷
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご
+     * @return true 閿熸枻鎷烽敓鏂ゆ嫹
      */
     public boolean isSkipIntroEnabled() {
         return mSkipManager != null && mSkipManager.isSkipIntroEnabled();
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷片尾时锟斤拷
-     * Requirements: 6.4 - THE OrangevideoView SHALL 支锟斤拷锟斤拷锟斤拷片头片尾锟斤拷锟斤拷
-     * @param timeMs 时锟斤拷锟斤拷锟斤拷锟诫）
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧熬鏃堕敓鏂ゆ嫹
+     * Requirements: 6.4 - THE OrangevideoView SHALL 鏀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧ご鐗囧熬閿熸枻鎷烽敓鏂ゆ嫹
+     * @param timeMs 鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public void setSkipOutroTime(long timeMs) {
         if (mSkipManager != null) {
@@ -1446,8 +1492,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷片尾时锟斤拷锟斤拷锟斤拷??
-     * @param seconds 时锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧熬鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @param seconds 鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setSkipOutroSeconds(int seconds) {
         if (mSkipManager != null) {
@@ -1456,16 +1502,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷锟斤拷片尾时锟斤拷
-     * @return 时锟斤拷锟斤拷锟斤拷锟诫）
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹鐗囧熬鏃堕敓鏂ゆ嫹
+     * @return 鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熻锛?
      */
     public long getSkipOutroTime() {
         return mSkipManager != null ? mSkipManager.getSkipOutroTime() : 0;
     }
 
     /**
-     * 锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片尾
-     * @param enabled 锟角凤拷锟斤拷锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧熬
+     * @param enabled 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void setSkipOutroEnabled(boolean enabled) {
         if (mSkipManager != null) {
@@ -1474,16 +1520,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷片尾
-     * @return true 锟斤拷锟斤拷
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐗囧熬
+     * @return true 閿熸枻鎷烽敓鏂ゆ嫹
      */
     public boolean isSkipOutroEnabled() {
         return mSkipManager != null && mSkipManager.isSkipOutroEnabled();
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??
-     * @param listener 锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @param listener 閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void setOnSkipListener(SkipManager.OnSkipListener listener) {
         if (mSkipManager != null) {
@@ -1492,80 +1538,80 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取锟斤拷锟斤拷锟斤拷锟斤拷??
-     * @return 锟斤拷锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public SkipManager getSkipManager() {
         return mSkipManager;
     }
 
     /**
-     * 锟斤拷取锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷??
-     * @return 锟斤拷频锟斤拷锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷峰彇閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
+     * @return 閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public VideoScaleManager getVideoScaleManager() {
         return mVideoScaleManager;
     }
     
     /**
-     * 锟斤拷取锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
-     * @return 锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
      */
     public PlaybackStateManager getPlaybackStateManager() {
         return mPlaybackStateManager;
     }
     
     /**
-     * 锟斤拷取锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
-     * @return 锟斤拷锟阶刺拷锟斤拷锟斤拷锟?
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓闃跺埡顒婃嫹閿熸枻鎷烽敓鏂ゆ嫹閿?
+     * @return 閿熸枻鎷烽敓闃跺埡顒婃嫹閿熸枻鎷烽敓鏂ゆ嫹閿?
      */
     public ComponentStateManager getComponentStateManager() {
         return mComponentStateManager;
     }
     
     /**
-     * 锟斤拷取锟斤拷锟斤拷指锟斤拷锟斤拷锟??
-     * @return 锟斤拷锟斤拷指锟斤拷锟斤拷锟??
+     * 閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹鎸囬敓鏂ゆ嫹閿熸枻鎷烽敓??
+     * @return 閿熸枻鎷烽敓鏂ゆ嫹鎸囬敓鏂ゆ嫹閿熸枻鎷烽敓??
      */
     public ErrorRecoveryManager getErrorRecoveryManager() {
         return mErrorRecoveryManager;
     }
 
     /**
-     * 刷锟斤拷锟斤拷频锟斤拷示锟斤拷锟斤拷
-     * 锟斤拷锟斤拷锟节改憋拷锟斤拷频锟斤拷锟斤拷锟斤拷刷锟斤拷锟斤拷示
+     * 鍒烽敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷风ず閿熸枻鎷烽敓鏂ゆ嫹
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻妭鏀规唻鎷烽敓鏂ゆ嫹棰戦敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鍒烽敓鏂ゆ嫹閿熸枻鎷风ず
      */
     public void refreshVideoShowType() {
         changeTextureViewShowType();
     }
 
     /**
-     * 锟角凤拷为直锟斤拷锟斤拷??
-     * @return true 直锟斤拷
+     * 閿熻鍑ゆ嫹涓虹洿閿熸枻鎷烽敓鏂ゆ嫹??
+     * @return true 鐩撮敓鏂ゆ嫹
      */
     public boolean isLiveVideo() {
         return mIsLiveVideo;
     }
 
     /**
-     * 锟斤拷锟斤拷锟角凤拷为直锟斤拷锟斤拷??
-     * @param isLive true 直锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熻鍑ゆ嫹涓虹洿閿熸枻鎷烽敓鏂ゆ嫹??
+     * @param isLive true 鐩撮敓鏂ゆ嫹
      */
     public void setLiveVideo(boolean isLive) {
         this.mIsLiveVideo = isLive;
     }
 
     /**
-     * 锟角凤拷锟斤拷锟斤拷锟斤拷探
-     * @return true 锟斤拷锟斤拷锟斤拷探
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷锋帰
+     * @return true 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷锋帰
      */
     public boolean isSniffing() {
         return mIsSniffing;
     }
 
     /**
-     * 锟斤拷始锟斤拷频锟斤拷??
-     * Requirements: 6.1 - THE OrangevideoView SHALL 支锟斤拷锟斤拷频锟斤拷探锟斤拷锟斤拷 (startSniffing)
+     * 閿熸枻鎷峰閿熸枻鎷烽閿熸枻鎷??
+     * Requirements: 6.1 - THE OrangevideoView SHALL 鏀敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷锋帰閿熸枻鎷烽敓鏂ゆ嫹 (startSniffing)
      */
     public void startSniffing() {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
@@ -1576,9 +1622,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷始锟斤拷频锟斤拷探锟斤拷锟斤拷锟皆讹拷锟斤拷锟斤拷锟斤拷头锟斤拷
-     * @param url 锟斤拷页锟斤拷址
-     * @param headers 锟皆讹拷锟斤拷锟斤拷锟斤拷头
+     * 閿熸枻鎷峰閿熸枻鎷烽閿熸枻鎷锋帰閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰ご閿熸枻鎷?
+     * @param url 閿熸枻鎷烽〉閿熸枻鎷峰潃
+     * @param headers 閿熺殕璁规嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰ご
      */
     public void startSniffing(String url, java.util.Map<String, String> headers) {
         mIsSniffing = true;
@@ -1590,7 +1636,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void received(String contentType, java.util.HashMap<String, String> respHeaders, 
                                String title, String videoUrl) {
                 debug("Sniffing received: " + videoUrl);
-                // 通知锟斤拷锟斤拷??
+                // 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹??
                 for (OnStateChangeListener listener : mStateChangeListeners) {
                     if (listener instanceof OnSniffingListener) {
                         ((OnSniffingListener) listener).onSniffingReceived(contentType, respHeaders, title, videoUrl);
@@ -1603,7 +1649,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mIsSniffing = false;
                 setOrangePlayState(STATE_ENDSNIFFING);
                 debug("Sniffing finished: " + videoSize + " videos found");
-                // 通知锟斤拷锟斤拷??
+                // 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹??
                 for (OnStateChangeListener listener : mStateChangeListeners) {
                     if (listener instanceof OnSniffingListener) {
                         ((OnSniffingListener) listener).onSniffingFinish(videoList, videoSize);
@@ -1614,7 +1660,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷频锟斤拷探
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷锋帰
      */
     public void stopSniffing() {
         mIsSniffing = false;
@@ -1623,52 +1669,52 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷探锟斤拷锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷锋帰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public interface OnSniffingListener {
         /**
-         * 锟斤拷锟秸碉拷锟斤拷频锟斤拷??
+         * 閿熸枻鎷烽敓绉哥鎷烽敓鏂ゆ嫹棰戦敓鏂ゆ嫹??
          */
         void onSniffingReceived(String contentType, java.util.HashMap<String, String> headers, 
                                String title, String url);
         
         /**
-         * 锟斤拷探锟斤拷锟?
+         * 閿熸枻鎷锋帰閿熸枻鎷烽敓?
          */
         void onSniffingFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize);
     }
 
-    // ===== 锟斤拷锟斤拷模式 =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹妯″紡 =====
 
     /**
-     * 锟斤拷锟矫碉拷锟斤拷模式
-     * @param debug true 锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹妯″紡
+     * @param debug true 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷??
      */
     public void setDebug(boolean debug) {
         this.mDebug = debug;
     }
 
     /**
-     * 锟角凤拷锟斤拷锟侥Ｊ?
-     * @return true 锟斤拷锟斤拷模式
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓渚ワ吉?
+     * @return true 閿熸枻鎷烽敓鏂ゆ嫹妯″紡
      */
     public boolean isDebug() {
         return mDebug;
     }
 
     /**
-     * 锟斤拷锟斤拷锟斤拷志
-     * @param message 锟斤拷志锟斤拷息
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰織
+     * @param message 閿熸枻鎷峰織閿熸枻鎷锋伅
      */
     protected void debug(Object message) {
         if (mDebug) {
                     }
     }
 
-    // ===== 锟斤拷锟竭凤拷锟斤拷 =====
+    // ===== 閿熸枻鎷烽敓绔嚖鎷烽敓鏂ゆ嫹 =====
 
     /**
-     * 锟斤拷取 Activity
+     * 閿熸枻鎷峰彇 Activity
      * @return Activity
      */
     public Activity getActivity() {
@@ -1680,26 +1726,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟角凤拷锟斤拷锟节诧拷锟斤拷
-     * @return true 锟斤拷锟节诧拷锟斤拷
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓鑺傝鎷烽敓鏂ゆ嫹
+     * @return true 閿熸枻鎷烽敓鑺傝鎷烽敓鏂ゆ嫹
      */
     public boolean isPlaying() {
         return mCurrentPlayState == PlayerConstants.STATE_PLAYING;
     }
 
     /**
-     * 锟角凤拷锟斤拷锟斤拷通状态锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷小锟斤拷??
-     * @return true 锟斤拷通状??
+     * 閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閫氱姸鎬侀敓鏂ゆ嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰皬閿熸枻鎷??
+     * @return true 閿熸枻鎷烽€氱姸??
      */
     public boolean isInNormalState() {
         return !isFullScreen() && !isTinyScreen();
     }
 
-    // ===== 锟斤拷锟斤拷锟斤拷示 GestureView =====
+    // ===== 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风ず GestureView =====
     private com.orange.playerlibrary.component.GestureView mGestureView;
 
     /**
-     * 锟斤拷写锟斤拷示锟斤拷锟饺对伙拷锟斤拷使锟斤拷 GestureView 锟斤拷锟?Dialog
+     * 閿熸枻鎷峰啓閿熸枻鎷风ず閿熸枻鎷烽敓楗哄浼欐嫹閿熸枻鎷蜂娇閿熸枻鎷?GestureView 閿熸枻鎷烽敓?Dialog
      */
     @Override
     protected void showBrightnessDialog(float percent) {
@@ -1711,7 +1757,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷示锟斤拷锟斤拷锟皆伙拷锟斤拷使锟斤拷 GestureView 锟斤拷锟?Dialog
+     * 閿熸枻鎷峰啓閿熸枻鎷风ず閿熸枻鎷烽敓鏂ゆ嫹閿熺殕浼欐嫹閿熸枻鎷蜂娇閿熸枻鎷?GestureView 閿熸枻鎷烽敓?Dialog
      */
     @Override
     protected void showVolumeDialog(float deltaY, int volumePercent) {
@@ -1723,7 +1769,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷示锟斤拷锟饺对伙拷锟斤拷使锟斤拷 GestureView 锟斤拷锟?Dialog
+     * 閿熸枻鎷峰啓閿熸枻鎷风ず閿熸枻鎷烽敓楗哄浼欐嫹閿熸枻鎷蜂娇閿熸枻鎷?GestureView 閿熸枻鎷烽敓?Dialog
      */
     @Override
     protected void showProgressDialog(float deltaX, String seekTime, long seekTimePosition, String totalTime, long totalTimeDuration) {
@@ -1735,7 +1781,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷锟斤拷锟斤拷锟饺对伙拷??
+     * 閿熸枻鎷峰啓閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓楗哄浼欐嫹??
      */
     @Override
     protected void dismissBrightnessDialog() {
@@ -1745,7 +1791,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷锟斤拷锟斤拷锟斤拷锟皆伙拷??
+     * 閿熸枻鎷峰啓閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕浼欐嫹??
      */
     @Override
     protected void dismissVolumeDialog() {
@@ -1755,7 +1801,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷锟截斤拷锟饺对伙拷??
+     * 閿熸枻鎷峰啓閿熸枻鎷烽敓鎴枻鎷烽敓楗哄浼欐嫹??
      */
     @Override
     protected void dismissProgressDialog() {
@@ -1765,12 +1811,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 确锟斤拷 GestureView 锟窖筹拷始锟斤拷
+     * 纭敓鏂ゆ嫹 GestureView 閿熺獤绛规嫹濮嬮敓鏂ゆ嫹
      */
     private void ensureGestureView() {
         if (mGestureView == null) {
             mGestureView = new com.orange.playerlibrary.component.GestureView(getContext());
-            // 锟斤拷锟矫诧拷锟街诧拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
+            // 閿熸枻鎷烽敓鐭鎷烽敓琛楄鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
             android.widget.RelativeLayout.LayoutParams lp = new android.widget.RelativeLayout.LayoutParams(
                     android.widget.RelativeLayout.LayoutParams.MATCH_PARENT,
                     android.widget.RelativeLayout.LayoutParams.MATCH_PARENT);
@@ -1779,7 +1825,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取 GestureView
+     * 閿熸枻鎷峰彇 GestureView
      */
     public com.orange.playerlibrary.component.GestureView getGestureView() {
         ensureGestureView();
@@ -1787,22 +1833,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟矫诧拷锟斤拷状态锟斤拷锟斤拷锟斤拷??API??
-     * @param state 状??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??API??
+     * @param state 鐘??
      */
     public void setThisPlayState(int state) {
         setOrangePlayState(state);
     }
 
     /**
-     * 锟斤拷锟矫诧拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷??API??
-     * @param state 状??
+     * 閿熸枻鎷烽敓鐭鎷烽敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??API??
+     * @param state 鐘??
      */
     public void setThisPlayerState(int state) {
         setOrangePlayerState(state);
     }
 
-    // ===== GSYBaseVideoPlayer 锟斤拷锟襟方凤拷实锟斤拷 =====
+    // ===== GSYBaseVideoPlayer 閿熸枻鎷烽敓瑗熸柟鍑ゆ嫹瀹為敓鏂ゆ嫹 =====
 
     @Override
     public int getLayoutId() {
@@ -1820,8 +1866,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷锟截帮拷钮锟斤拷取锟斤拷锟斤拷锟斤拷锟斤拷??null ??GSY 锟斤拷锟斤拷锟斤拷锟斤拷锟截帮拷??
-     * 锟斤拷锟截帮拷钮??TitleView 锟斤拷锟斤拷锟斤拷锟?
+     * 閿熸枻鎷峰啓閿熸枻鎷烽敓鎴府鎷烽挳閿熸枻鎷峰彇閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??null ??GSY 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸埅甯嫹??
+     * 閿熸枻鎷烽敓鎴府鎷烽挳??TitleView 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
      */
     @Override
     public android.widget.ImageView getBackButton() {
@@ -1829,8 +1875,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷取全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟芥本锟斤拷
-     * @return OrangevideoView 锟斤拷锟矫伙拷锟斤拷蚍祷乜锟?
+     * 閿熸枻鎷峰彇鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸帴璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹閿熻姤鏈敓鏂ゆ嫹
+     * @return OrangevideoView 閿熸枻鎷烽敓鐭紮鎷烽敓鏂ゆ嫹铓嶇シ涔滈敓?
      */
     @SuppressWarnings("ResourceType")
     public OrangevideoView getOrangeFullWindowPlayer() {
@@ -1848,8 +1894,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟斤拷锟阶刺拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟矫革拷锟斤拷??getFullWindowPlayer 锟斤拷锟斤拷 ClassCastException
-     * 锟斤拷为 OrangevideoView 锟教筹拷??GSYBaseVideoPlayer 锟斤拷锟斤拷??GSYVideoPlayer
+     * 閿熸枻鎷峰啓閿熸枻鎷烽敓闃跺埡顒婃嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鐭潻鎷烽敓鏂ゆ嫹??getFullWindowPlayer 閿熸枻鎷烽敓鏂ゆ嫹 ClassCastException
+     * 閿熸枻鎷蜂负 OrangevideoView 閿熸暀绛规嫹??GSYBaseVideoPlayer 閿熸枻鎷烽敓鏂ゆ嫹??GSYVideoPlayer
      */
     @Override
     protected void checkoutState() {
@@ -1858,7 +1904,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟斤拷锟斤拷锟??
+     * 閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷烽敓??
      */
     private Runnable mOrangeCheckoutTask = new Runnable() {
         @Override
@@ -1874,16 +1920,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     };
 
     /**
-     * 锟斤拷写锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷确锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷确锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷锟阶??
+     * 閿熸枻鎷峰啓閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风‘閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风‘閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熼樁??
      */
     @Override
     @SuppressWarnings({"ResourceType", "unchecked"})
     public GSYBaseVideoPlayer startWindowFullscreen(Context context, boolean actionBar, boolean statusBar) {
                 
-        // 强锟斤拷锟斤拷锟斤拷状态锟斤拷锟酵碉拷锟斤拷锟斤拷锟斤拷锟斤拷锟皆达拷锟斤拷牟锟斤拷锟??
+        // 寮洪敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熼叺纰夋嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺殕杈炬嫹閿熸枻鎷风墴閿熸枻鎷烽敓??
         hideStatusBarAndNavigation(context);
         
-        // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷远锟斤拷锟阶拷锟斤拷锟斤拷锟阶拷锟侥伙拷锟斤拷锟斤拷锟?
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷疯繙閿熸枻鎷烽敓闃额亷鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃额亷鎷烽敓渚ヤ紮鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         if (mAutoRotateOnFullscreen) {
             Activity activity = getActivity();
             if (activity != null) {
@@ -1891,34 +1937,34 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
         
-        // 锟斤拷锟矫革拷锟洁方锟斤拷锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 true 锟矫革拷锟斤拷也锟斤拷锟斤拷??
+        // 閿熸枻鎷烽敓鐭潻鎷烽敓娲佹柟閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷?true 閿熺煫闈╂嫹閿熸枻鎷蜂篃閿熸枻鎷烽敓鏂ゆ嫹??
         GSYBaseVideoPlayer fullPlayer = super.startWindowFullscreen(context, true, true);
-        debugLog("锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷: " + (fullPlayer != null ? fullPlayer.getClass().getSimpleName() : "null"));
+        debugLog("閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹: " + (fullPlayer != null ? fullPlayer.getClass().getSimpleName() : "null"));
         
-        // 锟斤拷锟??OrangevideoView锟斤拷同锟斤拷状??
+        // 閿熸枻鎷烽敓??OrangevideoView閿熸枻鎷峰悓閿熸枻鎷风姸??
         if (fullPlayer instanceof OrangevideoView) {
             final OrangevideoView orangeFullPlayer = (OrangevideoView) fullPlayer;
                         
-            // 锟斤拷锟斤拷锟斤拷锟斤拷全锟斤拷锟斤拷志
+            // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷峰織
             orangeFullPlayer.mIfCurrentIsFullscreen = true;
             
-            // 锟接筹拷同锟斤拷状态锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷珊锟斤拷锟斤拷锟绞撅拷锟斤拷锟??
+            // 閿熸帴绛规嫹鍚岄敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风強閿熸枻鎷烽敓鏂ゆ嫹閿熺粸鎾呮嫹閿熸枻鎷烽敓??
             orangeFullPlayer.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                                         
-                    // 同锟斤拷锟斤拷锟斤拷
+                    // 鍚岄敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                     if (mTitleView != null && orangeFullPlayer.mTitleView != null) {
                         String title = mTitleView.getTitle();
                         orangeFullPlayer.mTitleView.setTitle(title);
                                                 
-                        // 锟斤拷全锟斤拷 TitleView bindController
+                        // 閿熸枻鎷峰叏閿熸枻鎷?TitleView bindController
                         if (mOrangeController != null) {
                             orangeFullPlayer.mTitleView.setController(mOrangeController);
                         }
                     }
                     
-                    // 缁戝畾鍏ㄥ睆鎾斁鍣ㄧ殑 VodControlView 鍒?VideoEventManager
+                    // 缂佹垵鐣鹃崗銊ョ潌閹绢厽鏂侀崳銊ф畱 VodControlView 閸?VideoEventManager
                     if (mOrangeController != null && orangeFullPlayer.mVodControlView != null) {
                         com.orange.playerlibrary.VideoEventManager eventManager = 
                                 mOrangeController.getVideoEventManager();
@@ -1927,46 +1973,46 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                     }
                     
-                    // 同锟斤拷锟斤拷前锟斤拷锟斤拷状态锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
+                    // 鍚岄敓鏂ゆ嫹閿熸枻鎷峰墠閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
                     orangeFullPlayer.setOrangePlayState(mCurrentPlayState);
                     orangeFullPlayer.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
                                         
-                    // 锟斤拷锟斤拷注锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟侥斤拷锟饺硷拷锟斤拷锟斤拷锟斤拷确锟斤拷锟斤拷锟饺革拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+                    // 閿熸枻鎷烽敓鏂ゆ嫹娉ㄩ敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓渚ユ枻鎷烽敓楗虹》鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹纭敓鏂ゆ嫹閿熸枻鎷烽敓楗洪潻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                     if (orangeFullPlayer.mComponentStateManager != null) {
                         orangeFullPlayer.mComponentStateManager.reregisterProgressListener(orangeFullPlayer);
                     }
                     
-                    // 全锟斤拷时锟斤拷示锟斤拷锟斤拷锟斤拷
+                    // 鍏ㄩ敓鏂ゆ嫹鏃堕敓鏂ゆ嫹绀洪敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                     orangeFullPlayer.showController();
-                    // 强锟斤拷锟斤拷示 TitleView
+                    // 寮洪敓鏂ゆ嫹閿熸枻鎷风ず TitleView
                                         if (orangeFullPlayer.mTitleView != null) {
                         orangeFullPlayer.mTitleView.setVisibility(android.view.View.VISIBLE);
                         orangeFullPlayer.mTitleView.bringToFront();
-                        debugLog("强锟斤拷锟斤拷示 TitleView, visibility=" + orangeFullPlayer.mTitleView.getVisibility());
+                        debugLog("寮洪敓鏂ゆ嫹閿熸枻鎷风ず TitleView, visibility=" + orangeFullPlayer.mTitleView.getVisibility());
                     }
-                    // 强锟斤拷通知 VodControlView 锟斤拷锟斤拷全锟斤拷状态锟斤拷锟斤拷示锟斤拷幕锟斤拷锟斤拷
+                    // 寮洪敓鏂ゆ嫹閫氱煡 VodControlView 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熸枻鎷风ず閿熸枻鎷峰箷閿熸枻鎷烽敓鏂ゆ嫹
                     if (orangeFullPlayer.mVodControlView != null) {
                         orangeFullPlayer.mVodControlView.setVisibility(android.view.View.VISIBLE);
                         orangeFullPlayer.mVodControlView.bringToFront();
                         orangeFullPlayer.mVodControlView.onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
-                        debugLog("通知 VodControlView 全锟斤拷状?? visibility=" + orangeFullPlayer.mVodControlView.getVisibility());
+                        debugLog("閫氱煡 VodControlView 鍏ㄩ敓鏂ゆ嫹鐘?? visibility=" + orangeFullPlayer.mVodControlView.getVisibility());
                     }
                     orangeFullPlayer.requestLayout();
                     
                                     }
             }, 300);
         } else {
-            debugLog("全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷??OrangevideoView: " + (fullPlayer != null ? fullPlayer.getClass().getName() : "null"));
+            debugLog("鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??OrangevideoView: " + (fullPlayer != null ? fullPlayer.getClass().getName() : "null"));
         }
         
-        // 通知锟斤拷前锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷全锟斤拷状??
+        // 閫氱煡閿熸枻鎷峰墠閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰叏閿熸枻鎷风姸??
         setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
         
         return fullPlayer;
     }
     
     /**
-     * 锟斤拷锟斤拷状态锟斤拷锟酵碉拷锟斤拷锟斤拷
+     * 閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹閿熼叺纰夋嫹閿熸枻鎷烽敓鏂ゆ嫹
      */
     private void hideStatusBarAndNavigation(Context context) {
         Activity activity = com.shuyu.gsyvideoplayer.utils.CommonUtil.scanForActivity(context);
@@ -1980,7 +2026,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
             decorView.setSystemUiVisibility(uiOptions);
             
-            // 锟斤拷锟斤拷 ActionBar
+            // 閿熸枻鎷烽敓鏂ゆ嫹 ActionBar
             if (activity.getActionBar() != null) {
                 activity.getActionBar().hide();
             }
@@ -1994,7 +2040,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写锟剿筹拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 ClassCastException
+     * 閿熸枻鎷峰啓閿熷壙绛规嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷?ClassCastException
      */
     @Override
     @SuppressWarnings("ResourceType")
@@ -2004,13 +2050,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         return;
         }
         
-        // 锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷状??
+        // 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘??
         final android.view.ViewGroup vp = getViewGroup();
         final android.view.View oldF = vp.findViewById(getFullId());
         if (oldF != null && oldF instanceof OrangevideoView) {
             OrangevideoView orangeVideoPlayer = (OrangevideoView) oldF;
                         
-            // 使锟斤拷 PlaybackStateManager 锟斤拷锟斤拷状??
+            // 浣块敓鏂ゆ嫹 PlaybackStateManager 閿熸枻鎷烽敓鏂ゆ嫹鐘??
             if (mPlaybackStateManager != null) {
                 mPlaybackStateManager.saveState(orangeVideoPlayer);
                             }
@@ -2042,7 +2088,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟截碉拷锟斤拷锟斤拷效??
+     * 閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎴鎷烽敓鏂ゆ嫹閿熸枻鎷锋晥??
      */
     @SuppressWarnings("ResourceType")
     protected void orangeBackToNormal() {
@@ -2052,8 +2098,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         if (oldF != null && oldF instanceof OrangevideoView) {
             orangeVideoPlayer = (OrangevideoView) oldF;
-            // 锟斤拷锟斤拷锟酵??- 锟斤拷锟斤拷 pauseFullBackCoverLogic锟斤拷锟斤拷为锟斤拷锟斤拷??GSYVideoPlayer 锟斤拷锟斤拷
-            // 锟斤拷锟接空硷拷椋拷锟斤拷锟?NPE
+            // 閿熸枻鎷烽敓鏂ゆ嫹閿熼叺??- 閿熸枻鎷烽敓鏂ゆ嫹 pauseFullBackCoverLogic閿熸枻鎷烽敓鏂ゆ嫹涓洪敓鏂ゆ嫹閿熸枻鎷??GSYVideoPlayer 閿熸枻鎷烽敓鏂ゆ嫹
+            // 閿熸枻鎷烽敓鎺ョ┖纭锋嫹妞嬵剨鎷烽敓鏂ゆ嫹閿?NPE
             if (mShowFullAnimation && mListItemRect != null && mListItemSize != null) {
                 android.transition.TransitionManager.beginDelayedTransition(vp);
                 android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) orangeVideoPlayer.getLayoutParams();
@@ -2077,11 +2123,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷锟接诧拷锟斤拷锟斤拷锟街革拷锟斤拷锟斤拷锟斤拷??
+     * 閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓琛楅潻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??
      */
     protected void orangeResolveNormalVideoShow(android.view.View oldF, android.view.ViewGroup vp, OrangevideoView orangeVideoPlayer) {
                 
-        // 锟斤拷锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷锟侥诧拷锟斤拷位锟矫ｏ拷锟截硷拷锟斤拷??cloneParams 之前锟斤拷锟斤拷??
+        // 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓渚ヨ鎷烽敓鏂ゆ嫹浣嶉敓鐭綇鎷烽敓鎴》鎷烽敓鏂ゆ嫹??cloneParams 涔嬪墠閿熸枻鎷烽敓鏂ゆ嫹??
         final long savedPosition = (orangeVideoPlayer != null) ? orangeVideoPlayer.getCurrentPositionWhenPlaying() : 0;
         final boolean wasPlaying = (orangeVideoPlayer != null) ? orangeVideoPlayer.isPlaying() : false;
                 
@@ -2105,19 +2151,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         getGSYVideoManager().setLastListener(null);
         setStateAndUi(mCurrentState);
         
-        // 锟截硷拷锟斤拷锟斤拷锟斤拷锟斤拷??TextureView锟斤拷确??Surface 锟斤拷确锟街革拷
+        // 閿熸埅纭锋嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??TextureView閿熸枻鎷风‘??Surface 閿熸枻鎷风‘閿熻闈╂嫹
                 addTextureView();
         
-        // 锟接迟恢革拷锟斤拷锟斤拷位锟矫ｏ拷确??Surface 锟窖撅拷准锟斤拷??
+        // 閿熸帴杩熸仮闈╂嫹閿熸枻鎷烽敓鏂ゆ嫹浣嶉敓鐭綇鎷风‘??Surface 閿熺獤鎾呮嫹鍑嗛敓鏂ゆ嫹??
         postDelayed(new Runnable() {
             @Override
             public void run() {
                                 
-                // 锟街革拷锟斤拷锟斤拷位锟矫ｏ拷锟截硷拷锟睫革拷锟斤拷
+                // 閿熻闈╂嫹閿熸枻鎷烽敓鏂ゆ嫹浣嶉敓鐭綇鎷烽敓鎴》鎷烽敓鐫潻鎷烽敓鏂ゆ嫹
                 if (savedPosition > 0) {
                                         seekTo(savedPosition);
                     
-                    // 锟斤拷锟街帮拷诓锟斤拷牛锟斤拷锟斤拷锟斤拷锟斤拷锟?
+                    // 閿熸枻鎷烽敓琛楊啚甯嫹璇撻敓鏂ゆ嫹鐗涢敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
                     if (wasPlaying) {
                         postDelayed(new Runnable() {
                             @Override
@@ -2130,13 +2176,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     }
                 }
                 
-                // 锟街革拷锟斤拷锟阶??
+                // 閿熻闈╂嫹閿熸枻鎷烽敓闃??
                 if (mComponentStateManager != null) {
                     mComponentStateManager.restoreComponentState(OrangevideoView.this);
                     mComponentStateManager.reregisterProgressListener(OrangevideoView.this);
                                     }
                 
-                // 通知锟斤拷锟阶刺拷锟??
+                // 閫氱煡閿熸枻鎷烽敓闃跺埡顒婃嫹閿??
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
             }
@@ -2154,7 +2200,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (getFullscreenButton() != null) {
             getFullscreenButton().setImageResource(getEnlargeImageRes());
         }
-        // 通知锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
+        // 閫氱煡閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃跺埡顒婃嫹閿??
         setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
         
             }
@@ -2171,7 +2217,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public boolean backFromFull(Context context) {
-        // 锟斤拷全锟斤拷锟斤拷??
+        // 閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹??
         if (mIfCurrentIsFullscreen) {
             mIfCurrentIsFullscreen = false;
             setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
@@ -2185,13 +2231,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void showWifiDialog() {
-        // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷贫锟斤拷锟斤拷锟斤拷锟绞?
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹璐敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熺粸?
         if (mPrepareView != null) {
-            setOrangePlayState(8); // 锟狡讹拷锟斤拷锟界警锟斤拷状??
+            setOrangePlayState(8); // 閿熺嫛璁规嫹閿熸枻鎷烽敓鐣岃閿熸枻鎷风姸??
         }
     }
 
-    // UI 状态锟戒化锟斤拷??- 锟斤拷实锟街ｏ拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟??
+    // UI 鐘舵€侀敓鎴掑寲閿熸枻鎷??- 閿熸枻鎷峰疄閿熻锝忔嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓??
     protected void changeUiToNormal() {}
     protected void changeUiToPreparingShow() {}
     protected void changeUiToPlayingShow() {}
@@ -2206,13 +2252,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void changeUiToCompleteClear() {}
     protected void hideAllWidget() {}
     
-    // 锟皆讹拷锟斤拷锟截匡拷锟斤拷锟斤拷锟侥讹拷时??
-    private static final int AUTO_HIDE_DELAY = 4000; // 4锟斤拷锟斤拷远锟斤拷锟斤拷锟?
+    // 閿熺殕璁规嫹閿熸枻鎷烽敓鎴尅鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓渚ヨ鎷锋椂??
+    private static final int AUTO_HIDE_DELAY = 4000; // 4閿熸枻鎷烽敓鏂ゆ嫹杩滈敓鏂ゆ嫹閿熸枻鎷烽敓?
     private Runnable mAutoHideRunnable;
 
     @Override
     protected void onClickUiToggle(android.view.MotionEvent e) {
-        // 只锟节诧拷锟脚伙拷锟斤拷停状态时锟斤拷锟叫伙拷锟斤拷锟斤拷锟斤拷锟斤拷示/锟斤拷锟斤拷
+        // 鍙敓鑺傝鎷烽敓鑴氫紮鎷烽敓鏂ゆ嫹鍋滅姸鎬佹椂閿熸枻鎷烽敓鍙紮鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风ず/閿熸枻鎷烽敓鏂ゆ嫹
         if (mCurrentPlayState != PlayerConstants.STATE_PLAYING && 
             mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
@@ -2220,7 +2266,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return;
         }
         
-        // 锟斤拷锟斤拷谢锟斤拷锟斤拷锟斤拷锟斤拷锟??锟斤拷锟斤拷
+        // 閿熸枻鎷烽敓鏂ゆ嫹璋㈤敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓??閿熸枻鎷烽敓鏂ゆ嫹
         if (isControllerShowing()) {
             hideController();
         } else {
@@ -2229,22 +2275,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 锟斤拷示锟斤拷锟斤拷??
+     * 閿熸枻鎷风ず閿熸枻鎷烽敓鏂ゆ嫹??
      */
     public void showController() {
         if (mVodControlView != null) {
             mVodControlView.setVisibility(android.view.View.VISIBLE);
         }
-        // 全锟斤拷时锟斤拷示锟斤拷锟斤拷锟斤拷
+        // 鍏ㄩ敓鏂ゆ嫹鏃堕敓鏂ゆ嫹绀洪敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
         if (mTitleView != null && (mIfCurrentIsFullscreen || mCurrentPlayerState == PlayerConstants.PLAYER_FULL_SCREEN)) {
             mTitleView.setVisibility(android.view.View.VISIBLE);
         }
-        // 锟斤拷锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
+        // 閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鎴鎷锋椂??
         startAutoHideTimer();
     }
     
     /**
-     * 锟斤拷锟截匡拷锟斤拷??
+     * 閿熸枻鎷烽敓鎴尅鎷烽敓鏂ゆ嫹??
      */
     public void hideController() {
         if (mVodControlView != null) {
@@ -2253,19 +2299,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mTitleView != null) {
             mTitleView.setVisibility(android.view.View.GONE);
         }
-        // 取锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
+        // 鍙栭敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鎴鎷锋椂??
         cancelAutoHideTimer();
     }
     
     /**
-     * 锟斤拷锟斤拷锟斤拷锟角凤拷锟斤拷??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓瑙掑嚖鎷烽敓鏂ゆ嫹??
      */
     public boolean isControllerShowing() {
         return mVodControlView != null && mVodControlView.getVisibility() == android.view.View.VISIBLE;
     }
     
     /**
-     * 锟斤拷取锟津创斤拷锟皆讹拷锟斤拷??Runnable
+     * 閿熸枻鎷峰彇閿熸触鍒涙枻鎷烽敓鐨嗚鎷烽敓鏂ゆ嫹??Runnable
      */
     private Runnable getAutoHideRunnable() {
         if (mAutoHideRunnable == null) {
@@ -2280,7 +2326,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 锟斤拷锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鎴鎷锋椂??
      */
     private void startAutoHideTimer() {
         cancelAutoHideTimer();
@@ -2290,7 +2336,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 取锟斤拷锟皆讹拷锟斤拷锟截讹拷时??
+     * 鍙栭敓鏂ゆ嫹閿熺殕璁规嫹閿熸枻鎷烽敓鎴鎷锋椂??
      */
     private void cancelAutoHideTimer() {
         if (mInnerHandler != null && mAutoHideRunnable != null) {
@@ -2299,17 +2345,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写双锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷全使锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟叫断ｏ拷锟斤拷锟斤拷??GSY ??mCurrentState
+     * 閿熸枻鎷峰啓鍙岄敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鍏ㄤ娇閿熸枻鎷烽敓鏂ゆ嫹閿熸帴璇ф嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鍙柇锝忔嫹閿熸枻鎷烽敓鏂ゆ嫹??GSY ??mCurrentState
      */
     protected void touchDoubleUp() {
-                // 双锟斤拷锟斤拷停/锟斤拷锟斤拷 - 锟斤拷全使锟斤拷锟斤拷锟接诧拷锟斤拷锟斤拷锟斤拷状态锟斤拷??
+                // 鍙岄敓鏂ゆ嫹閿熸枻鎷峰仠/閿熸枻鎷烽敓鏂ゆ嫹 - 閿熸枻鎷峰叏浣块敓鏂ゆ嫹閿熸枻鎷烽敓鎺ヨ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鐘舵€侀敓鏂ゆ嫹??
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
             mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
             mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
-                        // 直锟接碉拷锟斤拷锟斤拷锟斤拷??pause() 锟斤拷锟斤拷
+                        // 鐩撮敓鎺ョ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??pause() 閿熸枻鎷烽敓鏂ゆ嫹
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-                        // 直锟接碉拷锟斤拷锟斤拷锟斤拷??resume() 锟斤拷锟斤拷
+                        // 鐩撮敓鎺ョ鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹??resume() 閿熸枻鎷烽敓鏂ゆ嫹
             resume();
         } else {
                     }
@@ -2321,30 +2367,30 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写 startAfterPrepared锟斤拷确??TextureView 锟斤拷确锟斤拷锟斤拷
+     * 閿熸枻鎷峰啓 startAfterPrepared閿熸枻鎷风‘??TextureView 閿熸枻鎷风‘閿熸枻鎷烽敓鏂ゆ嫹
      */
     @Override
     public void startAfterPrepared() {
         super.startAfterPrepared();
     }
 
-    // ===== 锟斤拷锟矫改变处锟斤拷 (Requirements: 2.3, 2.4, 5.1, 5.2) =====
+    // ===== 閿熸枻鎷烽敓鐭敼鍙樺閿熸枻鎷?(Requirements: 2.3, 2.4, 5.1, 5.2) =====
     
     /**
-     * 锟斤拷锟斤拷锟斤拷锟矫改变（锟斤拷锟斤拷幕锟斤拷转??
-     * 锟斤拷锟芥当前锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺拷锟??
+     * 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鐭敼鍙橈紙閿熸枻鎷烽敓鏂ゆ嫹骞曢敓鏂ゆ嫹杞??
+     * 閿熸枻鎷烽敓鑺ュ綋鍓嶉敓鏂ゆ嫹閿熸枻鎷风姸鎬侀敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熼樁鍒侯剨鎷烽敓??
      * Requirements: 2.1, 2.2, 5.3, 5.4, 5.5
      * 
-     * @param newConfig 锟铰碉拷锟斤拷锟斤拷
+     * @param newConfig 閿熼摪纰夋嫹閿熸枻鎷烽敓鏂ゆ嫹
      */
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
                 
-        // 使锟斤拷 PlaybackStateManager 锟斤拷锟芥当前状??
+        // 浣块敓鏂ゆ嫹 PlaybackStateManager 閿熸枻鎷烽敓鑺ュ綋鍓嶇姸??
         if (mPlaybackStateManager != null) {
             mPlaybackStateManager.saveState(this);
         }
         
-        // 使锟斤拷 ComponentStateManager 锟斤拷锟斤拷锟斤拷锟阶??
+        // 浣块敓鏂ゆ嫹 ComponentStateManager 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓闃??
         if (mComponentStateManager != null) {
             mComponentStateManager.saveComponentState(
                 (int) getDuration(), 
@@ -2352,36 +2398,36 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             );
         }
         
-        // 锟斤拷锟斤拷全锟斤拷/锟斤拷锟斤拷锟叫伙拷
+        // 閿熸枻鎷烽敓鏂ゆ嫹鍏ㄩ敓鏂ゆ嫹/閿熸枻鎷烽敓鏂ゆ嫹閿熷彨浼欐嫹
         if (newConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-            // 锟斤拷锟斤拷 - 锟斤拷锟斤拷锟斤拷锟饺拷锟阶刺拷锟斤拷锟斤拷锟斤拷锟揭拷锟斤拷锟饺??
+            // 閿熸枻鎷烽敓鏂ゆ嫹 - 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓楗侯偓鎷烽敓闃跺埡顒婃嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎻亷鎷烽敓鏂ゆ嫹閿熼ズ??
                     } else if (newConfig.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
-            // 锟斤拷锟斤拷 - 锟斤拷锟斤拷锟饺拷锟阶刺拷锟斤拷锟斤拷锟斤拷锟揭拷顺锟饺??
+            // 閿熸枻鎷烽敓鏂ゆ嫹 - 閿熸枻鎷烽敓鏂ゆ嫹閿熼ズ顐嫹閿熼樁鍒侯剨鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸彮顏庢嫹椤洪敓楗??
                     }
         
-        // 锟接迟恢革拷状态锟斤拷确锟斤拷锟斤拷锟斤拷锟斤拷锟?
+        // 閿熸帴杩熸仮闈╂嫹鐘舵€侀敓鏂ゆ嫹纭敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓?
         postDelayed(new Runnable() {
             @Override
             public void run() {
                                 
-                // 使锟斤拷 PlaybackStateManager 锟街革拷状??
+                // 浣块敓鏂ゆ嫹 PlaybackStateManager 閿熻闈╂嫹鐘??
                 if (mPlaybackStateManager != null) {
                     mPlaybackStateManager.restoreState(OrangevideoView.this);
                 }
                 
-                // 使锟斤拷 ComponentStateManager 锟街革拷锟斤拷锟阶??
+                // 浣块敓鏂ゆ嫹 ComponentStateManager 閿熻闈╂嫹閿熸枻鎷烽敓闃??
                 if (mComponentStateManager != null) {
                     mComponentStateManager.restoreComponentState(OrangevideoView.this);
-                    // 锟斤拷锟斤拷注锟斤拷锟斤拷燃锟斤拷锟斤拷锟斤拷锟饺凤拷锟斤拷锟斤拷锟截斤拷锟斤拷锟斤拷雀锟斤拷锟斤拷锟??
+                    // 閿熸枻鎷烽敓鏂ゆ嫹娉ㄩ敓鏂ゆ嫹閿熸枻鎷风噧閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓楗哄嚖鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鎴枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽泙閿熸枻鎷烽敓鏂ゆ嫹閿??
                     mComponentStateManager.reregisterProgressListener(OrangevideoView.this);
                                     }
                 
-                // 锟斤拷锟斤拷应锟斤拷锟斤拷频锟斤拷锟斤拷
+                // 閿熸枻鎷烽敓鏂ゆ嫹搴旈敓鏂ゆ嫹閿熸枻鎷烽閿熸枻鎷烽敓鏂ゆ嫹
                 if (mVideoScaleManager != null) {
                     mVideoScaleManager.applyVideoScale();
                 }
                 
-                // 通知锟斤拷锟阶刺拷锟??
+                // 閫氱煡閿熸枻鎷烽敓闃跺埡顒婃嫹閿??
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(mCurrentPlayerState);
                 
@@ -2390,14 +2436,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 锟斤拷写 getLayoutParams 锟斤拷锟斤拷锟斤拷确锟斤拷全锟斤拷锟斤拷锟斤拷锟斤拷使锟斤拷锟斤拷确锟侥诧拷锟街诧拷锟斤拷
-     * 锟斤拷锟角斤拷锟饺拷锟斤拷锟斤拷锟斤拷锟斤拷锟侥癸拷??
+     * 閿熸枻鎷峰啓 getLayoutParams 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风‘閿熸枻鎷峰叏閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹浣块敓鏂ゆ嫹閿熸枻鎷风‘閿熶茎璇ф嫹閿熻璇ф嫹閿熸枻鎷?
+     * 閿熸枻鎷烽敓瑙掓枻鎷烽敓楗侯偓鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓渚ョ櫢鎷??
      */
     @Override
     public android.view.ViewGroup.LayoutParams getLayoutParams() {
         android.view.ViewGroup.LayoutParams params = super.getLayoutParams();
         if (params == null) {
-            // 锟斤拷锟矫伙拷胁锟斤拷植锟斤拷锟斤拷锟斤拷锟斤拷锟揭??MATCH_PARENT 锟侥诧拷??
+            // 閿熸枻鎷烽敓鐭紮鎷疯儊閿熸枻鎷锋閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸彮??MATCH_PARENT 閿熶茎璇ф嫹??
             params = new android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT

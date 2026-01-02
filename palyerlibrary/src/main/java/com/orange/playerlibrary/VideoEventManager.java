@@ -617,13 +617,31 @@ public class VideoEventManager {
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             try {
+                // 记录当前播放位置
+                long currentPos = mVideoView.getCurrentPositionWhenPlaying();
+                android.util.Log.d("PiP_DEBUG", "=== onSmallWindowPlayClick ===");
+                android.util.Log.d("PiP_DEBUG", "Before PiP - position: " + currentPos);
+                android.util.Log.d("PiP_DEBUG", "Before PiP - isPlaying: " + mVideoView.isPlaying());
+                
+                // 保存播放位置到 SharedPreferences（用于 Activity 重建后恢复）
+                android.content.SharedPreferences prefs = mActivity.getSharedPreferences("pip_prefs", android.content.Context.MODE_PRIVATE);
+                prefs.edit()
+                    .putBoolean("pip_active", true)
+                    .putString("pip_url", mVideoView.getUrl())
+                    .putLong("pip_position", currentPos)
+                    .apply();
+                android.util.Log.d("PiP_DEBUG", "Saved PiP position to SharedPreferences: " + currentPos);
+                
                 // 设置正在进入 PiP 模式的标志
                 // 这样 onPause 中可以检测到并跳过暂停操作
                 mVideoView.setEnteringPiPMode(true);
+                android.util.Log.d("PiP_DEBUG", "Set mEnteringPiPMode = true");
                 
                 // 进入小窗模式
                 mActivity.enterPictureInPictureMode();
+                android.util.Log.d("PiP_DEBUG", "Called enterPictureInPictureMode()");
             } catch (Exception e) {
+                android.util.Log.e("PiP_DEBUG", "PiP failed: " + e.getMessage());
                 mVideoView.setEnteringPiPMode(false);
                 Toast.makeText(mActivity, "进入小窗模式失败", Toast.LENGTH_SHORT).show();
             }

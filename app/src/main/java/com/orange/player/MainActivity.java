@@ -1,5 +1,6 @@
 package com.orange.player;
 
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.View;
@@ -18,20 +19,71 @@ import com.shuyu.gsyvideoplayer.GSYVideoManager;
 public class MainActivity extends AppCompatActivity {
 
     private static final String VIDEO_URL = "http://player.alicdn.com/video/aliyunmedia.mp4";
+    private static final String PREFS_NAME = "pip_prefs";
+    private static final String KEY_PIP_POSITION = "pip_position";
+    private static final String KEY_PIP_URL = "pip_url";
+    private static final String KEY_PIP_ACTIVE = "pip_active";
 
     private OrangevideoView mVideoView;
     private TextView mTvInfo;
     private TextView mTvDebugLog;
     private StringBuilder mLogBuilder = new StringBuilder();
+    
+    // PiP 恢复相关
+    private long mPendingSeekPosition = -1;
+    private boolean mRestoringFromPiP = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        
+        // 检查是否从 PiP 模式恢复
+        checkPiPRestore();
 
         initViews();
         initPlayer();
         setupBackPressedHandler();
+    }
+    
+    /**
+     * 检查是否从 PiP 模式恢复，如果是则读取保存的播放位置
+     */
+    private void checkPiPRestore() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        boolean pipActive = prefs.getBoolean(KEY_PIP_ACTIVE, false);
+        String pipUrl = prefs.getString(KEY_PIP_URL, "");
+        long pipPosition = prefs.getLong(KEY_PIP_POSITION, -1);
+        
+        android.util.Log.d("PiP_DEBUG", "=== checkPiPRestore ===");
+        android.util.Log.d("PiP_DEBUG", "pipActive: " + pipActive);
+        android.util.Log.d("PiP_DEBUG", "pipUrl: " + pipUrl);
+        android.util.Log.d("PiP_DEBUG", "pipPosition: " + pipPosition);
+        
+        if (pipActive && pipPosition > 0 && VIDEO_URL.equals(pipUrl)) {
+            mPendingSeekPosition = pipPosition;
+            mRestoringFromPiP = true;
+            android.util.Log.d("PiP_DEBUG", "Will restore to position: " + pipPosition);
+        }
+        
+        // 清除 PiP 状态
+        prefs.edit()
+            .putBoolean(KEY_PIP_ACTIVE, false)
+            .putLong(KEY_PIP_POSITION, -1)
+            .apply();
+    }
+    
+    /**
+     * 保存 PiP 播放位置
+     */
+    private void savePiPPosition(long position) {
+        android.util.Log.d("PiP_DEBUG", "=== savePiPPosition: " + position + " ===");
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        prefs.edit()
+            .putBoolean(KEY_PIP_ACTIVE, true)
+            .putString(KEY_PIP_URL, VIDEO_URL)
+            .putLong(KEY_PIP_POSITION, position)
+            .apply();
     }
 
     private void initViews() {
@@ -115,6 +167,28 @@ public class MainActivity extends AppCompatActivity {
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setTitle("阿里云测试视频");
         }
+        
+        // 如果从 PiP 恢复，设置 onPrepared 回调来恢复播放位置
+        if (mRestoringFromPiP && mPendingSeekPosition > 0) {
+            android.util.Log.d("PiP_DEBUG", "Setting up PiP restore callback, position: " + mPendingSeekPosition);
+            final long seekPosition = mPendingSeekPosition;
+            mVideoView.setVideoAllCallBack(new com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack() {
+                @Override
+                public void onPrepared(String url, Object... objects) {
+                    super.onPrepared(url, objects);
+                    android.util.Log.d("PiP_DEBUG", "=== onPrepared (PiP restore) ===");
+                    android.util.Log.d("PiP_DEBUG", "Seeking to: " + seekPosition);
+                    // 延迟执行 seek，确保播放器完全准备好
+                    mVideoView.postDelayed(() -> {
+                        mVideoView.seekTo(seekPosition);
+                        android.util.Log.d("PiP_DEBUG", "Seek completed to: " + seekPosition);
+                        // 清除恢复状态
+                        mRestoringFromPiP = false;
+                        mPendingSeekPosition = -1;
+                    }, 200);
+                }
+            });
+        }
 
         updateInfo("橘子播放器 Demo\n视频地址: " + VIDEO_URL);
         log("initPlayer 完成");
@@ -174,25 +248,56 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        android.util.Log.d("PiP_DEBUG", "=== MainActivity.onPause ===");
+        android.util.Log.d("PiP_DEBUG", "mEnteringPiP: " + mEnteringPiP);
+        android.util.Log.d("PiP_DEBUG", "mVideoView.isEnteringPiPMode: " + mVideoView.isEnteringPiPMode());
+        
         // 检查是否处于画中画模式或正在进入画中画模式
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            if (isInPictureInPictureMode() || mEnteringPiP) {
+            boolean isInPiP = isInPictureInPictureMode();
+            android.util.Log.d("PiP_DEBUG", "isInPictureInPictureMode: " + isInPiP);
+            if (isInPiP || mEnteringPiP || mVideoView.isEnteringPiPMode()) {
+                android.util.Log.d("PiP_DEBUG", "onPause: SKIP pause - PiP mode");
                 mEnteringPiP = false;
                 return; // 小窗模式下不暂停
             }
         }
+        android.util.Log.d("PiP_DEBUG", "onPause: calling mVideoView.onVideoPause()");
         mVideoView.onVideoPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        android.util.Log.d("PiP_DEBUG", "=== MainActivity.onResume ===");
+        android.util.Log.d("PiP_DEBUG", "mExitingPiP: " + mExitingPiP);
+        
         // 如果是从小窗模式退出，不需要调用 onVideoResume，因为视频一直在播放
         if (mExitingPiP) {
+            android.util.Log.d("PiP_DEBUG", "onResume: SKIP - exiting PiP");
             mExitingPiP = false;
             return;
         }
+        // 如果当前处于画中画模式，不需要恢复
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            if (isInPictureInPictureMode()) {
+                android.util.Log.d("PiP_DEBUG", "onResume: SKIP - in PiP mode");
+                return;
+            }
+        }
+        android.util.Log.d("PiP_DEBUG", "onResume: calling mVideoView.onVideoResume()");
         mVideoView.onVideoResume();
+    }
+    
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // 如果处于画中画模式，不做任何操作，让视频继续播放
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            if (isInPictureInPictureMode()) {
+                return;
+            }
+        }
     }
     
     @Override
@@ -205,14 +310,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        android.util.Log.d("PiP_DEBUG", "=== onPictureInPictureModeChanged ===");
+        android.util.Log.d("PiP_DEBUG", "isInPictureInPictureMode: " + isInPictureInPictureMode);
+        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+        android.util.Log.d("PiP_DEBUG", "current position: " + currentPosition);
+        
         if (isInPictureInPictureMode) {
-            // 进入小窗模式，隐藏控制器
+            // 进入小窗模式，保存当前播放位置并清除进入标志
+            android.util.Log.d("PiP_DEBUG", "Entered PiP mode - saving position and clearing flags");
+            savePiPPosition(currentPosition);
+            mVideoView.setEnteringPiPMode(false);
             mEnteringPiP = false;
+            // 隐藏控制器
             if (mVideoView.getVideoController() != null) {
                 mVideoView.getVideoController().hide();
             }
         } else {
-            // 退出小窗模式，标记状态，避免 onResume 中重复处理
+            // 退出小窗模式，再次保存位置（以防万一），标记状态
+            android.util.Log.d("PiP_DEBUG", "Exited PiP mode - saving position, setting mExitingPiP = true");
+            savePiPPosition(currentPosition);
             mExitingPiP = true;
             // 显示控制器
             if (mVideoView.getVideoController() != null) {
