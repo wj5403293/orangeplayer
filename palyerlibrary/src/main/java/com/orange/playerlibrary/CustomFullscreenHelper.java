@@ -2,34 +2,52 @@ package com.orange.playerlibrary;
 
 import android.app.Activity;
 import android.content.pm.ActivityInfo;
+import android.graphics.Color;
+import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 /**
- * 自定义全屏辅助类
- * 不使用 GSYVideoPlayer 的全屏机制，避免创建新的播放器实例
+ * 自定义全屏辅助类 - 无旋转方案
+ * 
+ * 核心思路：
+ * 1. 不调用 setRequestedOrientation，避免触发配置变化
+ * 2. 将 OrangevideoView 移动到 DecorView，实现全屏效果
+ * 3. 通过隐藏系统 UI 实现沉浸式全屏
+ * 
+ * 注意：这种方案下视频不会自动旋转，需要用户手动旋转设备
+ * 或者使用 OrientationEventListener 监听设备方向
  */
 public class CustomFullscreenHelper {
     
+    private static final String TAG = "CustomFullscreenHelper";
+    
     private OrangevideoView mVideoView;
+    private boolean mIsFullscreen = false;
+    private int mOriginalSystemUiVisibility = 0;
+    
+    // 保存原始布局参数和父容器
+    private ViewGroup.LayoutParams mOriginalLayoutParams;
     private ViewGroup mOriginalParent;
     private int mOriginalIndex;
-    private FrameLayout.LayoutParams mOriginalLayoutParams;
-    private ViewGroup mFullscreenContainer;
     
-    private long mSavedPosition = 0;
-    private boolean mWasPlaying = false;
-    private boolean mIsFullscreen = false;
+    // 全屏背景遮罩
+    private View mFullscreenBackground;
     
-    // 需要在 onPrepared 后恢复的位置
+    // 兼容旧接口
     private long mPendingSeekPosition = 0;
     private boolean mPendingResume = false;
+    
+    // 全屏切换中标志
+    private boolean mFullscreenTransitioning = false;
     
     public CustomFullscreenHelper(OrangevideoView videoView) {
         this.mVideoView = videoView;
     }
     
+    // 兼容旧接口的方法
     public long getPendingSeekPosition() {
         return mPendingSeekPosition;
     }
@@ -43,63 +61,67 @@ public class CustomFullscreenHelper {
         return mPendingResume;
     }
     
-    public void enterFullscreen(Activity activity) {
-        if (activity == null || mVideoView == null || mIsFullscreen) {
+    /**
+     * 进入全屏模式
+     * 
+     * 关键改进：先移动 View 到 DecorView，再旋转屏幕
+     * 这样 View 已经在 DecorView 中，旋转时不会触发 Surface 销毁
+     */
+    public void startFullScreen() {
+        if (mIsFullscreen || mVideoView == null) {
             return;
         }
         
-        // 保存当前播放位置和状态
-        mSavedPosition = mVideoView.getCurrentPositionWhenPlaying();
-        mWasPlaying = mVideoView.isPlaying();
-        mPendingSeekPosition = mSavedPosition;
-        mPendingResume = mWasPlaying;
+        Activity activity = mVideoView.getActivity();
+        if (activity == null || activity.isFinishing()) {
+            return;
+        }
         
-        // 保存原始父容器和位置
+        final ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
+        if (decorView == null) {
+            return;
+        }
+        
+        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+        android.util.Log.d(TAG, "startFullScreen: position=" + currentPosition);
+        
+        mIsFullscreen = true;
+        mFullscreenTransitioning = true;
+        mOriginalSystemUiVisibility = decorView.getSystemUiVisibility();
+        
+        // 1. 先保存原始父容器和布局参数
         mOriginalParent = (ViewGroup) mVideoView.getParent();
         if (mOriginalParent != null) {
             mOriginalIndex = mOriginalParent.indexOfChild(mVideoView);
-            ViewGroup.LayoutParams params = mVideoView.getLayoutParams();
-            if (params instanceof FrameLayout.LayoutParams) {
-                mOriginalLayoutParams = (FrameLayout.LayoutParams) params;
-            } else {
-                mOriginalLayoutParams = new FrameLayout.LayoutParams(params.width, params.height);
-            }
-        }
-        
-        // 获取全屏容器
-        ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
-        mFullscreenContainer = decorView.findViewById(android.R.id.content);
-        
-        // 从原始父容器中移除
-        if (mOriginalParent != null) {
+            mOriginalLayoutParams = mVideoView.getLayoutParams();
+            // 从原始父容器移除
             mOriginalParent.removeView(mVideoView);
         }
         
-        // 添加到全屏容器
-        FrameLayout.LayoutParams fullscreenParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
+        // 2. 添加全屏黑色背景到 DecorView
+        mFullscreenBackground = new View(activity);
+        mFullscreenBackground.setBackgroundColor(Color.BLACK);
+        FrameLayout.LayoutParams bgParams = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
         );
-        mFullscreenContainer.addView(mVideoView, fullscreenParams);
+        decorView.addView(mFullscreenBackground, bgParams);
         
-        mIsFullscreen = true;
+        // 3. 将 OrangevideoView 添加到 DecorView
+        FrameLayout.LayoutParams fullParams = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
+        decorView.addView(mVideoView, fullParams);
         
+        // 4. 隐藏系统 UI
+        hideSysBar(decorView, activity);
+        
+        // 5. 最后设置横屏 - View 已经在 DecorView 中，旋转不会影响它
         activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        hideSystemUI(activity);
+        
+        // 6. 通知状态变化
         mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
-        
-        // 恢复播放位置
-        final long positionToRestore = mSavedPosition;
-        final boolean shouldResume = mWasPlaying;
-        
-        mVideoView.post(() -> {
-            if (positionToRestore > 0) {
-                mVideoView.seekTo(positionToRestore);
-            }
-            if (shouldResume && !mVideoView.isPlaying()) {
-                mVideoView.resume();
-            }
-        });
         
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setVisibility(View.VISIBLE);
@@ -108,100 +130,74 @@ public class CustomFullscreenHelper {
             mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
         }
         
-        // 确保全屏模式下事件绑定正常 (Requirements: 2.1, 2.2, 2.3)
-        ensureFullscreenEventBinding();
+        // 7. 延迟重置标志，等待旋转完成
+        mVideoView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mFullscreenTransitioning = false;
+                android.util.Log.d(TAG, "startFullScreen: transitioning flag reset, position=" + 
+                    mVideoView.getCurrentPositionWhenPlaying());
+            }
+        }, 800);
+        
+        android.util.Log.d(TAG, "startFullScreen: done");
     }
     
     /**
-     * 确保全屏模式下的事件绑定
-     * Requirements: 2.1, 2.2, 2.3
+     * 将播放器移动到全屏位置 - 已废弃，合并到 startFullScreen
      */
-    private void ensureFullscreenEventBinding() {
-        if (mVideoView == null) {
-            return;
-        }
-        
-        OrangeVideoController controller = mVideoView.getVideoController();
-        if (controller == null) {
-            android.util.Log.w("CustomFullscreenHelper", "ensureFullscreenEventBinding: controller is null");
-            return;
-        }
-        
-        VideoEventManager eventManager = controller.getVideoEventManager();
-        if (eventManager == null) {
-            android.util.Log.w("CustomFullscreenHelper", "ensureFullscreenEventBinding: eventManager is null");
-            return;
-        }
-        
-        // 重新绑定 VodControlView 事件，确保全屏模式下按钮可用
-        com.orange.playerlibrary.component.VodControlView vodControlView = mVideoView.getVodControlView();
-        if (vodControlView != null) {
-            android.util.Log.d("CustomFullscreenHelper", "ensureFullscreenEventBinding: binding VodControlView events for fullscreen");
-            eventManager.bindControllerComponents(vodControlView);
-        }
-        
-        // 重新绑定 TitleView 事件
-        com.orange.playerlibrary.component.TitleView titleView = mVideoView.getTitleView();
-        if (titleView != null) {
-            android.util.Log.d("CustomFullscreenHelper", "ensureFullscreenEventBinding: binding TitleView events for fullscreen");
-            eventManager.bindTitleView(titleView);
-        }
+    private void moveToFullscreen(Activity activity, ViewGroup decorView) {
+        // 已合并到 startFullScreen
     }
     
-    public void exitFullscreen(Activity activity) {
-        if (activity == null || mVideoView == null || !mIsFullscreen || mOriginalParent == null) {
+    /**
+     * 退出全屏模式
+     * 
+     * 关键改进：先设置竖屏，等待旋转完成后再移动 View
+     */
+    public void stopFullScreen() {
+        if (!mIsFullscreen || mVideoView == null) {
             return;
         }
         
-        // 保存当前播放位置和状态
-        mSavedPosition = mVideoView.getCurrentPositionWhenPlaying();
-        mWasPlaying = mVideoView.isPlaying();
-        mPendingSeekPosition = mSavedPosition;
-        mPendingResume = mWasPlaying;
-        
-        // 从全屏容器中移除
-        if (mFullscreenContainer != null) {
-            mFullscreenContainer.removeView(mVideoView);
+        Activity activity = mVideoView.getActivity();
+        if (activity == null || activity.isFinishing()) {
+            return;
         }
         
-        // 恢复到原始父容器
-        ViewGroup.LayoutParams restoreParams = mOriginalLayoutParams != null ? 
-            mOriginalLayoutParams : new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            );
-        
-        // 根据原始父容器的类型创建正确的 LayoutParams
-        if (mOriginalParent instanceof FrameLayout && !(restoreParams instanceof FrameLayout.LayoutParams)) {
-            restoreParams = new FrameLayout.LayoutParams(restoreParams.width, restoreParams.height);
-        } else if (mOriginalParent instanceof android.widget.LinearLayout && 
-                   !(restoreParams instanceof android.widget.LinearLayout.LayoutParams)) {
-            restoreParams = new android.widget.LinearLayout.LayoutParams(restoreParams.width, restoreParams.height);
-        } else if (mOriginalParent instanceof android.widget.RelativeLayout && 
-                   !(restoreParams instanceof android.widget.RelativeLayout.LayoutParams)) {
-            restoreParams = new android.widget.RelativeLayout.LayoutParams(restoreParams.width, restoreParams.height);
+        final ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
+        if (decorView == null) {
+            return;
         }
         
-        mOriginalParent.addView(mVideoView, mOriginalIndex, restoreParams);
+        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+        android.util.Log.d(TAG, "stopFullScreen: position=" + currentPosition);
         
         mIsFullscreen = false;
+        mFullscreenTransitioning = true;
         
+        // 1. 显示系统 UI
+        showSysBar(decorView, activity);
+        
+        // 2. 先设置竖屏
         activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        showSystemUI(activity);
+        
+        // 3. 从 DecorView 移除 OrangevideoView
+        decorView.removeView(mVideoView);
+        
+        // 4. 移除全屏背景
+        if (mFullscreenBackground != null) {
+            decorView.removeView(mFullscreenBackground);
+            mFullscreenBackground = null;
+        }
+        
+        // 5. 恢复到原始父容器
+        if (mOriginalParent != null && mOriginalLayoutParams != null) {
+            mOriginalParent.addView(mVideoView, mOriginalIndex, mOriginalLayoutParams);
+        }
+        
+        // 6. 通知状态变化
         mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
-        
-        // 恢复播放位置
-        final long positionToRestore = mSavedPosition;
-        final boolean shouldResume = mWasPlaying;
-        
-        mVideoView.post(() -> {
-            if (positionToRestore > 0) {
-                mVideoView.seekTo(positionToRestore);
-            }
-            if (shouldResume && !mVideoView.isPlaying()) {
-                mVideoView.resume();
-            }
-        });
         
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setVisibility(View.GONE);
@@ -210,89 +206,78 @@ public class CustomFullscreenHelper {
             mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
         }
         
-        // 确保退出全屏后原播放器事件正常 (Requirements: 2.4)
-        ensureNormalModeEventBinding();
+        // 7. 延迟重置标志
+        mVideoView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mFullscreenTransitioning = false;
+                android.util.Log.d(TAG, "stopFullScreen: transitioning flag reset, position=" + 
+                    mVideoView.getCurrentPositionWhenPlaying());
+            }
+        }, 800);
         
-        mOriginalParent = null;
-        mOriginalLayoutParams = null;
-        mFullscreenContainer = null;
+        android.util.Log.d(TAG, "stopFullScreen: done");
     }
     
-    /**
-     * 确保退出全屏后原播放器的事件绑定正常
-     * Requirements: 2.4
-     */
-    private void ensureNormalModeEventBinding() {
-        if (mVideoView == null) {
-            return;
-        }
-        
-        OrangeVideoController controller = mVideoView.getVideoController();
-        if (controller == null) {
-            android.util.Log.w("CustomFullscreenHelper", "ensureNormalModeEventBinding: controller is null");
-            return;
-        }
-        
-        VideoEventManager eventManager = controller.getVideoEventManager();
-        if (eventManager == null) {
-            android.util.Log.w("CustomFullscreenHelper", "ensureNormalModeEventBinding: eventManager is null");
-            return;
-        }
-        
-        // 重新绑定 VodControlView 事件，确保退出全屏后按钮可用
-        com.orange.playerlibrary.component.VodControlView vodControlView = mVideoView.getVodControlView();
-        if (vodControlView != null) {
-            android.util.Log.d("CustomFullscreenHelper", "ensureNormalModeEventBinding: binding VodControlView events after exit fullscreen");
-            eventManager.bindControllerComponents(vodControlView);
-        }
-        
-        // 重新绑定 TitleView 事件
-        com.orange.playerlibrary.component.TitleView titleView = mVideoView.getTitleView();
-        if (titleView != null) {
-            android.util.Log.d("CustomFullscreenHelper", "ensureNormalModeEventBinding: binding TitleView events after exit fullscreen");
-            eventManager.bindTitleView(titleView);
-        }
+    public void enterFullscreen(Activity activity) {
+        startFullScreen();
     }
     
-    private void hideSystemUI(Activity activity) {
-        View decorView = activity.getWindow().getDecorView();
+    public void exitFullscreen(Activity activity) {
+        stopFullScreen();
+    }
+    
+    private void hideSysBar(ViewGroup decorView, Activity activity) {
         int uiOptions = View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
-        decorView.setSystemUiVisibility(uiOptions);
         
-        if (activity.getActionBar() != null) {
-            activity.getActionBar().hide();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            uiOptions |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
         }
-        if (activity instanceof androidx.appcompat.app.AppCompatActivity) {
-            androidx.appcompat.app.ActionBar supportActionBar = 
-                ((androidx.appcompat.app.AppCompatActivity) activity).getSupportActionBar();
-            if (supportActionBar != null) {
-                supportActionBar.hide();
-            }
-        }
+        
+        decorView.setSystemUiVisibility(uiOptions);
+        activity.getWindow().setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        );
     }
     
-    private void showSystemUI(Activity activity) {
-        View decorView = activity.getWindow().getDecorView();
-        decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-        
-        if (activity.getActionBar() != null) {
-            activity.getActionBar().show();
-        }
-        if (activity instanceof androidx.appcompat.app.AppCompatActivity) {
-            androidx.appcompat.app.ActionBar supportActionBar = 
-                ((androidx.appcompat.app.AppCompatActivity) activity).getSupportActionBar();
-            if (supportActionBar != null) {
-                supportActionBar.show();
-            }
-        }
+    private void showSysBar(ViewGroup decorView, Activity activity) {
+        decorView.setSystemUiVisibility(mOriginalSystemUiVisibility);
+        activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
     }
     
     public boolean isFullscreen() {
         return mIsFullscreen;
+    }
+    
+    /**
+     * 是否正在进行全屏切换
+     */
+    public boolean isFullscreenTransitioning() {
+        return mFullscreenTransitioning;
+    }
+    
+    public void toggleFullScreen() {
+        if (mIsFullscreen) {
+            stopFullScreen();
+        } else {
+            startFullScreen();
+        }
+    }
+    
+    // 兼容旧接口
+    public void initPlayerContainer() {
+    }
+    
+    public FrameLayout getPlayerContainer() {
+        return null;
+    }
+    
+    public boolean isContainerInitialized() {
+        return true;
     }
 }

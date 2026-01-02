@@ -213,11 +213,7 @@ public class MainActivity extends AppCompatActivity {
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         log("配置改变: orientation=" + newConfig.orientation);
-        
-        // 调用 OrangevideoView 的配置改变处理方法
-        if (mVideoView != null) {
-            mVideoView.onConfigurationChanged(newConfig);
-        }
+        // CustomFullscreenHelper 会处理全屏切换，不需要额外处理
     }
 
     private void setupBackPressedHandler() {
