@@ -91,6 +91,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     // ===== 锟斤拷锟斤拷模式 =====
     private boolean mDebug = false;
+    
+    // ===== 画中画模式标志 =====
+    private boolean mEnteringPiPMode = false;  // 是否正在进入画中画模式
 
     /**
      * 锟斤拷锟届函??
@@ -663,6 +666,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     @Override
     public void onVideoPause() {
+        // 检查是否正在进入画中画模式
+        if (mEnteringPiPMode) {
+            // 正在进入画中画模式，不做暂停操作
+            return;
+        }
+        
+        // 检查是否处于画中画模式，如果是则不暂停
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            android.app.Activity activity = getActivity();
+            if (activity != null && activity.isInPictureInPictureMode()) {
+                // 当前处于画中画模式，不做暂停操作
+                return;
+            }
+        }
                 
         // 锟斤拷锟斤拷锟角帮拷丫锟斤拷锟斤拷锟酵Ｗ刺拷锟剿碉拷锟斤拷锟斤拷堑诙锟斤拷锟剿拷锟斤拷锟接︼拷没指锟斤拷锟斤拷锟?
         if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
@@ -699,6 +716,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     @Override
     public void onVideoResume() {
+        // 检查是否处于画中画模式，如果是则不需要恢复（视频一直在播放）
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            android.app.Activity activity = getActivity();
+            if (activity != null && activity.isInPictureInPictureMode()) {
+                // 当前处于画中画模式，不做恢复操作
+                return;
+            }
+        }
                 // 只锟斤拷锟斤拷停状态时锟脚革拷锟斤拷为锟斤拷锟斤拷状态锟斤拷锟斤拷锟斤拷锟截革拷锟斤拷锟斤拷
         boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PAUSED);
         super.onVideoResume();
@@ -713,6 +738,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         } else {
                     }
+    }
+
+    /**
+     * 设置是否正在进入画中画模式
+     * @param entering true 表示正在进入画中画模式
+     */
+    public void setEnteringPiPMode(boolean entering) {
+        this.mEnteringPiPMode = entering;
+    }
+    
+    /**
+     * 获取是否正在进入画中画模式
+     * @return true 表示正在进入画中画模式
+     */
+    public boolean isEnteringPiPMode() {
+        return mEnteringPiPMode;
     }
 
     /**

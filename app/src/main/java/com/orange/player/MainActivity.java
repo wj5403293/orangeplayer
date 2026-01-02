@@ -166,16 +166,59 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 记录是否从小窗模式退出
+    private boolean mExitingPiP = false;
+    // 记录是否正在进入小窗模式
+    private boolean mEnteringPiP = false;
+
     @Override
     protected void onPause() {
         super.onPause();
+        // 检查是否处于画中画模式或正在进入画中画模式
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            if (isInPictureInPictureMode() || mEnteringPiP) {
+                mEnteringPiP = false;
+                return; // 小窗模式下不暂停
+            }
+        }
         mVideoView.onVideoPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        // 如果是从小窗模式退出，不需要调用 onVideoResume，因为视频一直在播放
+        if (mExitingPiP) {
+            mExitingPiP = false;
+            return;
+        }
         mVideoView.onVideoResume();
+    }
+    
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        // 用户按 Home 键或进入小窗时会调用此方法
+        // 可以在这里标记正在进入小窗模式
+    }
+    
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        if (isInPictureInPictureMode) {
+            // 进入小窗模式，隐藏控制器
+            mEnteringPiP = false;
+            if (mVideoView.getVideoController() != null) {
+                mVideoView.getVideoController().hide();
+            }
+        } else {
+            // 退出小窗模式，标记状态，避免 onResume 中重复处理
+            mExitingPiP = true;
+            // 显示控制器
+            if (mVideoView.getVideoController() != null) {
+                mVideoView.getVideoController().show();
+            }
+        }
     }
 
     @Override

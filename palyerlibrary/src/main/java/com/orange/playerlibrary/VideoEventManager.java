@@ -320,8 +320,21 @@ public class VideoEventManager {
         // 获取所有设置项视图 - 从 dialogView 获取而不是从 dialog 获取
         android.widget.LinearLayout screenScaleButton = dialogView.findViewById(R.id.line1);
         android.widget.LinearLayout longPressSpeedButton = dialogView.findViewById(R.id.line2);
+        android.widget.LinearLayout timerCloseButton = dialogView.findViewById(R.id.line3);
         android.widget.LinearLayout skipOpeningButton = dialogView.findViewById(R.id.line4);
         android.widget.LinearLayout skipEndingButton = dialogView.findViewById(R.id.line5);
+        android.widget.LinearLayout smallWindowButton = dialogView.findViewById(R.id.line6);
+        android.widget.LinearLayout progressBarButton = dialogView.findViewById(R.id.line7);
+        android.widget.LinearLayout downloadButton = dialogView.findViewById(R.id.line10);
+        android.widget.ImageView progressBarIcon = dialogView.findViewById(R.id.kgImage);
+        
+        // 播放核心按钮
+        android.widget.TextView aliEngineBtn = dialogView.findViewById(R.id.alihx);
+        android.widget.TextView exoEngineBtn = dialogView.findViewById(R.id.exohx);
+        android.widget.TextView ijkEngineBtn = dialogView.findViewById(R.id.ijkhx);
+        android.widget.TextView systemEngineBtn = dialogView.findViewById(R.id.systemhx);
+        
+        // 播放模式按钮
         android.widget.TextView sequentialPlayBtn = dialogView.findViewById(R.id.sxbf);
         android.widget.TextView singleLoopBtn = dialogView.findViewById(R.id.djxh);
         android.widget.TextView playPauseBtn = dialogView.findViewById(R.id.bwzt);
@@ -330,32 +343,34 @@ public class VideoEventManager {
         android.widget.SeekBar volumeSeekBar = dialogView.findViewById(R.id.volumeSeek_bar);
         android.widget.TextView volumeText = dialogView.findViewById(R.id.volumeText);
         
-        // 调试日志：打印视图ID
-        android.util.Log.d(TAG, "screenScaleButton id=" + (screenScaleButton != null ? screenScaleButton.getId() : "null") + ", R.id.line1=" + R.id.line1);
-        android.util.Log.d(TAG, "longPressSpeedButton id=" + (longPressSpeedButton != null ? longPressSpeedButton.getId() : "null") + ", R.id.line2=" + R.id.line2);
+        // 设置播放核心按钮
+        setupEngineButtons(aliEngineBtn, exoEngineBtn, ijkEngineBtn, systemEngineBtn);
         
         // 设置播放模式按钮
         setupPlayModeButtons(sequentialPlayBtn, singleLoopBtn, playPauseBtn);
+        
+        // 设置进度条开关状态
+        if (progressBarIcon != null) {
+            boolean showProgress = mSettingsManager.isBottomProgressEnabled();
+            progressBarIcon.setImageResource(showProgress ? R.mipmap.kg2 : R.mipmap.kg1);
+        }
         
         // 绑定音量控制
         setupVolumeControl(volumeSeekBar, volumeText);
         
         // 绑定画面比例按钮点击事件
         if (screenScaleButton != null) {
-            android.util.Log.d(TAG, "bindSetupOptions: bindScreenScale to view id=" + screenScaleButton.getId());
-            screenScaleButton.setOnClickListener(v -> {
-                android.util.Log.d(TAG, "clicked view id=" + v.getId() + " -> showScreenScaleDialog");
-                showScreenScaleDialog();
-            });
+            screenScaleButton.setOnClickListener(v -> showScreenScaleDialog());
         }
         
         // 绑定长按倍速按钮点击事件
         if (longPressSpeedButton != null) {
-            android.util.Log.d(TAG, "bindSetupOptions: bindLongPressSpeed to view id=" + longPressSpeedButton.getId());
-            longPressSpeedButton.setOnClickListener(v -> {
-                android.util.Log.d(TAG, "clicked view id=" + v.getId() + " -> showLongPressSpeedDialog");
-                showLongPressSpeedDialog();
-            });
+            longPressSpeedButton.setOnClickListener(v -> showLongPressSpeedDialog());
+        }
+        
+        // 绑定定时关闭按钮点击事件
+        if (timerCloseButton != null) {
+            timerCloseButton.setOnClickListener(v -> showTimerCloseDialog());
         }
         
         // 绑定跳过片头按钮点击事件
@@ -367,6 +382,317 @@ public class VideoEventManager {
         if (skipEndingButton != null) {
             skipEndingButton.setOnClickListener(v -> showSkipEndingDialog());
         }
+        
+        // 绑定小窗播放按钮点击事件
+        if (smallWindowButton != null) {
+            smallWindowButton.setOnClickListener(v -> onSmallWindowPlayClick());
+        }
+        
+        // 绑定进度条开关按钮点击事件
+        if (progressBarButton != null) {
+            progressBarButton.setOnClickListener(v -> onProgressBarClick(progressBarIcon));
+        }
+        
+        // 绑定下载视频按钮点击事件
+        if (downloadButton != null) {
+            downloadButton.setOnClickListener(v -> onDownloadVideoClick());
+        }
+    }
+    
+    /**
+     * 设置播放核心按钮
+     */
+    private void setupEngineButtons(android.widget.TextView aliBtn, android.widget.TextView exoBtn, 
+                                   android.widget.TextView ijkBtn, android.widget.TextView systemBtn) {
+        // 检查核心是否可用
+        boolean isAliPlayerAvailable = isClassPresent("com.aliyun.player.AliPlayer");
+        boolean isIjkPlayerAvailable = isClassPresent("tv.danmaku.ijk.media.player.IjkMediaPlayer");
+        boolean isExoPlayerAvailable = isClassPresent("com.google.android.exoplayer2.ExoPlayer") ||
+                                       isClassPresent("com.google.android.exoplayer2.Player");
+        
+        // 设置可见性
+        if (aliBtn != null) aliBtn.setVisibility(isAliPlayerAvailable ? View.VISIBLE : View.GONE);
+        if (ijkBtn != null) ijkBtn.setVisibility(isIjkPlayerAvailable ? View.VISIBLE : View.GONE);
+        if (exoBtn != null) exoBtn.setVisibility(isExoPlayerAvailable ? View.VISIBLE : View.GONE);
+        
+        // 获取当前引擎
+        String currentEngine = mSettingsManager.getPlayerEngine();
+        
+        // 高亮当前引擎
+        if (aliBtn != null) {
+            aliBtn.setTextColor(PlayerConstants.ENGINE_ALI.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            aliBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_ALI));
+        }
+        if (exoBtn != null) {
+            exoBtn.setTextColor(PlayerConstants.ENGINE_EXO.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            exoBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_EXO));
+        }
+        if (ijkBtn != null) {
+            ijkBtn.setTextColor(PlayerConstants.ENGINE_IJK.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            ijkBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_IJK));
+        }
+        if (systemBtn != null) {
+            systemBtn.setTextColor(PlayerConstants.ENGINE_DEFAULT.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            systemBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_DEFAULT));
+        }
+    }
+    
+    /**
+     * 选择播放引擎
+     */
+    private void selectEngine(String engine) {
+        mSettingsManager.setPlayerEngine(engine);
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        Toast.makeText(mContext, "播放核心已切换，重新播放生效", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * 检查类是否存在
+     */
+    private boolean isClassPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 显示定时关闭对话框
+     */
+    private void showTimerCloseDialog() {
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        
+        mController.hide();
+        
+        // 创建对话框
+        View dialogView = View.inflate(mActivity, R.layout.timer_dialog, null);
+        
+        final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
+                DialogUtils.DialogPosition.RIGHT, null, null);
+        
+        // 点击外部区域关闭对话框
+        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        if (layout != null) {
+            layout.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // 设置定时关闭选项
+        setupTimerOptions(dialogView, dialog);
+    }
+    
+    /**
+     * 设置定时关闭选项
+     */
+    private void setupTimerOptions(View dialogView, AlertDialog dialog) {
+        android.widget.LinearLayout countdownLayout = dialogView.findViewById(R.id.line1);
+        android.widget.LinearLayout optionsLayout = dialogView.findViewById(R.id.line2);
+        android.widget.TextView timesText = dialogView.findViewById(R.id.times);
+        android.widget.TextView cancelBtn = dialogView.findViewById(R.id.cancel);
+        RecyclerView recyclerView = dialogView.findViewById(R.id.recycler);
+        
+        // 检查是否有正在运行的定时器
+        if (mTimerRunning) {
+            // 显示倒计时
+            if (countdownLayout != null) countdownLayout.setVisibility(View.VISIBLE);
+            if (optionsLayout != null) optionsLayout.setVisibility(View.GONE);
+            
+            // 更新倒计时显示
+            if (timesText != null) {
+                timesText.setText(formatTime(mRemainingTime));
+            }
+            
+            // 取消按钮
+            if (cancelBtn != null) {
+                cancelBtn.setOnClickListener(v -> {
+                    cancelTimer();
+                    if (countdownLayout != null) countdownLayout.setVisibility(View.GONE);
+                    if (optionsLayout != null) optionsLayout.setVisibility(View.VISIBLE);
+                });
+            }
+        } else {
+            // 显示选项列表
+            if (countdownLayout != null) countdownLayout.setVisibility(View.GONE);
+            if (optionsLayout != null) optionsLayout.setVisibility(View.VISIBLE);
+            
+            // 设置定时选项
+            if (recyclerView != null) {
+                ArrayList<HashMap<String, Object>> arrayList = new ArrayList<>();
+                String[] options = {"30分钟", "60分钟", "90分钟", "120分钟"};
+                for (String option : options) {
+                    HashMap<String, Object> map = new HashMap<>();
+                    map.put("name", option);
+                    arrayList.add(map);
+                }
+                
+                OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
+                orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
+                orangeRecyclerView.setAdapter(recyclerView, R.layout.speed_dialog_item, arrayList,
+                    (holder, data, position) -> {
+                        android.widget.TextView title = holder.itemView.findViewById(R.id.title);
+                        String optionText = data.get(position).get("name").toString();
+                        title.setText(optionText);
+                        title.setTextColor(COLOR_NORMAL);
+                        
+                        title.setOnClickListener(v -> {
+                            int minutes = Integer.parseInt(optionText.replace("分钟", ""));
+                            startTimer(minutes * 60 * 1000);
+                            dialog.dismiss();
+                            Toast.makeText(mContext, "定时关闭: " + optionText, Toast.LENGTH_SHORT).show();
+                        });
+                    });
+            }
+        }
+    }
+    
+    // 定时器相关变量
+    private boolean mTimerRunning = false;
+    private long mRemainingTime = 0;
+    private android.os.Handler mTimerHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable mTimerRunnable;
+    
+    /**
+     * 启动定时器
+     */
+    private void startTimer(long milliseconds) {
+        mTimerRunning = true;
+        mRemainingTime = milliseconds;
+        
+        mTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mRemainingTime > 0) {
+                    mRemainingTime -= 1000;
+                    mTimerHandler.postDelayed(this, 1000);
+                } else {
+                    // 定时结束，关闭播放器
+                    mTimerRunning = false;
+                    if (mVideoView != null) {
+                        mVideoView.pause();
+                    }
+                    if (mActivity != null) {
+                        mActivity.finish();
+                    }
+                }
+            }
+        };
+        mTimerHandler.postDelayed(mTimerRunnable, 1000);
+    }
+    
+    /**
+     * 取消定时器
+     */
+    private void cancelTimer() {
+        mTimerRunning = false;
+        mRemainingTime = 0;
+        if (mTimerRunnable != null) {
+            mTimerHandler.removeCallbacks(mTimerRunnable);
+        }
+        Toast.makeText(mContext, "定时关闭已取消", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * 格式化时间显示
+     */
+    private String formatTime(long milliseconds) {
+        long totalSeconds = milliseconds / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
+    
+    /**
+     * 小窗播放功能
+     */
+    private void onSmallWindowPlayClick() {
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            try {
+                // 设置正在进入 PiP 模式的标志
+                // 这样 onPause 中可以检测到并跳过暂停操作
+                mVideoView.setEnteringPiPMode(true);
+                
+                // 进入小窗模式
+                mActivity.enterPictureInPictureMode();
+            } catch (Exception e) {
+                mVideoView.setEnteringPiPMode(false);
+                Toast.makeText(mActivity, "进入小窗模式失败", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(mActivity, "您的设备不支持小窗播放", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * 进度条开关功能
+     */
+    private void onProgressBarClick(android.widget.ImageView progressBarIcon) {
+        boolean currentState = mSettingsManager.isBottomProgressEnabled();
+        boolean newState = !currentState;
+        
+        // 保存设置
+        mSettingsManager.setBottomProgressEnabled(newState);
+        
+        // 更新 VodControlView 的进度条显示
+        VodControlView.setBottomProgress(newState);
+        
+        // 更新图标
+        if (progressBarIcon != null) {
+            progressBarIcon.setImageResource(newState ? R.mipmap.kg2 : R.mipmap.kg1);
+        }
+        
+        Toast.makeText(mContext, newState ? "底部进度条已开启" : "底部进度条已关闭", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * 下载视频功能
+     */
+    private void onDownloadVideoClick() {
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        
+        // 获取当前视频URL和标题
+        String url = mVideoView.getUrl();
+        String title = mController.getVideoTitle();
+        
+        if (url == null || url.isEmpty()) {
+            Toast.makeText(mContext, "无法获取视频地址", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 通知外部处理下载
+        if (mOnDownloadClickListener != null) {
+            mOnDownloadClickListener.onDownloadClick(url, title);
+        } else {
+            Toast.makeText(mContext, "下载功能未配置", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    // 下载点击监听器
+    private OnDownloadClickListener mOnDownloadClickListener;
+    
+    /**
+     * 设置下载点击监听器
+     */
+    public void setOnDownloadClickListener(OnDownloadClickListener listener) {
+        mOnDownloadClickListener = listener;
+    }
+    
+    /**
+     * 下载点击监听器接口
+     */
+    public interface OnDownloadClickListener {
+        void onDownloadClick(String url, String title);
     }
     
     /**
@@ -959,12 +1285,16 @@ public class VideoEventManager {
     
     // ==================== 选集功能 ====================
     
+    // 排序状态
+    private boolean mIsSortAscending = true; // 默认正序
+    private boolean mIsSmartMode = false; // 默认模式
+    
     /**
      * 显示选集列表
      */
     public void showPlaylistDialog() {
-                ArrayList<HashMap<String, Object>> videoList = mController.getVideoList();
-        if (videoList == null || videoList.isEmpty()) {
+        final ArrayList<HashMap<String, Object>> originalList = mController.getVideoList();
+        if (originalList == null || originalList.isEmpty()) {
             Toast.makeText(mActivity, "暂无选集", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -972,53 +1302,200 @@ public class VideoEventManager {
         mController.hide();
         
         try {
-            // 始终显示在右�?
             final AlertDialog dialog = DialogUtils.showAlertDialog(mActivity, R.layout.playliset, 
                     DialogUtils.DialogPosition.RIGHT);
-                        
-            // 点击外部区域关闭对话�?
+            
+            // 点击外部区域关闭对话框
             View playListView = dialog.findViewById(R.id.playLiset_v);
             if (playListView != null) {
                 playListView.setOnClickListener(v -> dialog.dismiss());
-                            }
-            
-            // 设置 RecyclerView 显示选集列表
-            RecyclerView recyclerView = dialog.findViewById(R.id.recycler);
-            if (recyclerView != null) {
-                OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
-                orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
-                orangeRecyclerView.setAdapter(recyclerView, R.layout.playliset_item, videoList,
-                    (holder, data, position1) -> {
-                        android.widget.TextView titleTv = holder.itemView.findViewById(R.id.title);
-                        HashMap<String, Object> itemData = data.get(position1);
-                        
-                        // 绑定标题文字
-                        String title = itemData.get("name") != null ? itemData.get("name").toString() : "第" + (position1 + 1) + "集";
-                        titleTv.setText(title);
-                        
-                        // 高亮当前播放集数
-                        String currentUrl = mVideoView.getUrl();
-                        String itemUrl = itemData.get("url") != null ? itemData.get("url").toString() : "";
-                        if (currentUrl != null && currentUrl.equals(itemUrl)) {
-                            titleTv.setTextColor(COLOR_HIGHLIGHT);
-                            titleTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
-                        } else {
-                            titleTv.setTextColor(COLOR_NORMAL);
-                            titleTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
-                        }
-                        
-                        // 列表项点击事件
-                        titleTv.setOnClickListener(v -> {
-                            playEpisode(position1);
-                            dialog.dismiss();
-                        });
-                    });
-            } else {
-                android.util.Log.e(TAG, "showPlaylistDialog: RecyclerView is null");
             }
+            
+            // 获取排序和模式按钮
+            TextView sortBtn = dialog.findViewById(R.id.shorts);
+            TextView modeBtn = dialog.findViewById(R.id.mode);
+            
+            // 初始化按钮状态
+            if (sortBtn != null) sortBtn.setText(mIsSortAscending ? "正序" : "倒序");
+            if (modeBtn != null) modeBtn.setText(mIsSmartMode ? "智能" : "默认");
+            
+            // 创建用于显示的列表副本
+            final ArrayList<HashMap<String, Object>> displayList = new ArrayList<>(originalList);
+            
+            // 模式按钮点击事件
+            if (modeBtn != null) {
+                modeBtn.setOnClickListener(v -> {
+                    mIsSmartMode = !mIsSmartMode;
+                    modeBtn.setText(mIsSmartMode ? "智能" : "默认");
+                    
+                    // 重置显示列表
+                    displayList.clear();
+                    displayList.addAll(originalList);
+                    
+                    if (mIsSmartMode && !mIsSortAscending) {
+                        sortVideoList(displayList);
+                    } else if (!mIsSmartMode && !mIsSortAscending) {
+                        java.util.Collections.reverse(displayList);
+                    }
+                    
+                    refreshPlaylistRecyclerView(dialog, displayList);
+                });
+            }
+            
+            // 排序按钮点击事件
+            if (sortBtn != null) {
+                sortBtn.setOnClickListener(v -> {
+                    mIsSortAscending = !mIsSortAscending;
+                    sortBtn.setText(mIsSortAscending ? "正序" : "倒序");
+                    
+                    if (mIsSmartMode) {
+                        sortVideoList(displayList);
+                    } else {
+                        displayList.clear();
+                        displayList.addAll(originalList);
+                        if (!mIsSortAscending) {
+                            java.util.Collections.reverse(displayList);
+                        }
+                    }
+                    
+                    refreshPlaylistRecyclerView(dialog, displayList);
+                });
+            }
+            
+            // 初始显示
+            if (mIsSmartMode) {
+                sortVideoList(displayList);
+            } else if (!mIsSortAscending) {
+                java.util.Collections.reverse(displayList);
+            }
+            
+            refreshPlaylistRecyclerView(dialog, displayList);
+            
         } catch (Exception e) {
             android.util.Log.e(TAG, "showPlaylistDialog: error", e);
         }
+    }
+    
+    /**
+     * 刷新选集列表
+     */
+    private void refreshPlaylistRecyclerView(AlertDialog dialog, ArrayList<HashMap<String, Object>> dataList) {
+        RecyclerView recyclerView = dialog.findViewById(R.id.recycler);
+        if (recyclerView == null) return;
+        
+        OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
+        orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
+        orangeRecyclerView.setAdapter(recyclerView, R.layout.playliset_item, dataList,
+            (holder, data, position) -> bindPlaylistItemView(holder, data, position, dialog));
+    }
+    
+    /**
+     * 绑定选集列表项
+     */
+    private void bindPlaylistItemView(OrangeRecyclerViewAdapter.ViewHolder holder,
+                                      ArrayList<HashMap<String, Object>> dataList,
+                                      int position, AlertDialog dialog) {
+        HashMap<String, Object> itemData = dataList.get(position);
+        android.widget.TextView titleTv = holder.itemView.findViewById(R.id.title);
+        
+        // 绑定标题
+        String title = itemData.get("name") != null ? itemData.get("name").toString() : "第" + (position + 1) + "集";
+        titleTv.setText(title);
+        
+        // 高亮当前播放集数
+        String currentUrl = mVideoView.getUrl();
+        String itemUrl = itemData.get("url") != null ? itemData.get("url").toString() : "";
+        if (currentUrl != null && currentUrl.equals(itemUrl)) {
+            titleTv.setTextColor(COLOR_HIGHLIGHT);
+            titleTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
+        } else {
+            titleTv.setTextColor(COLOR_NORMAL);
+            titleTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        }
+        
+        // 点击事件
+        titleTv.setOnClickListener(v -> {
+            playEpisodeFromList(itemData);
+            dialog.dismiss();
+        });
+    }
+    
+    /**
+     * 从列表数据播放指定集数
+     */
+    private void playEpisodeFromList(HashMap<String, Object> item) {
+        String url = item.get("url") != null ? item.get("url").toString() : "";
+        String name = item.get("name") != null ? item.get("name").toString() : "";
+        
+        if (url.isEmpty()) {
+            Toast.makeText(mActivity, "播放地址异常", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 设置标题
+        String isIndependent = item.get("dlsp") != null ? item.get("dlsp").toString() : "";
+        if ("独立".equals(isIndependent)) {
+            mController.setVideoTitle(name);
+        } else {
+            String currentTitle = mController.getVideoTitle();
+            if (currentTitle != null && !currentTitle.isEmpty()) {
+                mController.setTitle(currentTitle + " - " + name);
+            } else {
+                mController.setVideoTitle(name);
+            }
+        }
+        
+        // 播放视频
+        @SuppressWarnings("unchecked")
+        HashMap<String, String> headers = (HashMap<String, String>) item.get("headers");
+        mVideoView.setUrl(url, headers);
+        mVideoView.release();
+        mVideoView.startPlayLogic();
+    }
+    
+    /**
+     * 视频列表排序（智能排序）
+     */
+    private void sortVideoList(ArrayList<HashMap<String, Object>> dataList) {
+        if (dataList == null || dataList.isEmpty()) return;
+        
+        java.util.Collections.sort(dataList, (map1, map2) -> {
+            String name1 = map1.get("name") != null ? map1.get("name").toString() : "";
+            String name2 = map2.get("name") != null ? map2.get("name").toString() : "";
+            
+            Integer num1 = extractNumber(name1);
+            Integer num2 = extractNumber(name2);
+            
+            if (num1 != null && num2 != null) {
+                int numCompare = Integer.compare(num1, num2);
+                return mIsSortAscending ? numCompare : -numCompare;
+            } else if (num1 != null) {
+                return -1;
+            } else if (num2 != null) {
+                return 1;
+            } else {
+                int strCompare = name1.compareTo(name2);
+                return mIsSortAscending ? strCompare : -strCompare;
+            }
+        });
+    }
+    
+    /**
+     * 从字符串中提取数字
+     */
+    private Integer extractNumber(String str) {
+        if (str == null || str.isEmpty()) return null;
+        
+        // 尝试匹配阿拉伯数字
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\d+").matcher(str);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group());
+            } catch (NumberFormatException e) {
+                // 忽略
+            }
+        }
+        return null;
     }
     
     /**
