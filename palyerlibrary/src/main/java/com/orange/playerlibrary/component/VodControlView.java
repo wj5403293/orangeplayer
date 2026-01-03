@@ -298,6 +298,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     @Override
     public void onPlayStateChanged(int playState) {
         mLastStateChangeTime = System.currentTimeMillis();
+        android.util.Log.d(TAG, "onPlayStateChanged: " + playState);
 
         switch (playState) {
             case PlayerConstants.STATE_ERROR:
@@ -314,16 +315,19 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 break;
 
             case PlayerConstants.STATE_PLAYING:
+                setVisibility(VISIBLE);
                 updatePlayButtonState(true);
                 updateBottomProgressVisibility();
                 break;
 
             case PlayerConstants.STATE_PAUSED:
+                setVisibility(VISIBLE);
                 updatePlayButtonState(false);
                 break;
 
             case PlayerConstants.STATE_BUFFERING:
             case PlayerConstants.STATE_BUFFERED:
+                setVisibility(VISIBLE);
                 if (mControlWrapper != null) {
                     updatePlayButtonState(mControlWrapper.isPlaying());
                 }

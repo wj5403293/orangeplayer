@@ -89,6 +89,9 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     public void setVideoView(OrangevideoView videoView) {
         mVideoView = videoView;
         
+        // 设置播放器视图引用（用于获取网速）
+        setVideoViewRef(videoView);
+        
         // 初始化 VideoEventManager
         if (mVideoEventManager == null && videoView != null) {
             mVideoEventManager = new VideoEventManager(getContext(), videoView, this);

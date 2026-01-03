@@ -94,11 +94,14 @@ public class DialogUtils {
             .setView(view)
             .create();
         
+        // 在 show() 之前设置这些属性
+        dialog.setCancelable(true);
+        dialog.setCanceledOnTouchOutside(true);
+        
         dialog.show();
         setupWindow(dialog.getWindow(), position, widthRatio, heightRatio, context);
         
         dialog.setOnDismissListener(d -> removeBlurEffect(context));
-        dialog.setCancelable(true);
         
         return dialog;
     }
@@ -113,17 +116,11 @@ public class DialogUtils {
         DisplayMetrics metrics = new DisplayMetrics();
         window.getWindowManager().getDefaultDisplay().getMetrics(metrics);
         
-        // 计算宽度和高度
-        int width = calculateDialogDimension(true, metrics, position, widthRatio, context);
-        int height = calculateDialogDimension(false, metrics, position, heightRatio, context);
-        
-        window.setLayout(width, height);
-        window.setGravity(getGravity(position));
+        // 弹窗窗口始终占满全屏，点击外部区域由布局内部处理
+        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        window.setGravity(Gravity.CENTER);
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.setWindowAnimations(getAnimationStyle(position));
-        
-        // 设置边距
-        setDialogMargins(window, position, context);
         
         setImmersiveMode(window);
     }
@@ -232,8 +229,17 @@ public class DialogUtils {
     }
     
     private static void setImmersiveMode(Window window) {
-        // 暂时禁用沉浸式模式，避免触摸坐标偏移问题
-        // 如果需要沉浸式模式，可以在调用方单独设置
+        if (window != null) {
+            // 设置沉浸式模式，但不使用 FLAG_NOT_FOCUSABLE，以确保能接收触摸事件
+            window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+            );
+        }
     }
     
     public static void showBlurEffect(Activity activity, String str, String str2) {

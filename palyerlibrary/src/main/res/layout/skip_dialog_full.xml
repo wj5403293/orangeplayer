@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" 
-    android:layout_width="match_parent" 
-    android:layout_height="match_parent" 
-    android:orientation="vertical" 
-    android:gravity="center_vertical|right" 
-    android:paddingTop="12dp"
-    android:paddingBottom="12dp"
-    android:paddingEnd="48dp"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#00000000"
     android:id="@+id/layout">
+
+    <!-- 内容区域 - 右侧对齐 -->
+    <LinearLayout 
+        android:layout_width="match_parent" 
+        android:layout_height="match_parent" 
+        android:layout_gravity="end"
+        android:orientation="vertical" 
+        android:gravity="center_vertical|right" 
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:paddingEnd="48dp"
+        android:background="#00000000"
+        android:id="@+id/content_layout">
 
     <LinearLayout 
         android:layout_width="wrap_content" 
@@ -19,6 +28,7 @@
         android:minWidth="200dp" 
         android:background="@drawable/round" 
         android:id="@+id/shik">
+        <!-- 移除 clickable 和 focusable，避免拦截点击事件 -->
         
         <!-- 跳过片头 -->
         <LinearLayout 
@@ -114,4 +124,5 @@
             android:thumbOffset="0dp"/>
     </LinearLayout>
 
-</LinearLayout>
+    </LinearLayout>
+</FrameLayout>

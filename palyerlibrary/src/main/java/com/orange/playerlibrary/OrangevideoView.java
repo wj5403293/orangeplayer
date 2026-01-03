@@ -281,7 +281,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         return new com.orange.playerlibrary.interfaces.ControlWrapper() {
             @Override
             public void start() {
-                videoView.startPlayLogic();
+                // 调用 start() 方法，它会设置 STATE_PREPARING 状态
+                videoView.start();
             }
 
             @Override
@@ -449,6 +450,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void start() {
+        android.util.Log.d(TAG, "=== start() called ===");
         mIsSniffing = false;
         mIsLiveVideo = false;
         if (mSkipManager != null) {
@@ -458,7 +460,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mErrorRecoveryManager.startBlackScreenDetection();
             mErrorRecoveryManager.startStateConsistencyCheck();
         }
+        android.util.Log.d(TAG, "start(): setting STATE_PREPARING");
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
+        android.util.Log.d(TAG, "start(): calling startPlayLogic");
         startPlayLogic();
     }
 
@@ -701,6 +705,32 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mFullscreenHelper.exitFullscreen(activity);
         }
     }
+    
+    /**
+     * 进入竖屏全屏模式
+     * 不旋转屏幕，只是将播放器移动到全屏显示
+     */
+    public void startPortraitFullScreen() {
+        if (mFullscreenHelper != null) {
+            mFullscreenHelper.startPortraitFullScreen();
+        }
+    }
+    
+    /**
+     * 退出竖屏全屏模式
+     */
+    public void stopPortraitFullScreen() {
+        if (mFullscreenHelper != null) {
+            mFullscreenHelper.stopPortraitFullScreen();
+        }
+    }
+    
+    /**
+     * 是否竖屏全屏
+     */
+    public boolean isPortraitFullScreen() {
+        return mFullscreenHelper != null && mFullscreenHelper.isPortraitFullscreen();
+    }
 
     public boolean isFullScreen() {
         return mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
@@ -806,6 +836,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mUseOrangeComponents) {
             notifyComponentsPlayStateChanged(playState);
         }
+        // 通知控制器更新加载动画和网速显示
+        if (mOrangeController != null) {
+            mOrangeController.onPlayStateChanged(playState);
+        }
     }
 
     private void notifyPlayerStateChanged(int playerState) {
@@ -816,6 +850,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         if (mUseOrangeComponents) {
             notifyComponentsPlayerStateChanged(playerState);
+        }
+        // 通知控制器更新状态
+        if (mOrangeController != null) {
+            mOrangeController.onPlayerStateChanged(playerState);
         }
     }
 
@@ -892,6 +930,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         if (controller != null) {
             controller.setVideoView(this);
+            // 设置播放器引用，用于获取网速
+            controller.setVideoViewRef(this);
 
             if (mTitleView != null) {
                 mTitleView.setController(controller);
@@ -1087,6 +1127,53 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public void setLiveVideo(boolean isLive) {
         this.mIsLiveVideo = isLive;
+    }
+    
+    /**
+     * 获取网络速度（字节/秒）
+     * @return 网络速度
+     */
+    public long getNetSpeed() {
+        return GSYVideoManager.instance().getNetSpeed();
+    }
+    
+    /**
+     * 获取网络速度（兼容旧 API）
+     * @return 网络速度
+     */
+    public long getTcpSpeed() {
+        return getNetSpeed();
+    }
+    
+    /**
+     * 获取格式化的网速文本
+     * @return 网速文本，如 "1.5 MB/s"
+     */
+    public String getNetSpeedText() {
+        long speed = getNetSpeed();
+        return formatSpeed(speed);
+    }
+    
+    /**
+     * 格式化网速
+     */
+    private String formatSpeed(long speed) {
+        if (speed <= 0) return "0 KB/s";
+        
+        final long KB = 1024;
+        final long MB = KB * 1024;
+        
+        if (speed < KB) {
+            return speed + " B/s";
+        } else if (speed < MB) {
+            float speedKB = speed / (float) KB;
+            return String.format(speedKB >= 100 ? "%.0f KB/s" : "%.1f KB/s", speedKB);
+        } else {
+            float speedMB = speed / (float) MB;
+            return speedMB >= 10 ?
+                    String.format("%.1f MB/s", speedMB) :
+                    String.format("%.2f MB/s", speedMB);
+        }
     }
 
     public boolean isSniffing() {

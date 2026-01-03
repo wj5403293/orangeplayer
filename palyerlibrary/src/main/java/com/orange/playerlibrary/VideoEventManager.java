@@ -147,15 +147,15 @@ public class VideoEventManager {
                 mController.hide(); // 隐藏播放器UI
         
         try {
-            // 创建对话框视�?
+            // 创建对话框视图
             View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
                         
-            // 始终显示在右�?
+            // 始终显示在右侧
             final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                     DialogUtils.DialogPosition.RIGHT, null, null);
                         
-            // 点击外部区域关闭对话�?
-            android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+            // 点击外部区域关闭对话框
+            View layout = dialogView.findViewById(R.id.layout);
             if (layout != null) {
                 layout.setOnClickListener(v -> dialog.dismiss());
                             }
@@ -309,8 +309,11 @@ public class VideoEventManager {
         // 绑定所有设置项（使用 dialogView 而不是 mCurrentSetupDialog）
         bindSetupOptions(dialogView);
         
-        // 点击空白区域关闭对话框
-        mCurrentSetupDialog.setCanceledOnTouchOutside(true);
+        // 点击外部区域关闭对话框
+        View layout = dialogView.findViewById(R.id.layout);
+        if (layout != null) {
+            layout.setOnClickListener(v -> mCurrentSetupDialog.dismiss());
+        }
     }
     
     /**
@@ -477,7 +480,7 @@ public class VideoEventManager {
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
         // 点击外部区域关闭对话框
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> dialog.dismiss());
         }
@@ -805,15 +808,15 @@ public class VideoEventManager {
         
         mController.hide();
         
-        // 创建对话�?
+        // 创建对话框
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
         
-        // 始终显示在右�?
+        // 始终显示在右侧
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
-        // 点击外部区域关闭对话�?
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        // 点击外部区域关闭对话框
+        View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> dialog.dismiss());
         }
@@ -907,7 +910,7 @@ public class VideoEventManager {
         android.util.Log.d(TAG, "showLongPressSpeedDialog: 对话框创建完成, dialog=" + dialog);
         
         // 点击外部区域关闭对话框
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> dialog.dismiss());
         }
@@ -1035,11 +1038,34 @@ public class VideoEventManager {
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
-        // 点击空白区域关闭对话框
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> dialog.dismiss());
-        }
+        // 获取对话框的根视图（DecorView）并设置触摸监听
+        View decorView = dialog.getWindow().getDecorView();
+        View shik = dialogView.findViewById(R.id.shik);
+        
+        decorView.setOnTouchListener((v, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                if (shik != null) {
+                    // 获取触摸位置
+                    float x = event.getRawX();
+                    float y = event.getRawY();
+                    
+                    // 获取内容区域的位置
+                    int[] location = new int[2];
+                    shik.getLocationOnScreen(location);
+                    int left = location[0];
+                    int top = location[1];
+                    int right = left + shik.getWidth();
+                    int bottom = top + shik.getHeight();
+                    
+                    // 如果点击在内容区域外，关闭对话框
+                    if (x < left || x > right || y < top || y > bottom) {
+                        dialog.dismiss();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
         
         // 绑定跳过片头片尾的SeekBar
         bindSkipSeekBars(dialogView, dialog);
@@ -1161,7 +1187,7 @@ public class VideoEventManager {
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
         // 点击外部区域关闭对话框
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> dialog.dismiss());
         }
@@ -1240,7 +1266,7 @@ public class VideoEventManager {
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
         // 点击外部区域关闭对话框
-        android.widget.LinearLayout layout = dialogView.findViewById(R.id.layout);
+        View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> dialog.dismiss());
         }
@@ -1320,18 +1346,21 @@ public class VideoEventManager {
         mController.hide();
         
         try {
-            final AlertDialog dialog = DialogUtils.showAlertDialog(mActivity, R.layout.playliset, 
-                    DialogUtils.DialogPosition.RIGHT);
+            // 创建对话框视图
+            View dialogView = View.inflate(mActivity, R.layout.playliset, null);
+            
+            final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView, 
+                    DialogUtils.DialogPosition.RIGHT, null, null);
             
             // 点击外部区域关闭对话框
-            View playListView = dialog.findViewById(R.id.playLiset_v);
+            View playListView = dialogView.findViewById(R.id.playLiset_v);
             if (playListView != null) {
                 playListView.setOnClickListener(v -> dialog.dismiss());
             }
             
             // 获取排序和模式按钮
-            TextView sortBtn = dialog.findViewById(R.id.shorts);
-            TextView modeBtn = dialog.findViewById(R.id.mode);
+            TextView sortBtn = dialogView.findViewById(R.id.shorts);
+            TextView modeBtn = dialogView.findViewById(R.id.mode);
             
             // 初始化按钮状态
             if (sortBtn != null) sortBtn.setText(mIsSortAscending ? "正序" : "倒序");
@@ -1342,6 +1371,7 @@ public class VideoEventManager {
             
             // 模式按钮点击事件
             if (modeBtn != null) {
+                final View finalDialogView = dialogView;
                 modeBtn.setOnClickListener(v -> {
                     mIsSmartMode = !mIsSmartMode;
                     modeBtn.setText(mIsSmartMode ? "智能" : "默认");
@@ -1356,12 +1386,13 @@ public class VideoEventManager {
                         java.util.Collections.reverse(displayList);
                     }
                     
-                    refreshPlaylistRecyclerView(dialog, displayList);
+                    refreshPlaylistRecyclerView(finalDialogView, dialog, displayList);
                 });
             }
             
             // 排序按钮点击事件
             if (sortBtn != null) {
+                final View finalDialogView2 = dialogView;
                 sortBtn.setOnClickListener(v -> {
                     mIsSortAscending = !mIsSortAscending;
                     sortBtn.setText(mIsSortAscending ? "正序" : "倒序");
@@ -1376,7 +1407,7 @@ public class VideoEventManager {
                         }
                     }
                     
-                    refreshPlaylistRecyclerView(dialog, displayList);
+                    refreshPlaylistRecyclerView(finalDialogView2, dialog, displayList);
                 });
             }
             
@@ -1387,7 +1418,7 @@ public class VideoEventManager {
                 java.util.Collections.reverse(displayList);
             }
             
-            refreshPlaylistRecyclerView(dialog, displayList);
+            refreshPlaylistRecyclerView(dialogView, dialog, displayList);
             
         } catch (Exception e) {
             android.util.Log.e(TAG, "showPlaylistDialog: error", e);
@@ -1397,8 +1428,8 @@ public class VideoEventManager {
     /**
      * 刷新选集列表
      */
-    private void refreshPlaylistRecyclerView(AlertDialog dialog, ArrayList<HashMap<String, Object>> dataList) {
-        RecyclerView recyclerView = dialog.findViewById(R.id.recycler);
+    private void refreshPlaylistRecyclerView(View dialogView, AlertDialog dialog, ArrayList<HashMap<String, Object>> dataList) {
+        RecyclerView recyclerView = dialogView.findViewById(R.id.recycler);
         if (recyclerView == null) return;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();

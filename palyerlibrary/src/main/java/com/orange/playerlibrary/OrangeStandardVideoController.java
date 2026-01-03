@@ -59,6 +59,21 @@ public class OrangeStandardVideoController extends FrameLayout {
     
     // 隐藏 Runnable
     private final Runnable mFadeOut = this::hide;
+    
+    // 网速更新相关
+    private android.os.Handler mSpeedHandler;
+    private boolean mIsBuffering = false;
+    private OrangevideoView mVideoViewRef;
+    
+    private final Runnable mSpeedUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateNetSpeed();
+            if (mIsBuffering && mSpeedHandler != null) {
+                mSpeedHandler.postDelayed(this, 1000);
+            }
+        }
+    };
 
     public OrangeStandardVideoController(Context context) {
         super(context);
@@ -91,6 +106,16 @@ public class OrangeStandardVideoController extends FrameLayout {
         
         // 设置点击事件
         setupClickListeners();
+        
+        // 初始化网速更新 Handler
+        mSpeedHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    }
+    
+    /**
+     * 设置关联的播放器视图（用于获取网速）
+     */
+    public void setVideoViewRef(OrangevideoView videoView) {
+        mVideoViewRef = videoView;
     }
 
     /**
@@ -429,11 +454,12 @@ public class OrangeStandardVideoController extends FrameLayout {
      * @param playState 播放状态
      */
     public void onPlayStateChanged(int playState) {
-        // 根据播放状态控制加载动画
+        // 根据播放状态控制加载动画和网速显示
         switch (playState) {
             case PlayerConstants.STATE_PREPARING:
             case PlayerConstants.STATE_BUFFERING:
                 showLoading();
+                startSpeedUpdate();
                 break;
             case PlayerConstants.STATE_PREPARED:
             case PlayerConstants.STATE_PLAYING:
@@ -442,12 +468,49 @@ public class OrangeStandardVideoController extends FrameLayout {
             case PlayerConstants.STATE_PLAYBACK_COMPLETED:
             case PlayerConstants.STATE_ERROR:
                 hideLoading();
+                stopSpeedUpdate();
                 break;
         }
         
         // 通知所有控制组件
         for (IControlComponent component : mControlComponents) {
             component.onPlayStateChanged(playState);
+        }
+    }
+    
+    /**
+     * 开始网速更新
+     */
+    protected void startSpeedUpdate() {
+        if (!mIsBuffering && mSpeedHandler != null) {
+            mIsBuffering = true;
+            if (mNetSpeedText != null) {
+                mNetSpeedText.setVisibility(VISIBLE);
+            }
+            mSpeedHandler.post(mSpeedUpdateRunnable);
+        }
+    }
+    
+    /**
+     * 停止网速更新
+     */
+    protected void stopSpeedUpdate() {
+        if (mIsBuffering && mSpeedHandler != null) {
+            mIsBuffering = false;
+            mSpeedHandler.removeCallbacks(mSpeedUpdateRunnable);
+            if (mNetSpeedText != null) {
+                mNetSpeedText.setVisibility(GONE);
+            }
+        }
+    }
+    
+    /**
+     * 更新网速显示
+     */
+    protected void updateNetSpeed() {
+        if (mVideoViewRef != null && mNetSpeedText != null) {
+            String speedText = mVideoViewRef.getNetSpeedText();
+            mNetSpeedText.setText(speedText);
         }
     }
 

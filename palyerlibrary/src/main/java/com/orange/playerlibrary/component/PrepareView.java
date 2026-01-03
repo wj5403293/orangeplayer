@@ -76,8 +76,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
      * 初始化布局和控件
      */
     private void initView(Context context) {
-        // 设置为不可点击，让触摸事件穿透到下层（除了子控件）
-        setClickable(false);
         LayoutInflater.from(context).inflate(R.layout.orange_layout_prepare_view, this, true);
         
         // 初始化控件引用
@@ -110,14 +108,15 @@ public class PrepareView extends FrameLayout implements IControlComponent {
      * 设置点击播放按钮时触发播放
      */
     public void setClickStart() {
-        // 只设置播放按钮的点击事件，而不是整个视图
-        if (mStartPlay != null) {
-            mStartPlay.setOnClickListener(v -> {
-                if (mControlWrapper != null) {
-                    mControlWrapper.start();
-                }
-            });
-        }
+        // 设置整个视图的点击事件，与参考实现一致
+        setOnClickListener(v -> {
+            android.util.Log.d("PrepareView", "PrepareView clicked! mControlWrapper=" + mControlWrapper);
+            if (mControlWrapper != null) {
+                mControlWrapper.start();
+            } else {
+                android.util.Log.e("PrepareView", "mControlWrapper is null!");
+            }
+        });
     }
 
     @Override
@@ -137,6 +136,7 @@ public class PrepareView extends FrameLayout implements IControlComponent {
 
     @Override
     public void onPlayStateChanged(int playState) {
+        android.util.Log.d("PrepareView", "onPlayStateChanged: " + playState);
         switch (playState) {
             case PlayerConstants.STATE_ERROR:
             case PlayerConstants.STATE_PLAYING:
@@ -146,6 +146,7 @@ public class PrepareView extends FrameLayout implements IControlComponent {
             case PlayerConstants.STATE_BUFFERED:
             case PlayerConstants.STATE_PREPARED:
                 // 隐藏准备视图
+                android.util.Log.d("PrepareView", "Hiding PrepareView");
                 setVisibility(GONE);
                 if (mThumb != null) {
                     mThumb.setVisibility(GONE);
@@ -155,6 +156,7 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 
             case PlayerConstants.STATE_IDLE:
                 // 显示准备视图
+                android.util.Log.d("PrepareView", "Showing PrepareView - IDLE");
                 if (mLoadingProgress != null) {
                     mLoadingProgress.setVisibility(GONE);
                 }
@@ -173,6 +175,7 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 
             case PlayerConstants.STATE_PREPARING:
                 // 准备中
+                android.util.Log.d("PrepareView", "Showing PrepareView - PREPARING");
                 setVisibility(VISIBLE);
                 bringToFront();
                 if (mStartPlay != null) {
