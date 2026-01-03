@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
- * 视频事件管理�?
+ * 视频事件管理
  * 负责处理播放器UI的各种点击事件和功能
  */
 public class VideoEventManager {
@@ -36,10 +36,10 @@ public class VideoEventManager {
     // 组件引用
     private VodControlView mVodControlView;
     
-    // 对话框引�?
+    // 对话框引
     private AlertDialog mCurrentSetupDialog;
     
-    // 长按倍速相�?
+    // 长按倍速相
     private float mLongPressSpeed = 3.0f;
     private float mNormalSpeed = 1.0f;
     private boolean mIsLongPressing = false;
@@ -52,7 +52,7 @@ public class VideoEventManager {
         mSettingsManager = PlayerSettingsManager.getInstance(context);
         mSqlite = OrangevideoView.sqlite;
         
-        // 从设置中读取长按倍�?
+        // 从设置中读取长按倍
         mLongPressSpeed = mSettingsManager.getLongPressSpeed();
         
         // 绑定基础事件
@@ -60,10 +60,13 @@ public class VideoEventManager {
     }
     
     /**
-     * 绑定控制器组�?
+     * 绑定控制器组件
      */
     public void bindControllerComponents(VodControlView vodControlView) {
-                mVodControlView = vodControlView;
+        android.util.Log.d(TAG, "bindControllerComponents: old=" + mVodControlView + ", new=" + vodControlView);
+        android.util.Log.d(TAG, "bindControllerComponents: old hashCode=" + (mVodControlView != null ? mVodControlView.hashCode() : "null") 
+            + ", new hashCode=" + (vodControlView != null ? vodControlView.hashCode() : "null"));
+        mVodControlView = vodControlView;
         bindControllerEvents();
     }
     
@@ -77,7 +80,7 @@ public class VideoEventManager {
                                 showSetupDialog();
             });
             
-            // 绑定投屏按钮点击事件（暂时只显示提示�?
+            // 绑定投屏按钮点击事件（暂时只显示提示
             titleView.setOnCastClickListener(v -> {
                                 Toast.makeText(mContext, "投屏功能开发中", Toast.LENGTH_SHORT).show();
             });
@@ -88,12 +91,12 @@ public class VideoEventManager {
      * 绑定基础事件
      */
     private void bindEvents() {
-        // 倍速按钮事�?
-        // 注意：这里使用接口方式绑定，实际调用在bindControllerEvents�?
+        // 倍速按钮事
+        // 注意：这里使用接口方式绑定，实际调用在bindControllerEvents
     }
     
     /**
-     * 绑定控制器事�?
+     * 绑定控制器事
      */
     private void bindControllerEvents() {
                 
@@ -101,7 +104,7 @@ public class VideoEventManager {
                         return;
         }
         
-        // 绑定倍速按钮点击事�?
+        // 绑定倍速按钮点击事
                 mVodControlView.setOnSpeedControlClickListener(v -> {
                         showSpeedDialog();
         });
@@ -113,12 +116,17 @@ public class VideoEventManager {
         
         // 绑定弹幕开关按钮点击事件
         mVodControlView.setOnDanmuToggleClickListener(v -> {
-            Toast.makeText(mContext, "弹幕功能开发中", Toast.LENGTH_SHORT).show();
+            toggleDanmaku(v);
         });
         
         // 绑定弹幕设置按钮点击事件
         mVodControlView.setOnDanmuSetClickListener(v -> {
-            Toast.makeText(mContext, "弹幕设置功能开发中", Toast.LENGTH_SHORT).show();
+            showDanmakuSettingsDialog();
+        });
+        
+        // 绑定弹幕输入框点击事件
+        mVodControlView.setOnDanmuInputClickListener(v -> {
+            showDanmakuInputDialog();
         });
         
         // 绑定跳过片头片尾按钮点击事件
@@ -141,7 +149,7 @@ public class VideoEventManager {
             }
     
     /**
-     * 显示倍速选择对话�?
+     * 显示倍速选择对话
      */
     private void showSpeedDialog() {
                 mController.hide(); // 隐藏播放器UI
@@ -184,7 +192,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 使用 RecyclerView 显示倍速列�?
+        // 使用 RecyclerView 显示倍速列
         RecyclerView recyclerView = dialogView.findViewById(R.id.recycler);
         if (recyclerView != null) {
             OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -195,7 +203,7 @@ public class VideoEventManager {
                     String speedText = data.get(position).get("name").toString();
                     float speedValue = Float.parseFloat(speedText.replace("x", ""));
                     
-                    // 高亮当前倍�?
+                    // 高亮当前倍
                     float currentSpeed = mVideoView.getSpeed();
                     if (Math.abs(speedValue - currentSpeed) < 0.01f) {
                         speedName.setTextColor(COLOR_HIGHLIGHT);
@@ -210,17 +218,17 @@ public class VideoEventManager {
                     // 倍速选择事件
                     speedName.setOnClickListener(v -> {
                         mVideoView.setSpeed(speedValue);
-                                                Toast.makeText(mContext, "倍�? " + speedText, Toast.LENGTH_SHORT).show();
+                                                Toast.makeText(mContext, "倍 " + speedText, Toast.LENGTH_SHORT).show();
                         dialog.dismiss();
                     });
                 });
                     } else {
-            android.util.Log.e(TAG, "setupSpeedOptions: RecyclerView �?null");
+            android.util.Log.e(TAG, "setupSpeedOptions: RecyclerView null");
         }
     }
     
     /**
-     * 设置长按倍速功�?
+     * 设置长按倍速功
      * 长按视图时加速播放，松开恢复正常速度
      */
     private void setupLongPressSpeed(View view) {
@@ -247,7 +255,7 @@ public class VideoEventManager {
     }
     
     /**
-     * 设置长按倍�?
+     * 设置长按倍
      */
     public void setLongPressSpeed(float speed) {
         mLongPressSpeed = speed;
@@ -255,7 +263,7 @@ public class VideoEventManager {
     }
     
     /**
-     * 获取长按倍�?
+     * 获取长按倍
      */
     public float getLongPressSpeed() {
         return mLongPressSpeed;
@@ -291,7 +299,7 @@ public class VideoEventManager {
         }
     }
     
-    // ==================== 设置对话�?====================
+    // ==================== 设置对话====================
     
     /**
      * 显示设置对话框
@@ -799,7 +807,7 @@ public class VideoEventManager {
     }
     
     /**
-     * 显示画面比例对话�?
+     * 显示画面比例对话
      */
     private void showScreenScaleDialog() {
         if (mCurrentSetupDialog != null) {
@@ -840,7 +848,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前选中的比�?
+        // 当前选中的比
         final String currentScale = mSettingsManager.getVideoScale();
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -935,7 +943,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前长按倍�?
+        // 当前长按倍
         final float currentSpeed = mLongPressSpeed;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -946,7 +954,7 @@ public class VideoEventManager {
                 String speedText = data.get(position).get("name").toString();
                 float speedValue = Float.parseFloat(speedText.replace("x", ""));
                 
-                // 高亮当前倍�?
+                // 高亮当前倍
                 if (Math.abs(speedValue - currentSpeed) < 0.01f) {
                     speedName.setTextColor(COLOR_HIGHLIGHT);
                     speedName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
@@ -960,14 +968,14 @@ public class VideoEventManager {
                 // 倍速选择事件
                 speedName.setOnClickListener(v -> {
                     setLongPressSpeed(speedValue);
-                    Toast.makeText(mContext, "长按倍�? " + speedText, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(mContext, "长按倍 " + speedText, Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
                 });
             });
     }
     
     /**
-     * 显示播放模式对话�?
+     * 显示播放模式对话
      */
     private void showPlayModeDialog() {
         final String[] modes = {"顺序播放", "单集循环", "播放暂停"};
@@ -1662,4 +1670,315 @@ public class VideoEventManager {
                 break;
         }
     }
+    
+    // ==================== 弹幕功能 ====================
+    
+    /**
+     * 切换弹幕开关
+     * @param clickedView 被点击的View，用于找到正确的VodControlView
+     */
+    private void toggleDanmaku(View clickedView) {
+        android.util.Log.d(TAG, "toggleDanmaku called, clickedView=" + clickedView);
+        boolean currentState = mSettingsManager.isDanmakuEnabled();
+        boolean newState = !currentState;
+        android.util.Log.d(TAG, "Current state: " + currentState + ", New state: " + newState);
+        
+        // 保存设置
+        mSettingsManager.setDanmakuEnabled(newState);
+        android.util.Log.d(TAG, "State saved to settings");
+        
+        // 从点击的View向上找到VodControlView
+        VodControlView actualVodControlView = findParentVodControlView(clickedView);
+        android.util.Log.d(TAG, "actualVodControlView from parent: " + actualVodControlView);
+        
+        if (actualVodControlView != null) {
+            android.util.Log.d(TAG, "actualVodControlView isAttachedToWindow=" + actualVodControlView.isAttachedToWindow());
+            android.util.Log.d(TAG, "actualVodControlView size=" + actualVodControlView.getWidth() + "x" + actualVodControlView.getHeight());
+            android.util.Log.d(TAG, "Calling updateDanmakuToggleState with: " + newState);
+            actualVodControlView.updateDanmakuToggleState(newState);
+        } else {
+            android.util.Log.e(TAG, "Could not find parent VodControlView!");
+        }
+        
+        // 通知外部监听器（如果有DanmaView组件）
+        if (mOnDanmakuStateChangeListener != null) {
+            mOnDanmakuStateChangeListener.onDanmakuStateChanged(newState);
+        }
+        
+        Toast.makeText(mContext, newState ? "弹幕已开启" : "弹幕已关闭", Toast.LENGTH_SHORT).show();
+        android.util.Log.d(TAG, "toggleDanmaku completed");
+    }
+    
+    /**
+     * 从View向上遍历找到父VodControlView
+     */
+    private VodControlView findParentVodControlView(View view) {
+        if (view == null) return null;
+        
+        android.view.ViewParent parent = view.getParent();
+        while (parent != null) {
+            if (parent instanceof VodControlView) {
+                return (VodControlView) parent;
+            }
+            parent = parent.getParent();
+        }
+        return null;
+    }
+    
+    /**
+     * 获取当前实际显示的VodControlView
+     * 如果是全屏模式，返回全屏播放器的VodControlView
+     */
+    private VodControlView getActualVodControlView() {
+        // 首先尝试获取全屏播放器的VodControlView
+        if (mActivity != null) {
+            android.view.ViewGroup vp = (android.view.ViewGroup) mActivity.findViewById(android.view.Window.ID_ANDROID_CONTENT);
+            if (vp != null) {
+                android.view.View fullView = vp.findViewById(com.shuyu.gsyvideoplayer.GSYVideoManager.FULLSCREEN_ID);
+                if (fullView instanceof OrangevideoView) {
+                    OrangevideoView fullPlayer = (OrangevideoView) fullView;
+                    VodControlView fullVodControlView = fullPlayer.getVodControlView();
+                    if (fullVodControlView != null) {
+                        android.util.Log.d(TAG, "Using fullscreen VodControlView: " + fullVodControlView);
+                        android.util.Log.d(TAG, "Fullscreen VodControlView size: " + fullVodControlView.getWidth() + "x" + fullVodControlView.getHeight());
+                        return fullVodControlView;
+                    }
+                }
+            }
+        }
+        
+        // 如果没有全屏播放器，返回当前绑定的VodControlView
+        android.util.Log.d(TAG, "Using bound mVodControlView: " + mVodControlView);
+        return mVodControlView;
+    }
+    
+    /**
+     * 显示弹幕输入对话框
+     */
+    private void showDanmakuInputDialog() {
+        // 使用DanmuexitDialog显示弹幕发送界面
+        com.orange.playerlibrary.tool.DanmuexitDialog danmuDialog = 
+            new com.orange.playerlibrary.tool.DanmuexitDialog();
+        
+        // 设置发送监听器
+        com.orange.playerlibrary.tool.DanmuexitDialog.setDanmuSendListener((text, color) -> {
+            // 通知外部发送弹幕
+            if (mOnDanmakuSendListener != null) {
+                mOnDanmakuSendListener.onDanmakuSend(text, color);
+            }
+            Toast.makeText(mContext, "弹幕已发送", Toast.LENGTH_SHORT).show();
+        });
+        
+        // 显示对话框
+        danmuDialog.show(mActivity);
+    }
+    
+    /**
+     * 显示弹幕设置对话框
+     */
+    private void showDanmakuSettingsDialog() {
+        mController.hide(); // 隐藏播放器UI
+        
+        // 创建对话框视图
+        View dialogView = View.inflate(mActivity, R.layout.danmuset_dialog_full, null);
+        
+        // 创建对话框 - 显示在右侧
+        final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
+                DialogUtils.DialogPosition.RIGHT, null, null);
+        
+        // 在 DecorView 上设置触摸监听，点击空白区域关闭对话框
+        View decorView = dialog.getWindow().getDecorView();
+        View shik = dialogView.findViewById(R.id.shik);
+        
+        decorView.setOnTouchListener((v, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                if (shik != null) {
+                    float x = event.getRawX();
+                    float y = event.getRawY();
+                    
+                    int[] location = new int[2];
+                    shik.getLocationOnScreen(location);
+                    int left = location[0];
+                    int top = location[1];
+                    int right = left + shik.getWidth();
+                    int bottom = top + shik.getHeight();
+                    
+                    if (x < left || x > right || y < top || y > bottom) {
+                        dialog.dismiss();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+        
+        // 绑定弹幕设置选项
+        bindDanmakuSettings(dialogView, dialog);
+    }
+    
+    /**
+     * 绑定弹幕设置选项
+     */
+    private void bindDanmakuSettings(View dialogView, AlertDialog dialog) {
+        // 获取SeekBar控件
+        android.widget.SeekBar sizeBar = dialogView.findViewById(R.id.ai_sizebar);
+        android.widget.SeekBar speedBar = dialogView.findViewById(R.id.ai_speedbar);
+        android.widget.SeekBar alphaBar = dialogView.findViewById(R.id.ai_alphabar);
+        
+        android.widget.TextView sizeText = dialogView.findViewById(R.id.ai_size);
+        android.widget.TextView speedText = dialogView.findViewById(R.id.ai_speed);
+        android.widget.TextView alphaText = dialogView.findViewById(R.id.ai_alpha);
+        
+        // 获取当前设置
+        float currentSize = mSettingsManager.getDanmakuTextSize();
+        float currentSpeed = mSettingsManager.getDanmakuSpeed();
+        float currentAlpha = mSettingsManager.getDanmakuAlpha();
+        
+        // 设置初始值（范围：文字大小10-30sp，速度0.5-3.0倍，透明度0-100%）
+        if (sizeBar != null) {
+            int progress = (int) ((currentSize - 10) / 20 * 100);
+            sizeBar.setProgress(progress);
+            if (sizeText != null) {
+                sizeText.setText("弹幕文字大小: " + String.format("%.0f", currentSize) + "sp");
+            }
+            
+            sizeBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser) {
+                        float size = 10 + (progress / 100f) * 20; // 10-30sp
+                        if (sizeText != null) {
+                            sizeText.setText("弹幕文字大小: " + String.format("%.0f", size) + "sp");
+                        }
+                    }
+                }
+                
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                    float size = 10 + (seekBar.getProgress() / 100f) * 20;
+                    mSettingsManager.setDanmakuTextSize(size);
+                    if (mOnDanmakuSettingsChangeListener != null) {
+                        mOnDanmakuSettingsChangeListener.onTextSizeChanged(size);
+                    }
+                    Toast.makeText(mContext, "弹幕文字大小: " + String.format("%.0f", size) + "sp", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
+        if (speedBar != null) {
+            int progress = (int) ((currentSpeed - 0.5f) / 2.5f * 100);
+            speedBar.setProgress(progress);
+            if (speedText != null) {
+                speedText.setText("弹幕播放速度: " + String.format("%.1f", currentSpeed) + "x");
+            }
+            
+            speedBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser) {
+                        float speed = 0.5f + (progress / 100f) * 2.5f; // 0.5-3.0x
+                        if (speedText != null) {
+                            speedText.setText("弹幕播放速度: " + String.format("%.1f", speed) + "x");
+                        }
+                    }
+                }
+                
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                    float speed = 0.5f + (seekBar.getProgress() / 100f) * 2.5f;
+                    mSettingsManager.setDanmakuSpeed(speed);
+                    if (mOnDanmakuSettingsChangeListener != null) {
+                        mOnDanmakuSettingsChangeListener.onSpeedChanged(speed);
+                    }
+                    Toast.makeText(mContext, "弹幕速度: " + String.format("%.1f", speed) + "x", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
+        if (alphaBar != null) {
+            int progress = (int) (currentAlpha * 100);
+            alphaBar.setProgress(progress);
+            if (alphaText != null) {
+                alphaText.setText("弹幕透明度: " + progress + "%");
+            }
+            
+            alphaBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser && alphaText != null) {
+                        alphaText.setText("弹幕透明度: " + progress + "%");
+                    }
+                }
+                
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                    float alpha = seekBar.getProgress() / 100f;
+                    mSettingsManager.setDanmakuAlpha(alpha);
+                    if (mOnDanmakuSettingsChangeListener != null) {
+                        mOnDanmakuSettingsChangeListener.onAlphaChanged(alpha);
+                    }
+                    Toast.makeText(mContext, "弹幕透明度: " + seekBar.getProgress() + "%", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+    
+    // 弹幕状态变化监听器
+    private OnDanmakuStateChangeListener mOnDanmakuStateChangeListener;
+    private OnDanmakuSettingsChangeListener mOnDanmakuSettingsChangeListener;
+    private OnDanmakuSendListener mOnDanmakuSendListener;
+    
+    /**
+     * 设置弹幕状态变化监听器
+     */
+    public void setOnDanmakuStateChangeListener(OnDanmakuStateChangeListener listener) {
+        mOnDanmakuStateChangeListener = listener;
+    }
+    
+    /**
+     * 设置弹幕设置变化监听器
+     */
+    public void setOnDanmakuSettingsChangeListener(OnDanmakuSettingsChangeListener listener) {
+        mOnDanmakuSettingsChangeListener = listener;
+    }
+    
+    /**
+     * 设置弹幕发送监听器
+     */
+    public void setOnDanmakuSendListener(OnDanmakuSendListener listener) {
+        mOnDanmakuSendListener = listener;
+    }
+    
+    /**
+     * 弹幕状态变化监听器接口
+     */
+    public interface OnDanmakuStateChangeListener {
+        void onDanmakuStateChanged(boolean enabled);
+    }
+    
+    /**
+     * 弹幕设置变化监听器接口
+     */
+    public interface OnDanmakuSettingsChangeListener {
+        void onTextSizeChanged(float size);
+        void onSpeedChanged(float speed);
+        void onAlphaChanged(float alpha);
+    }
+    
+    /**
+     * 弹幕发送监听器接口
+     */
+    public interface OnDanmakuSendListener {
+        void onDanmakuSend(String text, int color);
+    }
 }
+

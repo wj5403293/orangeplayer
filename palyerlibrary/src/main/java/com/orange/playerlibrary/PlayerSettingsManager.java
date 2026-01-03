@@ -17,6 +17,10 @@ public class PlayerSettingsManager {
     private static final String KEY_SKIP_OPENING = "skip_opening";
     private static final String KEY_SKIP_ENDING = "skip_ending";
     private static final String KEY_BOTTOM_PROGRESS = "bottom_progress";
+    private static final String KEY_DANMAKU_ENABLED = "danmaku_enabled";
+    private static final String KEY_DANMAKU_TEXT_SIZE = "danmaku_text_size";
+    private static final String KEY_DANMAKU_SPEED = "danmaku_speed";
+    private static final String KEY_DANMAKU_ALPHA = "danmaku_alpha";
     
     private static PlayerSettingsManager sInstance;
     private final SharedPreferences mPreferences;
@@ -103,5 +107,39 @@ public class PlayerSettingsManager {
     
     public boolean isBottomProgressEnabled() {
         return mPreferences.getBoolean(KEY_BOTTOM_PROGRESS, true);
+    }
+    
+    // ===== 弹幕设置 =====
+    
+    public void setDanmakuEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_DANMAKU_ENABLED, enabled).apply();
+    }
+    
+    public boolean isDanmakuEnabled() {
+        return mPreferences.getBoolean(KEY_DANMAKU_ENABLED, true);
+    }
+    
+    public void setDanmakuTextSize(float size) {
+        mPreferences.edit().putFloat(KEY_DANMAKU_TEXT_SIZE, size).apply();
+    }
+    
+    public float getDanmakuTextSize() {
+        return mPreferences.getFloat(KEY_DANMAKU_TEXT_SIZE, 16.0f);
+    }
+    
+    public void setDanmakuSpeed(float speed) {
+        mPreferences.edit().putFloat(KEY_DANMAKU_SPEED, speed).apply();
+    }
+    
+    public float getDanmakuSpeed() {
+        return mPreferences.getFloat(KEY_DANMAKU_SPEED, 1.5f);
+    }
+    
+    public void setDanmakuAlpha(float alpha) {
+        mPreferences.edit().putFloat(KEY_DANMAKU_ALPHA, alpha).apply();
+    }
+    
+    public float getDanmakuAlpha() {
+        return mPreferences.getFloat(KEY_DANMAKU_ALPHA, 1.0f);
     }
 }

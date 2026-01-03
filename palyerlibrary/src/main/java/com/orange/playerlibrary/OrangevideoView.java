@@ -467,6 +467,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void pause() {
+        android.util.Log.d(TAG, "pause() called");
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
@@ -474,13 +475,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mSkipManager.stopOutroCheck();
         }
         onVideoPause();
+        android.util.Log.d(TAG, "pause() completed");
     }
 
     public void resume() {
+        android.util.Log.d(TAG, "resume() called");
         onVideoResume();
         if (mSkipManager != null) {
             mSkipManager.startOutroCheck();
         }
+        android.util.Log.d(TAG, "resume() completed");
     }
 
 
@@ -1723,13 +1727,32 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
     }
 
-    protected void touchDoubleUp() {
+    // 双击事件时间戳，用于防止双击后的单击事件干扰
+    private static long sLastDoubleClickTime = 0;
+    private static final long DOUBLE_CLICK_BLOCK_INTERVAL = 600; // 双击后600ms内阻止单击
+    
+    public static long getLastDoubleClickTime() {
+        return sLastDoubleClickTime;
+    }
+    
+    public static long getDoubleClickBlockInterval() {
+        return DOUBLE_CLICK_BLOCK_INTERVAL;
+    }
+    
+    @Override
+    protected void touchDoubleUp(android.view.MotionEvent e) {
+        sLastDoubleClickTime = System.currentTimeMillis();
+        android.util.Log.d(TAG, "touchDoubleUp: mCurrentPlayState=" + mCurrentPlayState + ", timestamp=" + sLastDoubleClickTime);
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
             mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
             mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
+            android.util.Log.d(TAG, "touchDoubleUp: calling pause()");
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
+            android.util.Log.d(TAG, "touchDoubleUp: calling resume()");
             resume();
+        } else {
+            android.util.Log.d(TAG, "touchDoubleUp: no action for state " + mCurrentPlayState);
         }
     }
 

@@ -202,14 +202,31 @@
                 android:padding="@dimen/orange_controller_icon_padding"
                 android:src="@mipmap/playdown" />
 
-            <!-- 弹幕开关按钮 -->
-            <ImageView
-                android:id="@+id/danmu_toggle"
-                android:layout_width="@dimen/orange_danmu_button_size"
-                android:layout_height="@dimen/orange_danmu_button_size"
-                android:paddingHorizontal="@dimen/orange_danmu_button_padding"
-                android:src="@drawable/dkplayer_selector_danmu_button"
-                android:contentDescription="@string/orange_play_desc" />
+            <!-- 弹幕开关按钮 - 使用两个ImageView切换 -->
+            <FrameLayout
+                android:layout_width="38dp"
+                android:layout_height="38dp">
+                
+                <ImageView
+                    android:id="@+id/danmu_toggle_on"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:padding="8dp"
+                    android:src="@mipmap/danmu_open1"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone"
+                    android:contentDescription="@string/orange_play_desc" />
+                
+                <ImageView
+                    android:id="@+id/danmu_toggle_off"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:padding="8dp"
+                    android:src="@mipmap/danmu_off"
+                    android:scaleType="fitCenter"
+                    android:visibility="visible"
+                    android:contentDescription="@string/orange_play_desc" />
+            </FrameLayout>
 
             <!-- 弹幕设置按钮 -->
             <ImageView
