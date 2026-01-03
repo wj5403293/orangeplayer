@@ -120,9 +120,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         setVisibility(GONE);
         setClickable(false);
         LayoutInflater.from(getContext()).inflate(R.layout.orange_layout_vod_control_view, this, true);
-        
-        android.util.Log.d(TAG, "VodControlView init: this=" + this + ", hashCode=" + this.hashCode());
-
         mBottomContainer = findViewById(R.id.bottom_container);
         mTopContainer = findViewById(R.id.container_main);
         mDanmuContainer = findViewById(R.id.danmu_container);
@@ -239,9 +236,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             com.orange.playerlibrary.PlayerSettingsManager settingsManager = 
                 com.orange.playerlibrary.PlayerSettingsManager.getInstance(getContext());
             boolean enabled = settingsManager.isDanmakuEnabled();
-            
-            android.util.Log.d(TAG, "initDanmakuButtonState: enabled=" + enabled);
-            
             // 设置初始visibility
             if (enabled) {
                 mDanmuToggleOn.setVisibility(VISIBLE);
@@ -269,9 +263,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     @Override
     public void onClick(View v) {
         int id = v.getId();
-        
-        android.util.Log.d(TAG, "onClick: view id=" + id);
-        
         if (id == R.id.fullscreen || id == R.id.fullscreen_danmu) {
             toggleFullScreen();
         } else if (id == R.id.iv_play || id == R.id.iv_play_fullscreen) {
@@ -280,17 +271,13 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             // 检查是否在双击阻止时间内
             long timeSinceDoubleClick = currentTime - OrangevideoView.getLastDoubleClickTime();
             if (timeSinceDoubleClick < OrangevideoView.getDoubleClickBlockInterval()) {
-                android.util.Log.d(TAG, "onClick iv_play: BLOCKED by double-click protection, timeSinceDoubleClick=" + timeSinceDoubleClick + "ms");
                 return;
             }
             
             long timeSinceLastChange = currentTime - mLastStateChangeTime;
-            android.util.Log.d(TAG, "onClick iv_play: timeSinceLastChange=" + timeSinceLastChange + "ms, DOUBLE_CLICK_INTERVAL=" + DOUBLE_CLICK_INTERVAL);
             if (timeSinceLastChange < DOUBLE_CLICK_INTERVAL) {
-                android.util.Log.d(TAG, "onClick iv_play: BLOCKED by debounce");
                 return;
             }
-            android.util.Log.d(TAG, "onClick iv_play: calling togglePlay()");
             if (mControlWrapper != null) {
                 mControlWrapper.togglePlay();
             }
@@ -365,13 +352,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     public void onPlayStateChanged(int playState) {
         // 如果当前实例没有附加到窗口，跳过UI更新（全屏模式下旧实例会收到回调但不应该更新）
         if (!isAttachedToWindow()) {
-            android.util.Log.d(TAG, "onPlayStateChanged: skipping, not attached to window. playState=" + playState);
             return;
         }
         
         mLastStateChangeTime = System.currentTimeMillis();
-        android.util.Log.d(TAG, "onPlayStateChanged: " + playState);
-
         switch (playState) {
             case PlayerConstants.STATE_ERROR:
             case PlayerConstants.STATE_PREPARING:
@@ -409,14 +393,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     private void updatePlayButtonState(final boolean isPlaying) {
         mLastIconUpdateTime = System.currentTimeMillis();
-        android.util.Log.d(TAG, "updatePlayButtonState: isPlaying=" + isPlaying + ", this=" + this.hashCode() + ", isAttached=" + isAttachedToWindow());
-
         if (mPlayButton != null) {
-            android.util.Log.d(TAG, "updatePlayButtonState: mPlayButton before selected=" + mPlayButton.isSelected());
             mPlayButton.setSelected(isPlaying);
             mPlayButton.refreshDrawableState();
             mPlayButton.invalidate();
-            android.util.Log.d(TAG, "updatePlayButtonState: mPlayButton after selected=" + mPlayButton.isSelected());
         }
 
         if (mPlayButtonFullscreen != null) {
@@ -430,16 +410,11 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     public void onPlayerStateChanged(int playerState) {
         // 如果当前实例没有附加到窗口，跳过UI更新
         if (!isAttachedToWindow()) {
-            android.util.Log.d(TAG, "onPlayerStateChanged: skipping, not attached to window. playerState=" + playerState);
             return;
         }
-        
-        android.util.Log.d(TAG, "onPlayerStateChanged: " + playerState);
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN) {
             if (mDanmuContainer != null) {
                 mDanmuContainer.setVisibility(VISIBLE);
-                android.util.Log.d(TAG, "Set danmu_container to VISIBLE, actual visibility=" + mDanmuContainer.getVisibility());
-                android.util.Log.d(TAG, "danmu_container size: " + mDanmuContainer.getWidth() + "x" + mDanmuContainer.getHeight());
             }
             if (mPlayButton != null) mPlayButton.setVisibility(GONE);
             if (mFullScreen != null) mFullScreen.setVisibility(GONE);
@@ -454,7 +429,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         } else if (playerState == PlayerConstants.PLAYER_NORMAL) {
             if (mDanmuContainer != null) {
                 mDanmuContainer.setVisibility(GONE);
-                android.util.Log.d(TAG, "Set danmu_container to GONE");
             }
             if (mPlayButton != null) mPlayButton.setVisibility(VISIBLE);
             if (mFullScreen != null) {
@@ -637,44 +611,23 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * 更新弹幕开关按钮状态 - 使用两个ImageView切换visibility
      */
     public void updateDanmakuToggleState(boolean enabled) {
-        android.util.Log.d(TAG, "updateDanmakuToggleState called: enabled=" + enabled + ", this=" + this + ", hashCode=" + this.hashCode());
-        android.util.Log.d(TAG, "updateDanmakuToggleState: this.getWidth()=" + getWidth() + ", this.getHeight()=" + getHeight());
-        android.util.Log.d(TAG, "updateDanmakuToggleState: isAttachedToWindow=" + isAttachedToWindow() + ", getVisibility=" + getVisibility());
-        
         // 使用post确保在布局完成后执行
         final boolean finalEnabled = enabled;
         post(() -> {
-            android.util.Log.d(TAG, "Post execution: enabled=" + finalEnabled);
-            android.util.Log.d(TAG, "mDanmuToggleOn=" + mDanmuToggleOn + ", mDanmuToggleOff=" + mDanmuToggleOff);
-            
             // 检查父容器
             if (mDanmuContainer != null) {
-                android.util.Log.d(TAG, "danmu_container visibility=" + mDanmuContainer.getVisibility() + ", size=" + mDanmuContainer.getWidth() + "x" + mDanmuContainer.getHeight());
             }
             
             // 通过控制两个ImageView的visibility来切换图标
             if (mDanmuToggleOn != null && mDanmuToggleOff != null) {
                 if (finalEnabled) {
-                    android.util.Log.d(TAG, "Before: ON visibility=" + mDanmuToggleOn.getVisibility() + ", OFF visibility=" + mDanmuToggleOff.getVisibility());
-                    android.util.Log.d(TAG, "ON size: " + mDanmuToggleOn.getWidth() + "x" + mDanmuToggleOn.getHeight() + ", OFF size: " + mDanmuToggleOff.getWidth() + "x" + mDanmuToggleOff.getHeight());
-                    
                     mDanmuToggleOn.setVisibility(VISIBLE);
                     mDanmuToggleOff.setVisibility(GONE);
-                    
-                    android.util.Log.d(TAG, "After: ON visibility=" + mDanmuToggleOn.getVisibility() + ", OFF visibility=" + mDanmuToggleOff.getVisibility());
-                    android.util.Log.d(TAG, "Showing ON icon, hiding OFF icon");
                 } else {
-                    android.util.Log.d(TAG, "Before: ON visibility=" + mDanmuToggleOn.getVisibility() + ", OFF visibility=" + mDanmuToggleOff.getVisibility());
-                    android.util.Log.d(TAG, "ON size: " + mDanmuToggleOn.getWidth() + "x" + mDanmuToggleOn.getHeight() + ", OFF size: " + mDanmuToggleOff.getWidth() + "x" + mDanmuToggleOff.getHeight());
-                    
                     mDanmuToggleOn.setVisibility(GONE);
                     mDanmuToggleOff.setVisibility(VISIBLE);
-                    
-                    android.util.Log.d(TAG, "After: ON visibility=" + mDanmuToggleOn.getVisibility() + ", OFF visibility=" + mDanmuToggleOff.getVisibility());
-                    android.util.Log.d(TAG, "Showing OFF icon, hiding ON icon");
                 }
             } else {
-                android.util.Log.e(TAG, "mDanmuToggleOn or mDanmuToggleOff is NULL!");
             }
             
             // 同时控制输入框和设置按钮的可见性

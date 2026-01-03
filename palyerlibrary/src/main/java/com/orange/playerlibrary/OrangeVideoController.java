@@ -49,6 +49,7 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     
     // ===== 弹幕相关 =====
     private boolean mIsAddDanmu = false;
+    private com.orange.playerlibrary.interfaces.IDanmakuController mDanmakuController;
     
     // ===== 预览功能 =====
     private boolean mPreViewEnabled = false;
@@ -545,6 +546,35 @@ public class OrangeVideoController extends OrangeStandardVideoController {
      */
     public boolean isAddDanmu() {
         return mIsAddDanmu;
+    }
+    
+    /**
+     * 设置弹幕控制器
+     * App 层实现 IDanmakuController 接口后，通过此方法设置
+     * 
+     * @param controller 弹幕控制器
+     */
+    public void setDanmakuController(com.orange.playerlibrary.interfaces.IDanmakuController controller) {
+        mDanmakuController = controller;
+        debug("setDanmakuController: " + controller);
+    }
+    
+    /**
+     * 获取弹幕控制器
+     * 
+     * @return 弹幕控制器，如果未设置返回 null
+     */
+    public com.orange.playerlibrary.interfaces.IDanmakuController getDanmakuController() {
+        return mDanmakuController;
+    }
+    
+    /**
+     * 检查弹幕功能是否可用
+     * 
+     * @return true 如果弹幕库已导入且控制器已设置
+     */
+    public boolean isDanmakuAvailable() {
+        return DanmakuHelper.isDanmakuLibraryAvailable() && mDanmakuController != null;
     }
 
     // ===== 预览功能 =====

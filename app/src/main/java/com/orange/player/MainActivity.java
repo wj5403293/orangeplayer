@@ -2,6 +2,7 @@ package com.orange.player;
 
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -10,8 +11,14 @@ import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.orange.playerlibrary.DanmakuControllerImpl;
+import com.orange.playerlibrary.DanmakuHelper;
 import com.orange.playerlibrary.OrangevideoView;
+import com.orange.playerlibrary.interfaces.IDanmakuController;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 橘子播放器 Demo
@@ -28,6 +35,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvInfo;
     private TextView mTvDebugLog;
     private StringBuilder mLogBuilder = new StringBuilder();
+    
+    // 弹幕控制器（使用 SDK 层实现）
+    private DanmakuControllerImpl mDanmakuController;
     
     // PiP 恢复相关
     private long mPendingSeekPosition = -1;
@@ -121,6 +131,36 @@ public class MainActivity extends AppCompatActivity {
                 mVideoView.getControlWrapper().toggleFullScreen();
             }
         });
+        
+        // 弹幕测试按钮
+        Button btnBatchDanmaku = findViewById(R.id.btn_batch_danmaku);
+        Button btnSendDanmaku = findViewById(R.id.btn_send_danmaku);
+        Button btnToggleDanmaku = findViewById(R.id.btn_toggle_danmaku);
+        
+        // 批量弹幕按钮 - 加载大量弹幕到指定时间点
+        btnBatchDanmaku.setOnClickListener(v -> {
+            loadBatchDanmakuData();
+        });
+        
+        // 发送弹幕按钮 - 立即发送一条弹幕
+        btnSendDanmaku.setOnClickListener(v -> {
+            if (mDanmakuController != null) {
+                mDanmakuController.sendDanmaku("用户发送的弹幕 " + System.currentTimeMillis() % 1000, Color.YELLOW);
+                log("发送弹幕");
+            } else {
+                log("弹幕控制器未初始化");
+            }
+        });
+        
+        // 弹幕开关按钮
+        btnToggleDanmaku.setOnClickListener(v -> {
+            if (mDanmakuController != null) {
+                boolean enabled = mDanmakuController.isDanmakuEnabled();
+                mDanmakuController.setDanmakuEnabled(!enabled);
+                log("弹幕开关: " + (!enabled ? "开" : "关"));
+                btnToggleDanmaku.setText(!enabled ? "关闭弹幕" : "开启弹幕");
+            }
+        });
     }
 
     private void initPlayer() {
@@ -135,6 +175,9 @@ public class MainActivity extends AppCompatActivity {
         // 添加默认控制组件
         controller.addDefaultControlComponent("阿里云测试视频", false);
         log("控制组件添加完成");
+        
+        // 初始化弹幕功能
+        initDanmaku(controller);
         
         // 设置测试视频列表（用于测试选集功能）
         java.util.ArrayList<java.util.HashMap<String, Object>> videoList = new java.util.ArrayList<>();
@@ -336,6 +379,134 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 释放弹幕资源
+        if (mDanmakuController != null) {
+            mDanmakuController.releaseDanmaku();
+            mDanmakuController.detachFromContainer();
+        }
         mVideoView.release();
+    }
+    
+    /**
+     * 初始化弹幕功能
+     */
+    private void initDanmaku(com.orange.playerlibrary.OrangeVideoController controller) {
+        // 检查弹幕库是否可用
+        if (!DanmakuHelper.isDanmakuLibraryAvailable()) {
+            log("弹幕库未导入，弹幕功能不可用");
+            return;
+        }
+        
+        log("初始化弹幕功能");
+        
+        // 创建弹幕控制器
+        mDanmakuController = new DanmakuControllerImpl(this);
+        
+        // 将弹幕视图附加到播放器
+        mDanmakuController.attachToContainer(mVideoView);
+        
+        // 设置弹幕控制器到 OrangeVideoController
+        controller.setDanmakuController(mDanmakuController);
+        
+        // 加载测试弹幕数据
+        loadTestDanmakuData();
+        
+        log("弹幕功能初始化完成");
+    }
+    
+    /**
+     * 加载测试弹幕数据
+     */
+    private void loadTestDanmakuData() {
+        if (mDanmakuController == null) return;
+        
+        // 创建测试弹幕数据
+        List<IDanmakuController.DanmakuItem> testDanmakus = new ArrayList<>();
+        
+        // 添加一些测试弹幕
+        String[] testTexts = {
+            "这是测试弹幕1",
+            "橘子播放器真好用！",
+            "弹幕功能测试中...",
+            "Hello World!",
+            "666666",
+            "前方高能预警！",
+            "这个视频不错",
+            "弹幕来啦~"
+        };
+        
+        int[] colors = {
+            Color.WHITE,
+            Color.RED,
+            Color.GREEN,
+            Color.CYAN,
+            Color.YELLOW,
+            Color.MAGENTA,
+            Color.WHITE,
+            Color.parseColor("#FF6600")
+        };
+        
+        // 在不同时间点添加弹幕
+        for (int i = 0; i < testTexts.length; i++) {
+            long timestamp = (i + 1) * 3000; // 每3秒一条弹幕
+            testDanmakus.add(new IDanmakuController.DanmakuItem(
+                    testTexts[i],
+                    colors[i % colors.length],
+                    timestamp,
+                    false
+            ));
+        }
+        
+        // 设置弹幕数据
+        mDanmakuController.setDanmakuData(testDanmakus);
+        log("加载了 " + testDanmakus.size() + " 条测试弹幕");
+    }
+    
+    /**
+     * 批量加载弹幕数据
+     * 演示如何在指定时间点加载大量弹幕
+     */
+    private void loadBatchDanmakuData() {
+        if (mDanmakuController == null) {
+            log("弹幕控制器未初始化");
+            return;
+        }
+        
+        List<IDanmakuController.DanmakuItem> batchDanmakus = new ArrayList<>();
+        
+        // 颜色数组
+        int[] colors = {
+            Color.WHITE, Color.RED, Color.GREEN, Color.CYAN,
+            Color.YELLOW, Color.MAGENTA, Color.parseColor("#FF6600"),
+            Color.parseColor("#00FF99"), Color.parseColor("#FF99CC")
+        };
+        
+        // 弹幕文本模板
+        String[] templates = {
+            "弹幕测试 %d", "666666", "哈哈哈", "前方高能",
+            "太精彩了", "好看！", "支持一下", "路过~",
+            "第一次看", "收藏了", "转发了", "点赞！"
+        };
+        
+        // 获取当前播放位置
+        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+        
+        // 批量生成弹幕：从当前位置开始，每500ms一条，共生成50条
+        for (int i = 0; i < 50; i++) {
+            long timestamp = currentPosition + (i * 500); // 每500ms一条
+            String text = String.format(templates[i % templates.length], i + 1);
+            int color = colors[i % colors.length];
+            
+            batchDanmakus.add(new IDanmakuController.DanmakuItem(
+                    text,
+                    color,
+                    timestamp,
+                    false
+            ));
+        }
+        
+        // 设置弹幕数据（会自动按时间排序和去重）
+        mDanmakuController.setDanmakuData(batchDanmakus);
+        log("批量加载 " + batchDanmakus.size() + " 条弹幕，起始时间: " + currentPosition + "ms");
     }
 }

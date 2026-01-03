@@ -83,8 +83,6 @@ public class CustomFullscreenHelper {
         }
         
         long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        android.util.Log.d(TAG, "startFullScreen: position=" + currentPosition);
-        
         mIsFullscreen = true;
         mFullscreenTransitioning = true;
         mOriginalSystemUiVisibility = decorView.getSystemUiVisibility();
@@ -135,12 +133,8 @@ public class CustomFullscreenHelper {
             @Override
             public void run() {
                 mFullscreenTransitioning = false;
-                android.util.Log.d(TAG, "startFullScreen: transitioning flag reset, position=" + 
-                    mVideoView.getCurrentPositionWhenPlaying());
             }
         }, 800);
-        
-        android.util.Log.d(TAG, "startFullScreen: done");
     }
     
     /**
@@ -171,8 +165,6 @@ public class CustomFullscreenHelper {
         }
         
         long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        android.util.Log.d(TAG, "stopFullScreen: position=" + currentPosition);
-        
         mIsFullscreen = false;
         mFullscreenTransitioning = true;
         
@@ -211,12 +203,8 @@ public class CustomFullscreenHelper {
             @Override
             public void run() {
                 mFullscreenTransitioning = false;
-                android.util.Log.d(TAG, "stopFullScreen: transitioning flag reset, position=" + 
-                    mVideoView.getCurrentPositionWhenPlaying());
             }
         }, 800);
-        
-        android.util.Log.d(TAG, "stopFullScreen: done");
     }
     
     public void enterFullscreen(Activity activity) {
@@ -291,8 +279,6 @@ public class CustomFullscreenHelper {
         }
         
         long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        android.util.Log.d(TAG, "startPortraitFullScreen: position=" + currentPosition);
-        
         mIsFullscreen = true;
         mIsPortraitFullscreen = true;
         mFullscreenTransitioning = true;
@@ -343,11 +329,8 @@ public class CustomFullscreenHelper {
             @Override
             public void run() {
                 mFullscreenTransitioning = false;
-                android.util.Log.d(TAG, "startPortraitFullScreen: transitioning flag reset");
             }
         }, 500);
-        
-        android.util.Log.d(TAG, "startPortraitFullScreen: done");
     }
     
     /**
@@ -369,8 +352,6 @@ public class CustomFullscreenHelper {
         }
         
         long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        android.util.Log.d(TAG, "stopPortraitFullScreen: position=" + currentPosition);
-        
         mIsFullscreen = false;
         mIsPortraitFullscreen = false;
         mFullscreenTransitioning = true;
@@ -407,11 +388,8 @@ public class CustomFullscreenHelper {
             @Override
             public void run() {
                 mFullscreenTransitioning = false;
-                android.util.Log.d(TAG, "stopPortraitFullScreen: transitioning flag reset");
             }
         }, 500);
-        
-        android.util.Log.d(TAG, "stopPortraitFullScreen: done");
     }
     
     public void toggleFullScreen() {

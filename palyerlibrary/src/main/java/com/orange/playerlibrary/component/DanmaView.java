@@ -163,7 +163,9 @@ public class DanmaView extends DanmakuView implements IControlComponent {
                         .setDuplicateMergingEnabled(true)
                         .setScaleTextSize(1.0f)
                         .setMaximumLines(maxLinesMap)
-                        .preventOverlapping(overlappingMap);
+                        .preventOverlapping(overlappingMap)
+                        // 修复抽搐问题：设置弹幕最大显示时间，避免时间同步问题
+                        .setMaximumVisibleSizeInScreen(50);
             }
         } catch (Exception e) {
             debug("创建弹幕上下文失败: " + e.getMessage());
@@ -397,24 +399,34 @@ public class DanmaView extends DanmakuView implements IControlComponent {
     public void setProgress(int duration, int position) {
         long currentPosition = position;
         
+        // 无条件日志，确认方法被调用
+        Log.d(TAG, "setProgress called: duration=" + duration + ", position=" + position + 
+                ", enabled=" + mDanmakuEnabled + ", prepared=" + isPrepared() + 
+                ", danmakuPrepared=" + mDanmakuPrepared + ", allDanmakus=" + mAllDanmakus.size());
+        
         if (!mDanmakuEnabled || !isPrepared() || !mDanmakuPrepared) {
             return;
         }
         
         long positionDiff = currentPosition - mLastPosition;
         
+        // 进度回退超过阈值，重置匹配状态
         if (positionDiff < -PROGRESS_BACKWARD_THRESHOLD) {
             mLastCheckedIndex = 0;
             mRealTimeAddedKeys.clear();
+            debug("进度回退，重置弹幕匹配状态");
         }
         
+        // 大跳变处理（超过5秒才同步，避免频繁 seekTo 导致抽搐）
         long timeDiff = Math.abs(currentPosition - getCurrentTime());
-        if (timeDiff > 60000) {
+        if (timeDiff > 5000) {
             seekTo(currentPosition);
             mLastCheckedIndex = 0;
             mRealTimeAddedKeys.clear();
+            debug("进度跳变超过5秒，同步弹幕位置至：" + currentPosition + "ms");
         }
         
+        // 实时匹配并添加弹幕
         addRealTimeDanmakus(currentPosition);
         mLastPosition = currentPosition;
     }

@@ -413,6 +413,24 @@ public class OrangeStandardVideoController extends FrameLayout {
             }
         }
     }
+    
+    /**
+     * 添加控制组件（不添加视图到容器）
+     * 用于弹幕等需要独立显示但仍需接收回调的组件
+     * 
+     * @param components 控制组件
+     */
+    public void addControlComponentWithoutView(IControlComponent... components) {
+        for (IControlComponent component : components) {
+            if (component != null && !mControlComponents.contains(component)) {
+                mControlComponents.add(component);
+                if (mControlWrapper != null) {
+                    component.attach(mControlWrapper);
+                }
+                // 不添加视图到 mControlContainer
+            }
+        }
+    }
 
     /**
      * 移除所有控制组件

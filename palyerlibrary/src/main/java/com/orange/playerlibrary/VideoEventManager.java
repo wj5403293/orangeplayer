@@ -63,9 +63,6 @@ public class VideoEventManager {
      * 绑定控制器组件
      */
     public void bindControllerComponents(VodControlView vodControlView) {
-        android.util.Log.d(TAG, "bindControllerComponents: old=" + mVodControlView + ", new=" + vodControlView);
-        android.util.Log.d(TAG, "bindControllerComponents: old hashCode=" + (mVodControlView != null ? mVodControlView.hashCode() : "null") 
-            + ", new hashCode=" + (vodControlView != null ? vodControlView.hashCode() : "null"));
         mVodControlView = vodControlView;
         bindControllerEvents();
     }
@@ -171,7 +168,6 @@ public class VideoEventManager {
             // 设置倍速选项
             setupSpeedOptions(dialogView, dialog);
         } catch (Exception e) {
-            android.util.Log.e(TAG, "showSpeedDialog: 错误", e);
         }
     }
     
@@ -223,7 +219,6 @@ public class VideoEventManager {
                     });
                 });
                     } else {
-            android.util.Log.e(TAG, "setupSpeedOptions: RecyclerView null");
         }
     }
     
@@ -630,10 +625,6 @@ public class VideoEventManager {
             try {
                 // 记录当前播放位置
                 long currentPos = mVideoView.getCurrentPositionWhenPlaying();
-                android.util.Log.d("PiP_DEBUG", "=== onSmallWindowPlayClick ===");
-                android.util.Log.d("PiP_DEBUG", "Before PiP - position: " + currentPos);
-                android.util.Log.d("PiP_DEBUG", "Before PiP - isPlaying: " + mVideoView.isPlaying());
-                
                 // 保存播放位置到 SharedPreferences（用于 Activity 重建后恢复）
                 android.content.SharedPreferences prefs = mActivity.getSharedPreferences("pip_prefs", android.content.Context.MODE_PRIVATE);
                 prefs.edit()
@@ -641,18 +632,12 @@ public class VideoEventManager {
                     .putString("pip_url", mVideoView.getUrl())
                     .putLong("pip_position", currentPos)
                     .apply();
-                android.util.Log.d("PiP_DEBUG", "Saved PiP position to SharedPreferences: " + currentPos);
-                
                 // 设置正在进入 PiP 模式的标志
                 // 这样 onPause 中可以检测到并跳过暂停操作
                 mVideoView.setEnteringPiPMode(true);
-                android.util.Log.d("PiP_DEBUG", "Set mEnteringPiPMode = true");
-                
                 // 进入小窗模式
                 mActivity.enterPictureInPictureMode();
-                android.util.Log.d("PiP_DEBUG", "Called enterPictureInPictureMode()");
             } catch (Exception e) {
-                android.util.Log.e("PiP_DEBUG", "PiP failed: " + e.getMessage());
                 mVideoView.setEnteringPiPMode(false);
                 Toast.makeText(mActivity, "进入小窗模式失败", Toast.LENGTH_SHORT).show();
             }
@@ -899,24 +884,18 @@ public class VideoEventManager {
      * 显示长按倍速对话框
      */
     private void showLongPressSpeedDialog() {
-        android.util.Log.d(TAG, "showLongPressSpeedDialog: 开始");
-        
         if (mCurrentSetupDialog != null) {
-            android.util.Log.d(TAG, "showLongPressSpeedDialog: 关闭设置弹窗");
             mCurrentSetupDialog.dismiss();
         }
         
         mController.hide();
         
         // 创建对话框
-        android.util.Log.d(TAG, "showLongPressSpeedDialog: 创建对话框");
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
         
         // 始终显示在右侧
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
-        android.util.Log.d(TAG, "showLongPressSpeedDialog: 对话框创建完成, dialog=" + dialog);
-        
         // 点击外部区域关闭对话框
         View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
@@ -925,7 +904,6 @@ public class VideoEventManager {
         
         // 设置长按倍速选项
         setupLongPressSpeedOptions(dialogView, dialog);
-        android.util.Log.d(TAG, "showLongPressSpeedDialog: 完成");
     }
     
     /**
@@ -1429,7 +1407,6 @@ public class VideoEventManager {
             refreshPlaylistRecyclerView(dialogView, dialog, displayList);
             
         } catch (Exception e) {
-            android.util.Log.e(TAG, "showPlaylistDialog: error", e);
         }
     }
     
@@ -1678,26 +1655,20 @@ public class VideoEventManager {
      * @param clickedView 被点击的View，用于找到正确的VodControlView
      */
     private void toggleDanmaku(View clickedView) {
-        android.util.Log.d(TAG, "toggleDanmaku called, clickedView=" + clickedView);
+        // 检查弹幕库是否可用
+        if (!DanmakuHelper.isDanmakuLibraryAvailable()) {
+            DanmakuHelper.showDanmakuNotAvailableToast(mContext);
+            return;
+        }
         boolean currentState = mSettingsManager.isDanmakuEnabled();
         boolean newState = !currentState;
-        android.util.Log.d(TAG, "Current state: " + currentState + ", New state: " + newState);
-        
         // 保存设置
         mSettingsManager.setDanmakuEnabled(newState);
-        android.util.Log.d(TAG, "State saved to settings");
-        
         // 从点击的View向上找到VodControlView
         VodControlView actualVodControlView = findParentVodControlView(clickedView);
-        android.util.Log.d(TAG, "actualVodControlView from parent: " + actualVodControlView);
-        
         if (actualVodControlView != null) {
-            android.util.Log.d(TAG, "actualVodControlView isAttachedToWindow=" + actualVodControlView.isAttachedToWindow());
-            android.util.Log.d(TAG, "actualVodControlView size=" + actualVodControlView.getWidth() + "x" + actualVodControlView.getHeight());
-            android.util.Log.d(TAG, "Calling updateDanmakuToggleState with: " + newState);
             actualVodControlView.updateDanmakuToggleState(newState);
         } else {
-            android.util.Log.e(TAG, "Could not find parent VodControlView!");
         }
         
         // 通知外部监听器（如果有DanmaView组件）
@@ -1705,8 +1676,12 @@ public class VideoEventManager {
             mOnDanmakuStateChangeListener.onDanmakuStateChanged(newState);
         }
         
+        // 通知弹幕控制器
+        if (mController != null && mController.getDanmakuController() != null) {
+            mController.getDanmakuController().setDanmakuEnabled(newState);
+        }
+        
         Toast.makeText(mContext, newState ? "弹幕已开启" : "弹幕已关闭", Toast.LENGTH_SHORT).show();
-        android.util.Log.d(TAG, "toggleDanmaku completed");
     }
     
     /**
@@ -1739,8 +1714,6 @@ public class VideoEventManager {
                     OrangevideoView fullPlayer = (OrangevideoView) fullView;
                     VodControlView fullVodControlView = fullPlayer.getVodControlView();
                     if (fullVodControlView != null) {
-                        android.util.Log.d(TAG, "Using fullscreen VodControlView: " + fullVodControlView);
-                        android.util.Log.d(TAG, "Fullscreen VodControlView size: " + fullVodControlView.getWidth() + "x" + fullVodControlView.getHeight());
                         return fullVodControlView;
                     }
                 }
@@ -1748,7 +1721,6 @@ public class VideoEventManager {
         }
         
         // 如果没有全屏播放器，返回当前绑定的VodControlView
-        android.util.Log.d(TAG, "Using bound mVodControlView: " + mVodControlView);
         return mVodControlView;
     }
     
@@ -1756,6 +1728,12 @@ public class VideoEventManager {
      * 显示弹幕输入对话框
      */
     private void showDanmakuInputDialog() {
+        // 检查弹幕库是否可用
+        if (!DanmakuHelper.isDanmakuLibraryAvailable()) {
+            DanmakuHelper.showDanmakuNotAvailableToast(mContext);
+            return;
+        }
+        
         // 使用DanmuexitDialog显示弹幕发送界面
         com.orange.playerlibrary.tool.DanmuexitDialog danmuDialog = 
             new com.orange.playerlibrary.tool.DanmuexitDialog();
@@ -1766,6 +1744,12 @@ public class VideoEventManager {
             if (mOnDanmakuSendListener != null) {
                 mOnDanmakuSendListener.onDanmakuSend(text, color);
             }
+            
+            // 通知弹幕控制器发送弹幕
+            if (mController != null && mController.getDanmakuController() != null) {
+                mController.getDanmakuController().sendDanmaku(text, color);
+            }
+            
             Toast.makeText(mContext, "弹幕已发送", Toast.LENGTH_SHORT).show();
         });
         
@@ -1777,6 +1761,12 @@ public class VideoEventManager {
      * 显示弹幕设置对话框
      */
     private void showDanmakuSettingsDialog() {
+        // 检查弹幕库是否可用
+        if (!DanmakuHelper.isDanmakuLibraryAvailable()) {
+            DanmakuHelper.showDanmakuNotAvailableToast(mContext);
+            return;
+        }
+        
         mController.hide(); // 隐藏播放器UI
         
         // 创建对话框视图
@@ -1863,6 +1853,10 @@ public class VideoEventManager {
                     if (mOnDanmakuSettingsChangeListener != null) {
                         mOnDanmakuSettingsChangeListener.onTextSizeChanged(size);
                     }
+                    // 通知弹幕控制器
+                    if (mController != null && mController.getDanmakuController() != null) {
+                        mController.getDanmakuController().setDanmakuTextSize(size);
+                    }
                     Toast.makeText(mContext, "弹幕文字大小: " + String.format("%.0f", size) + "sp", Toast.LENGTH_SHORT).show();
                 }
             });
@@ -1896,6 +1890,10 @@ public class VideoEventManager {
                     if (mOnDanmakuSettingsChangeListener != null) {
                         mOnDanmakuSettingsChangeListener.onSpeedChanged(speed);
                     }
+                    // 通知弹幕控制器
+                    if (mController != null && mController.getDanmakuController() != null) {
+                        mController.getDanmakuController().setDanmakuSpeed(speed);
+                    }
                     Toast.makeText(mContext, "弹幕速度: " + String.format("%.1f", speed) + "x", Toast.LENGTH_SHORT).show();
                 }
             });
@@ -1925,6 +1923,10 @@ public class VideoEventManager {
                     mSettingsManager.setDanmakuAlpha(alpha);
                     if (mOnDanmakuSettingsChangeListener != null) {
                         mOnDanmakuSettingsChangeListener.onAlphaChanged(alpha);
+                    }
+                    // 通知弹幕控制器
+                    if (mController != null && mController.getDanmakuController() != null) {
+                        mController.getDanmakuController().setDanmakuAlpha(alpha);
                     }
                     Toast.makeText(mContext, "弹幕透明度: " + seekBar.getProgress() + "%", Toast.LENGTH_SHORT).show();
                 }

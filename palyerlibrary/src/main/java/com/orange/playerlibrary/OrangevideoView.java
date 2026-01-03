@@ -130,7 +130,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
-                android.util.Log.d(TAG, "=== onPrepared callback ===");
                 setOrangePlayState(PlayerConstants.STATE_PREPARED);
                 if (getDuration() <= 0) {
                     mIsLiveVideo = true;
@@ -450,7 +449,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void start() {
-        android.util.Log.d(TAG, "=== start() called ===");
         mIsSniffing = false;
         mIsLiveVideo = false;
         if (mSkipManager != null) {
@@ -460,14 +458,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mErrorRecoveryManager.startBlackScreenDetection();
             mErrorRecoveryManager.startStateConsistencyCheck();
         }
-        android.util.Log.d(TAG, "start(): setting STATE_PREPARING");
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
-        android.util.Log.d(TAG, "start(): calling startPlayLogic");
         startPlayLogic();
     }
 
     public void pause() {
-        android.util.Log.d(TAG, "pause() called");
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
@@ -475,16 +470,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mSkipManager.stopOutroCheck();
         }
         onVideoPause();
-        android.util.Log.d(TAG, "pause() completed");
     }
 
     public void resume() {
-        android.util.Log.d(TAG, "resume() called");
         onVideoResume();
         if (mSkipManager != null) {
             mSkipManager.startOutroCheck();
         }
-        android.util.Log.d(TAG, "resume() completed");
     }
 
 
@@ -500,32 +492,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     @Override
     public boolean onSurfaceDestroyed(Surface surface) {
-        android.util.Log.d(TAG, "=== onSurfaceDestroyed ===");
-        android.util.Log.d(TAG, "position: " + getCurrentPositionWhenPlaying());
-        android.util.Log.d(TAG, "isFullscreenTransitioning: " + (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()));
-        android.util.Log.d(TAG, "mEnteringPiPMode: " + mEnteringPiPMode);
-
         // 全屏切换时跳过
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
-            android.util.Log.d(TAG, "onSurfaceDestroyed: SKIP - fullscreen transitioning");
             return true;
         }
 
         // 画中画模式时跳过
         if (mEnteringPiPMode) {
-            android.util.Log.d(TAG, "onSurfaceDestroyed: SKIP - entering PiP mode");
             return true;
         }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
-                android.util.Log.d(TAG, "onSurfaceDestroyed: SKIP - in PiP mode");
                 return true;
             }
         }
-
-        android.util.Log.d(TAG, "onSurfaceDestroyed: calling super");
         return super.onSurfaceDestroyed(surface);
     }
     
@@ -537,11 +519,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     protected void setDisplay(Surface surface) {
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
-            android.util.Log.d(TAG, "setDisplay: transitioning, surface=" + surface);
             if (surface != null) {
                 super.setDisplay(surface);
             } else {
-                android.util.Log.d(TAG, "setDisplay: SKIP null - transitioning");
             }
             return;
         }
@@ -556,17 +536,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     protected void releaseSurface(Surface surface) {
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
-            android.util.Log.d(TAG, "releaseSurface: SKIP - transitioning");
             return;
         }
         if (mEnteringPiPMode) {
-            android.util.Log.d(TAG, "releaseSurface: SKIP - PiP mode");
             return;
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
-                android.util.Log.d(TAG, "releaseSurface: SKIP - in PiP mode");
                 return;
             }
         }
@@ -575,18 +552,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void onVideoPause() {
-        android.util.Log.d(TAG, "=== onVideoPause ===");
-        android.util.Log.d(TAG, "position: " + getCurrentPositionWhenPlaying());
-        
         if (mEnteringPiPMode) {
-            android.util.Log.d(TAG, "onVideoPause: SKIP - PiP mode");
             return;
         }
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
-                android.util.Log.d(TAG, "onVideoPause: SKIP - in PiP mode");
                 return;
             }
         }
@@ -900,11 +872,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     private void updateComponentsProgressInternal(int duration, int position) {
+        // 通过控制器分发进度更新给所有控制组件（包括弹幕）
+        if (mOrangeController != null) {
+            try {
+                mOrangeController.setProgress(duration, position);
+            } catch (Exception e) {
+            }
+        }
+        
+        // 保留直接调用以兼容旧代码
         if (mVodControlView != null) {
             try {
                 mVodControlView.setProgress(duration, position);
             } catch (Exception e) {
-                android.util.Log.e(TAG, "updateComponentsProgress error", e);
             }
         }
         
@@ -912,7 +892,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             try {
                 mLiveControlView.setProgress(duration, position);
             } catch (Exception e) {
-                android.util.Log.e(TAG, "updateComponentsProgress error", e);
             }
         }
     }
@@ -1242,7 +1221,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     protected void debug(Object message) {
         if (mDebug) {
-            android.util.Log.d(TAG, String.valueOf(message));
         }
     }
 
@@ -1742,17 +1720,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     protected void touchDoubleUp(android.view.MotionEvent e) {
         sLastDoubleClickTime = System.currentTimeMillis();
-        android.util.Log.d(TAG, "touchDoubleUp: mCurrentPlayState=" + mCurrentPlayState + ", timestamp=" + sLastDoubleClickTime);
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
             mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
             mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
-            android.util.Log.d(TAG, "touchDoubleUp: calling pause()");
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-            android.util.Log.d(TAG, "touchDoubleUp: calling resume()");
             resume();
         } else {
-            android.util.Log.d(TAG, "touchDoubleUp: no action for state " + mCurrentPlayState);
         }
     }
 

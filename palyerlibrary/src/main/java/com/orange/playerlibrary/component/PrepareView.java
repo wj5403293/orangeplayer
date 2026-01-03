@@ -110,11 +110,9 @@ public class PrepareView extends FrameLayout implements IControlComponent {
     public void setClickStart() {
         // 设置整个视图的点击事件，与参考实现一致
         setOnClickListener(v -> {
-            android.util.Log.d("PrepareView", "PrepareView clicked! mControlWrapper=" + mControlWrapper);
             if (mControlWrapper != null) {
                 mControlWrapper.start();
             } else {
-                android.util.Log.e("PrepareView", "mControlWrapper is null!");
             }
         });
     }
@@ -136,7 +134,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
 
     @Override
     public void onPlayStateChanged(int playState) {
-        android.util.Log.d("PrepareView", "onPlayStateChanged: " + playState);
         switch (playState) {
             case PlayerConstants.STATE_ERROR:
             case PlayerConstants.STATE_PLAYING:
@@ -146,7 +143,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
             case PlayerConstants.STATE_BUFFERED:
             case PlayerConstants.STATE_PREPARED:
                 // 隐藏准备视图
-                android.util.Log.d("PrepareView", "Hiding PrepareView");
                 setVisibility(GONE);
                 if (mThumb != null) {
                     mThumb.setVisibility(GONE);
@@ -156,7 +152,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 
             case PlayerConstants.STATE_IDLE:
                 // 显示准备视图
-                android.util.Log.d("PrepareView", "Showing PrepareView - IDLE");
                 if (mLoadingProgress != null) {
                     mLoadingProgress.setVisibility(GONE);
                 }
@@ -175,7 +170,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 
             case PlayerConstants.STATE_PREPARING:
                 // 准备中
-                android.util.Log.d("PrepareView", "Showing PrepareView - PREPARING");
                 setVisibility(VISIBLE);
                 bringToFront();
                 if (mStartPlay != null) {
@@ -355,7 +349,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
 
     private void debug(Object message) {
         if (sDebug && OrangeVideoController.isdebug()) {
-            android.util.Log.d(TAG, String.valueOf(message));
         }
     }
 }

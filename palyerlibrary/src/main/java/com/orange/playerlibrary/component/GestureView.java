@@ -189,7 +189,6 @@ public class GestureView extends FrameLayout implements IControlComponent {
      */
     private void debug(Object message) {
         if (sDebug && OrangeVideoController.isdebug()) {
-            android.util.Log.d(TAG, String.valueOf(message));
         }
     }
 }
