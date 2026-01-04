@@ -1961,8 +1961,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     protected void changeUiToPreparingShow() {
-        setViewShowState(mLoadingProgressBar, VISIBLE);
-        startSpeedUpdate();
+        // 禁用 GSY 的加载动画，使用 PrepareView 的自定义加载动画
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        // 不启动网速更新，避免与 PrepareView 动画重叠
     }
     
     @Override
