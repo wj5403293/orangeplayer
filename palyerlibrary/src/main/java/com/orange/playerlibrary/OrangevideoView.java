@@ -1584,6 +1584,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private com.orange.playerlibrary.component.GestureView mGestureView;
 
     @Override
+    protected void touchSurfaceMove(float deltaX, float deltaY, float y) {
+        android.util.Log.d(TAG, "touchSurfaceMove: mChangeVolume=" + mChangeVolume + ", mBrightness=" + mBrightness + ", mChangePosition=" + mChangePosition);
+        super.touchSurfaceMove(deltaX, deltaY, y);
+    }
+
+    @Override
     protected void showBrightnessDialog(float percent) {
         ensureGestureView();
         if (mGestureView != null) {
@@ -1594,8 +1600,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void showVolumeDialog(float deltaY, int volumePercent) {
+        android.util.Log.d(TAG, "showVolumeDialog called: deltaY=" + deltaY + ", volumePercent=" + volumePercent);
         ensureGestureView();
         if (mGestureView != null) {
+            android.util.Log.d(TAG, "mGestureView isAttachedToWindow=" + mGestureView.isAttachedToWindow() 
+                + ", size=" + mGestureView.getWidth() + "x" + mGestureView.getHeight());
             mGestureView.onStartSlide();
             mGestureView.onVolumeChange(volumePercent);
         }

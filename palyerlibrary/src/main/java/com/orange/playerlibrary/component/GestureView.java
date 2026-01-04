@@ -47,7 +47,7 @@ public class GestureView extends FrameLayout implements IControlComponent {
     
     public GestureView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        setVisibility(GONE);
+        // 不要隐藏整个 GestureView，让它始终可见，由内部的 mCenterContainer 控制显示
         LayoutInflater.from(getContext()).inflate(R.layout.orange_layout_gesture_view, this, true);
         
         mIcon = findViewById(R.id.iv_icon);
@@ -78,13 +78,8 @@ public class GestureView extends FrameLayout implements IControlComponent {
     
     @Override
     public void onPlayStateChanged(int playState) {
-        // 根据播放状态显示或隐藏手势视图
-        if (playState == 0 || playState == 8 || playState == 1 || 
-            playState == 2 || playState == -1 || playState == 5) {
-            setVisibility(GONE);
-        } else {
-            setVisibility(VISIBLE);
-        }
+        // GestureView 本身保持可见，由内部 mCenterContainer 控制手势提示的显示
+        // 不需要根据播放状态隐藏整个视图
     }
     
     @Override
