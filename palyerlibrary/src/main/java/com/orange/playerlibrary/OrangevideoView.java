@@ -1373,6 +1373,43 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void refreshVideoShowType() {
         changeTextureViewShowType();
     }
+    
+    /**
+     * 更新 ExoPlayer 的 SurfaceControl 尺寸（如果需要）
+     * 用于视频比例切换后更新画面位置
+     */
+    public void updateExoSurfaceControlIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+            return;
+        }
+        
+        try {
+            // 检查是否使用 ExoPlayer
+            String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+            boolean isExoPlayer = "exo".equals(currentEngine);
+            
+            if (!isExoPlayer) {
+                return;
+            }
+            
+            // 获取当前的 PlayerManager
+            com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
+                GSYVideoManager.instance().getPlayer();
+            
+            if (playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
+                com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
+                    (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
+                
+                // 获取当前的 SurfaceView
+                if (mTextureView != null && mTextureView.getShowView() instanceof android.view.SurfaceView) {
+                    android.view.SurfaceView surfaceView = (android.view.SurfaceView) mTextureView.getShowView();
+                    exoManager.updateSurfaceControlSize(surfaceView);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "updateExoSurfaceControlIfNeeded 异常: " + e.getMessage());
+        }
+    }
 
     public boolean isLiveVideo() {
         return mIsLiveVideo;

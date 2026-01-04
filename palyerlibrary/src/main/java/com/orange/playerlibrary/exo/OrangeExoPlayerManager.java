@@ -225,8 +225,8 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
     }
     
     /**
-     * 更新 SurfaceControl 的尺寸 (Android Q+)
-     * 在布局完成后调用，确保全屏切换时画面尺寸正确
+     * 更新 SurfaceControl 的尺寸和位置 (Android Q+)
+     * 在布局完成后调用，确保全屏切换和比例切换时画面正确
      * 
      * @param surfaceView 当前的 SurfaceView
      */
@@ -243,9 +243,21 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             if (width > 0 && height > 0) {
                 android.util.Log.d(TAG, "updateSurfaceControlSize: " + width + "x" + height);
                 
-                new SurfaceControl.Transaction()
-                    .setBufferSize(surfaceControl, width, height)
-                    .apply();
+                // 关键：重新 reparent 并设置正确的尺寸
+                // 这样可以确保位置也被正确重置
+                SurfaceControl parentSurfaceControl = surfaceView.getSurfaceControl();
+                if (parentSurfaceControl != null) {
+                    new SurfaceControl.Transaction()
+                        .reparent(surfaceControl, parentSurfaceControl)
+                        .setBufferSize(surfaceControl, width, height)
+                        .setVisibility(surfaceControl, true)
+                        .apply();
+                } else {
+                    // 如果获取不到父 SurfaceControl，只更新尺寸
+                    new SurfaceControl.Transaction()
+                        .setBufferSize(surfaceControl, width, height)
+                        .apply();
+                }
             }
         } catch (Exception e) {
             android.util.Log.e(TAG, "updateSurfaceControlSize 异常: " + e.getMessage());

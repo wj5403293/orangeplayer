@@ -75,6 +75,15 @@ public class VideoScaleManager {
             @Override
             public void run() {
                 mVideoView.refreshVideoShowType();
+                
+                // ExoPlayer 全屏时需要更新 SurfaceControl 尺寸
+                // 延迟执行，等待布局完成
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        mVideoView.updateExoSurfaceControlIfNeeded();
+                    }
+                }, 100);
             }
         });
     }
