@@ -4,10 +4,14 @@ import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.os.Build;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+
+import com.orange.playerlibrary.exo.OrangeExoPlayerManager;
+import com.shuyu.gsyvideoplayer.GSYVideoManager;
 
 /**
  * 自定义全屏辅助类 - 无旋转方案
@@ -146,11 +150,41 @@ public class CustomFullscreenHelper {
                     mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
                 }
                 
-                // 7. 延迟重置标志，等待旋转完成
+                // 7. 关键：触发渲染视图重新布局
+                // 移动 View 后，内部的 TextureView/SurfaceView 需要重新测量尺寸
+                mVideoView.requestLayout();
+                
+                // 8. 延迟再次触发布局，确保旋转完成后尺寸正确
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        // 再次请求布局，确保渲染视图尺寸正确
+                        mVideoView.requestLayout();
+                        
+                        // 通知渲染视图重新布局
+                        if (mVideoView.getRenderProxy() != null) {
+                            mVideoView.getRenderProxy().requestLayout();
+                        }
+                        
+                        // ExoPlayer 特殊处理：更新 SurfaceControl 尺寸
+                        updateExoSurfaceControlSize();
+                    }
+                }, 100);
+                
+                // 9. 延迟重置标志，等待旋转完成
                 mVideoView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         mFullscreenTransitioning = false;
+                        
+                        // 最终确保渲染视图尺寸正确
+                        mVideoView.requestLayout();
+                        if (mVideoView.getRenderProxy() != null) {
+                            mVideoView.getRenderProxy().requestLayout();
+                        }
+                        
+                        // ExoPlayer 特殊处理：再次更新 SurfaceControl 尺寸
+                        updateExoSurfaceControlSize();
                         
                         // SystemPlayerManager: 恢复播放
                         if (isSystemPlayer && mPendingResume) {
@@ -167,6 +201,14 @@ public class CustomFullscreenHelper {
                         }
                     }
                 }, 800);
+                
+                // 10. 额外延迟更新，确保屏幕旋转完全完成后尺寸正确
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateExoSurfaceControlSize();
+                    }
+                }, 1200);
             }
         }, delay);
     }
@@ -249,11 +291,33 @@ public class CustomFullscreenHelper {
                     mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
                 }
                 
-                // 7. 延迟重置标志
+                // 7. 触发渲染视图重新布局
+                mVideoView.requestLayout();
+                
+                // 8. 延迟再次触发布局
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        mVideoView.requestLayout();
+                        if (mVideoView.getRenderProxy() != null) {
+                            mVideoView.getRenderProxy().requestLayout();
+                        }
+                        updateExoSurfaceControlSize();
+                    }
+                }, 100);
+                
+                // 9. 延迟重置标志
                 mVideoView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         mFullscreenTransitioning = false;
+                        
+                        // 最终确保渲染视图尺寸正确
+                        mVideoView.requestLayout();
+                        if (mVideoView.getRenderProxy() != null) {
+                            mVideoView.getRenderProxy().requestLayout();
+                        }
+                        updateExoSurfaceControlSize();
                         
                         // SystemPlayerManager: 恢复播放
                         if (isSystemPlayer && mPendingResume) {
@@ -473,6 +537,40 @@ public class CustomFullscreenHelper {
         } catch (Exception e) {
         }
         return false;
+    }
+    
+    /**
+     * 更新 ExoPlayer 的 SurfaceControl 尺寸
+     * 解决全屏切换后画面只显示一小块的问题
+     */
+    private void updateExoSurfaceControlSize() {
+        if (mVideoView == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return;
+        }
+        
+        try {
+            // 获取当前的 PlayerManager
+            com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
+                GSYVideoManager.instance().getPlayer();
+            
+            if (playerManager instanceof OrangeExoPlayerManager) {
+                OrangeExoPlayerManager exoManager = (OrangeExoPlayerManager) playerManager;
+                
+                // 获取当前的 SurfaceView
+                if (mVideoView.getRenderProxy() != null && 
+                    mVideoView.getRenderProxy().getShowView() instanceof SurfaceView) {
+                    SurfaceView surfaceView = (SurfaceView) mVideoView.getRenderProxy().getShowView();
+                    
+                    android.util.Log.d(TAG, "updateExoSurfaceControlSize: SurfaceView size=" + 
+                        surfaceView.getWidth() + "x" + surfaceView.getHeight());
+                    
+                    // 更新 SurfaceControl 尺寸
+                    exoManager.updateSurfaceControlSize(surfaceView);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "updateExoSurfaceControlSize 异常: " + e.getMessage());
+        }
     }
     
     public void toggleFullScreen() {

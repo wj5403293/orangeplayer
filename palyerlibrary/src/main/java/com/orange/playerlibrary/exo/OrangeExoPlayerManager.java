@@ -140,6 +140,8 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
      * 这是解决 ExoPlayer 横竖屏切换问题的关键方法
      * 通过 reparent 将视频画面从一个 SurfaceView 转移到另一个
      * 而不是重新设置 Surface，避免 MediaCodec 被释放
+     * 
+     * 参考 GSY 官方实现：使用 setBufferSize 而不是 setMatrix
      */
     @RequiresApi(api = Build.VERSION_CODES.Q)
     private void reparent(@Nullable SurfaceView surfaceView) {
@@ -167,15 +169,40 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
                 int width = surfaceView.getWidth();
                 int height = surfaceView.getHeight();
                 
+                android.util.Log.d(TAG, "reparent: SurfaceView size=" + width + "x" + height);
+                
+                // 关键修复：如果尺寸为 0 或太小，说明布局还没完成
+                // 先用父容器的尺寸，或者延迟重新设置
+                if (width <= 0 || height <= 0) {
+                    // 尝试获取父容器尺寸
+                    if (surfaceView.getParent() instanceof android.view.View) {
+                        android.view.View parent = (android.view.View) surfaceView.getParent();
+                        width = parent.getWidth();
+                        height = parent.getHeight();
+                        android.util.Log.d(TAG, "reparent: 使用父容器尺寸=" + width + "x" + height);
+                    }
+                }
+                
+                // 如果还是 0，使用屏幕尺寸作为临时值
+                if (width <= 0 || height <= 0) {
+                    android.util.DisplayMetrics dm = surfaceView.getContext().getResources().getDisplayMetrics();
+                    width = dm.widthPixels;
+                    height = dm.heightPixels;
+                    android.util.Log.d(TAG, "reparent: 使用屏幕尺寸=" + width + "x" + height);
+                }
+                
+                // GSY 官方实现：只用 setBufferSize，不用 setMatrix
                 new SurfaceControl.Transaction()
                     .reparent(surfaceControl, newParentSurfaceControl)
                     .setBufferSize(surfaceControl, width, height)
                     .setVisibility(surfaceControl, true)
                     .apply();
-                android.util.Log.d(TAG, "reparent: 成功, size=" + width + "x" + height);
+                
+                android.util.Log.d(TAG, "reparent: 成功");
             }
         } catch (Exception e) {
             android.util.Log.e(TAG, "reparent 异常: " + e.getMessage());
+            e.printStackTrace();
             // 出错时回退到传统方式
             if (surfaceView != null && mediaPlayer != null) {
                 try {
@@ -195,6 +222,34 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         Message msg = new Message();
         msg.obj = holder;
         showDisplay(msg);
+    }
+    
+    /**
+     * 更新 SurfaceControl 的尺寸 (Android Q+)
+     * 在布局完成后调用，确保全屏切换时画面尺寸正确
+     * 
+     * @param surfaceView 当前的 SurfaceView
+     */
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    public void updateSurfaceControlSize(SurfaceView surfaceView) {
+        if (surfaceControl == null || surfaceView == null) {
+            return;
+        }
+        
+        try {
+            int width = surfaceView.getWidth();
+            int height = surfaceView.getHeight();
+            
+            if (width > 0 && height > 0) {
+                android.util.Log.d(TAG, "updateSurfaceControlSize: " + width + "x" + height);
+                
+                new SurfaceControl.Transaction()
+                    .setBufferSize(surfaceControl, width, height)
+                    .apply();
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "updateSurfaceControlSize 异常: " + e.getMessage());
+        }
     }
 
     @Override
