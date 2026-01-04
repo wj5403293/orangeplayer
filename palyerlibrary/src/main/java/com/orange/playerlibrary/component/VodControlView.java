@@ -315,9 +315,35 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     }
 
     private void toggleFullScreen() {
+        // 检查是否使用 SystemPlayerManager
+        if (isUsingSystemPlayer()) {
+            // SystemPlayerManager 不支持全屏切换，给出提示
+            android.widget.Toast.makeText(getContext(), 
+                "系统播放器不支持全屏切换\n建议切换到 IJK 或 EXO 播放器", 
+                android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         if (mControlWrapper != null) {
             mControlWrapper.toggleFullScreen();
         }
+    }
+    
+    /**
+     * 检查是否使用 SystemPlayerManager
+     */
+    private boolean isUsingSystemPlayer() {
+        try {
+            com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
+                com.shuyu.gsyvideoplayer.GSYVideoManager.instance().getPlayer();
+            if (playerManager != null) {
+                String className = playerManager.getClass().getSimpleName();
+                return "SystemPlayerManager".equals(className);
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "isUsingSystemPlayer: 检查失败", e);
+        }
+        return false;
     }
 
     @Override

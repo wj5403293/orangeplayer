@@ -90,9 +90,6 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     public void setVideoView(OrangevideoView videoView) {
         mVideoView = videoView;
         
-        // 设置播放器视图引用（用于获取网速）
-        setVideoViewRef(videoView);
-        
         // 初始化 VideoEventManager
         if (mVideoEventManager == null && videoView != null) {
             mVideoEventManager = new VideoEventManager(getContext(), videoView, this);
@@ -437,13 +434,13 @@ public class OrangeVideoController extends OrangeStandardVideoController {
                 break;
             case PlayerConstants.STATE_STARTSNIFFING:
                 // 开始嗅探
-                showLoading();
-                setNetSpeedText("视频资源嗅探中…");
+                // 注意：加载动画由 OrangevideoView 控制
+                debug("onPlayStateChanged: STATE_STARTSNIFFING");
                 break;
             case PlayerConstants.STATE_ENDSNIFFING:
                 // 结束嗅探
-                hideLoading();
-                setNetSpeedText("");
+                // 注意：加载动画由 OrangevideoView 控制
+                debug("onPlayStateChanged: STATE_ENDSNIFFING");
                 break;
         }
         
@@ -675,12 +672,9 @@ public class OrangeVideoController extends OrangeStandardVideoController {
         com.orange.playerlibrary.loading.Indicator indicator = 
                 com.orange.playerlibrary.loading.IndicatorFactory.createIndicator(type);
         
-        // 如果有 AVLoadingIndicatorView，设置指示器
-        if (mLoadingContainer != null) {
-            View loadingView = mLoadingContainer.findViewWithTag("loading_indicator");
-            if (loadingView instanceof com.orange.playerlibrary.loading.AVLoadingIndicatorView) {
-                ((com.orange.playerlibrary.loading.AVLoadingIndicatorView) loadingView).setIndicator(indicator);
-            }
+        // 通过 mVideoView 设置加载动画指示器
+        if (mVideoView != null) {
+            mVideoView.setLoadingIndicator(indicator);
         }
         
         debug("setLoading: " + type.getIndicatorName());
@@ -723,7 +717,8 @@ public class OrangeVideoController extends OrangeStandardVideoController {
      * @param text 文本
      */
     public void setLoadingSpeedText(String text) {
-        setNetSpeedText(text);
+        // 加载速度文本由 OrangevideoView 控制
+        debug("setLoadingSpeedText: " + text);
     }
 
     // ===== 辅助方法 =====

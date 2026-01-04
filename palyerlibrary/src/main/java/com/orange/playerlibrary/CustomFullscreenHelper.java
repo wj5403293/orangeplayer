@@ -66,6 +66,8 @@ public class CustomFullscreenHelper {
      * 
      * 关键改进：先移动 View 到 DecorView，再旋转屏幕
      * 这样 View 已经在 DecorView 中，旋转时不会触发 Surface 销毁
+     * 
+     * SystemPlayerManager 特殊处理：暂停播放，切换后恢复
      */
     public void startFullScreen() {
         if (mIsFullscreen || mVideoView == null) {
@@ -82,59 +84,93 @@ public class CustomFullscreenHelper {
             return;
         }
         
+        // 检查是否使用 SystemPlayerManager
+        final boolean isSystemPlayer = isUsingSystemPlayer();
+        final boolean wasPlaying = mVideoView.isPlaying();
         long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+        
+        // SystemPlayerManager: 先暂停播放，避免 Surface 切换时出错
+        if (isSystemPlayer && wasPlaying) {
+            android.util.Log.d(TAG, "startFullScreen: SystemPlayerManager 检测到，先暂停播放");
+            mVideoView.pause();
+            mPendingSeekPosition = currentPosition;
+            mPendingResume = true;
+        }
+        
         mIsFullscreen = true;
         mFullscreenTransitioning = true;
         mOriginalSystemUiVisibility = decorView.getSystemUiVisibility();
         
-        // 1. 先保存原始父容器和布局参数
-        mOriginalParent = (ViewGroup) mVideoView.getParent();
-        if (mOriginalParent != null) {
-            mOriginalIndex = mOriginalParent.indexOfChild(mVideoView);
-            mOriginalLayoutParams = mVideoView.getLayoutParams();
-            // 从原始父容器移除
-            mOriginalParent.removeView(mVideoView);
-        }
-        
-        // 2. 添加全屏黑色背景到 DecorView
-        mFullscreenBackground = new View(activity);
-        mFullscreenBackground.setBackgroundColor(Color.BLACK);
-        FrameLayout.LayoutParams bgParams = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        );
-        decorView.addView(mFullscreenBackground, bgParams);
-        
-        // 3. 将 OrangevideoView 添加到 DecorView
-        FrameLayout.LayoutParams fullParams = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        );
-        decorView.addView(mVideoView, fullParams);
-        
-        // 4. 隐藏系统 UI
-        hideSysBar(decorView, activity);
-        
-        // 5. 最后设置横屏 - View 已经在 DecorView 中，旋转不会影响它
-        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        
-        // 6. 通知状态变化
-        mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
-        
-        if (mVideoView.getTitleView() != null) {
-            mVideoView.getTitleView().setVisibility(View.VISIBLE);
-        }
-        if (mVideoView.getVodControlView() != null) {
-            mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
-        }
-        
-        // 7. 延迟重置标志，等待旋转完成
+        // 延迟执行全屏切换，等待暂停完成
+        final int delay = (isSystemPlayer && wasPlaying) ? 200 : 0;
         mVideoView.postDelayed(new Runnable() {
             @Override
             public void run() {
-                mFullscreenTransitioning = false;
+                // 1. 先保存原始父容器和布局参数
+                mOriginalParent = (ViewGroup) mVideoView.getParent();
+                if (mOriginalParent != null) {
+                    mOriginalIndex = mOriginalParent.indexOfChild(mVideoView);
+                    mOriginalLayoutParams = mVideoView.getLayoutParams();
+                    // 从原始父容器移除
+                    mOriginalParent.removeView(mVideoView);
+                }
+                
+                // 2. 添加全屏黑色背景到 DecorView
+                mFullscreenBackground = new View(activity);
+                mFullscreenBackground.setBackgroundColor(Color.BLACK);
+                FrameLayout.LayoutParams bgParams = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                );
+                decorView.addView(mFullscreenBackground, bgParams);
+                
+                // 3. 将 OrangevideoView 添加到 DecorView
+                FrameLayout.LayoutParams fullParams = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                );
+                decorView.addView(mVideoView, fullParams);
+                
+                // 4. 隐藏系统 UI
+                hideSysBar(decorView, activity);
+                
+                // 5. 最后设置横屏 - View 已经在 DecorView 中，旋转不会影响它
+                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                
+                // 6. 通知状态变化
+                mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
+                
+                if (mVideoView.getTitleView() != null) {
+                    mVideoView.getTitleView().setVisibility(View.VISIBLE);
+                }
+                if (mVideoView.getVodControlView() != null) {
+                    mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
+                }
+                
+                // 7. 延迟重置标志，等待旋转完成
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        mFullscreenTransitioning = false;
+                        
+                        // SystemPlayerManager: 恢复播放
+                        if (isSystemPlayer && mPendingResume) {
+                            android.util.Log.d(TAG, "startFullScreen: SystemPlayerManager 恢复播放, position=" + mPendingSeekPosition);
+                            if (mPendingSeekPosition > 0) {
+                                mVideoView.seekTo(mPendingSeekPosition);
+                            }
+                            mVideoView.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mVideoView.resume();
+                                    clearPendingSeekPosition();
+                                }
+                            }, 200);
+                        }
+                    }
+                }, 800);
             }
-        }, 800);
+        }, delay);
     }
     
     /**
@@ -148,6 +184,7 @@ public class CustomFullscreenHelper {
      * 退出全屏模式
      * 
      * 关键改进：先设置竖屏，等待旋转完成后再移动 View
+     * SystemPlayerManager 特殊处理：暂停播放，切换后恢复
      */
     public void stopFullScreen() {
         if (!mIsFullscreen || mVideoView == null) {
@@ -164,47 +201,81 @@ public class CustomFullscreenHelper {
             return;
         }
         
+        // 检查是否使用 SystemPlayerManager
+        final boolean isSystemPlayer = isUsingSystemPlayer();
+        final boolean wasPlaying = mVideoView.isPlaying();
         long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+        
+        // SystemPlayerManager: 先暂停播放，避免 Surface 切换时出错
+        if (isSystemPlayer && wasPlaying) {
+            android.util.Log.d(TAG, "stopFullScreen: SystemPlayerManager 检测到，先暂停播放");
+            mVideoView.pause();
+            mPendingSeekPosition = currentPosition;
+            mPendingResume = true;
+        }
+        
         mIsFullscreen = false;
         mFullscreenTransitioning = true;
         
-        // 1. 显示系统 UI
-        showSysBar(decorView, activity);
-        
-        // 2. 先设置竖屏
-        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        
-        // 3. 从 DecorView 移除 OrangevideoView
-        decorView.removeView(mVideoView);
-        
-        // 4. 移除全屏背景
-        if (mFullscreenBackground != null) {
-            decorView.removeView(mFullscreenBackground);
-            mFullscreenBackground = null;
-        }
-        
-        // 5. 恢复到原始父容器
-        if (mOriginalParent != null && mOriginalLayoutParams != null) {
-            mOriginalParent.addView(mVideoView, mOriginalIndex, mOriginalLayoutParams);
-        }
-        
-        // 6. 通知状态变化
-        mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
-        
-        if (mVideoView.getTitleView() != null) {
-            mVideoView.getTitleView().setVisibility(View.GONE);
-        }
-        if (mVideoView.getVodControlView() != null) {
-            mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
-        }
-        
-        // 7. 延迟重置标志
+        // 延迟执行退出全屏，等待暂停完成
+        final int delay = (isSystemPlayer && wasPlaying) ? 200 : 0;
         mVideoView.postDelayed(new Runnable() {
             @Override
             public void run() {
-                mFullscreenTransitioning = false;
+                // 1. 显示系统 UI
+                showSysBar(decorView, activity);
+                
+                // 2. 先设置竖屏
+                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                
+                // 3. 从 DecorView 移除 OrangevideoView
+                decorView.removeView(mVideoView);
+                
+                // 4. 移除全屏背景
+                if (mFullscreenBackground != null) {
+                    decorView.removeView(mFullscreenBackground);
+                    mFullscreenBackground = null;
+                }
+                
+                // 5. 恢复到原始父容器
+                if (mOriginalParent != null && mOriginalLayoutParams != null) {
+                    mOriginalParent.addView(mVideoView, mOriginalIndex, mOriginalLayoutParams);
+                }
+                
+                // 6. 通知状态变化
+                mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
+                
+                if (mVideoView.getTitleView() != null) {
+                    mVideoView.getTitleView().setVisibility(View.GONE);
+                }
+                if (mVideoView.getVodControlView() != null) {
+                    mVideoView.getVodControlView().onPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
+                }
+                
+                // 7. 延迟重置标志
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        mFullscreenTransitioning = false;
+                        
+                        // SystemPlayerManager: 恢复播放
+                        if (isSystemPlayer && mPendingResume) {
+                            android.util.Log.d(TAG, "stopFullScreen: SystemPlayerManager 恢复播放, position=" + mPendingSeekPosition);
+                            if (mPendingSeekPosition > 0) {
+                                mVideoView.seekTo(mPendingSeekPosition);
+                            }
+                            mVideoView.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mVideoView.resume();
+                                    clearPendingSeekPosition();
+                                }
+                            }, 200);
+                        }
+                    }
+                }, 800);
             }
-        }, 800);
+        }, delay);
     }
     
     public void enterFullscreen(Activity activity) {
@@ -390,6 +461,23 @@ public class CustomFullscreenHelper {
                 mFullscreenTransitioning = false;
             }
         }, 500);
+    }
+    
+    /**
+     * 检查是否使用 SystemPlayerManager
+     */
+    private boolean isUsingSystemPlayer() {
+        try {
+            com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
+                com.shuyu.gsyvideoplayer.GSYVideoManager.instance().getPlayer();
+            if (playerManager != null) {
+                String className = playerManager.getClass().getSimpleName();
+                return "SystemPlayerManager".equals(className);
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "isUsingSystemPlayer: 检查失败", e);
+        }
+        return false;
     }
     
     public void toggleFullScreen() {

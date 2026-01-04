@@ -69,6 +69,25 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private boolean mDebug = false;
     private boolean mEnteringPiPMode = false;
     
+    // 网速显示相关
+    private android.widget.TextView mLoadingSpeedText;
+    private android.os.Handler mSpeedHandler;
+    private boolean mIsShowingLoading = false;
+    // 网速计算相关
+    private long mLastRxBytes = 0;
+    private long mLastSpeedTime = 0;
+    // 播放器核心是否已初始化
+    private boolean mPlayerFactoryInitialized = false;
+    private final Runnable mSpeedUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateLoadingSpeed();
+            if (mIsShowingLoading && mSpeedHandler != null) {
+                mSpeedHandler.postDelayed(this, 1000);
+            }
+        }
+    };
+    
     private DebugLogCallback mDebugLogCallback;
 
     public interface DebugLogCallback {
@@ -96,6 +115,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private void initOrangePlayer() {
         mUseOrangeComponents = true;
         
+        // 初始化播放核心（必须在这里初始化，因为需要 Context）
+        initPlayerFactory();
+        
         mSkipManager = new SkipManager();
         mSkipManager.attachVideoView(this);
         
@@ -107,6 +129,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mErrorRecoveryManager.attachVideoView(this);
         
         mFullscreenHelper = new CustomFullscreenHelper(this);
+        
+        // 初始化网速更新 Handler
+        mSpeedHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         
         setShowFullAnimation(false);
         setRotateViewAuto(false);
@@ -202,6 +227,63 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             }
         });
+    }
+    
+    /**
+     * 初始化播放器核心
+     * 根据用户设置选择合适的播放引擎
+     */
+    private void initPlayerFactory() {
+        if (mPlayerFactoryInitialized) {
+            return; // 已经初始化过了
+        }
+        
+        PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+        String engine = settingsManager.getPlayerEngine();
+        
+        android.util.Log.d(TAG, "initPlayerFactory: 初始化播放核心=" + engine);
+        
+        // 根据设置切换播放器核心
+        switch (engine) {
+            case PlayerConstants.ENGINE_IJK:
+                PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                android.util.Log.d(TAG, "initPlayerFactory: 已设置 IJK 播放核心");
+                break;
+                
+            case PlayerConstants.ENGINE_EXO:
+                try {
+                    @SuppressWarnings("unchecked")
+                    Class<? extends IPlayerManager> exoClass = 
+                        (Class<? extends IPlayerManager>) Class.forName("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager");
+                    PlayerFactory.setPlayManager(exoClass);
+                    android.util.Log.d(TAG, "initPlayerFactory: 已设置 EXO 播放核心");
+                } catch (ClassNotFoundException e) {
+                    android.util.Log.w(TAG, "initPlayerFactory: EXO 播放核心不可用，回退到 IJK");
+                    PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                }
+                break;
+                
+            case PlayerConstants.ENGINE_ALI:
+                try {
+                    @SuppressWarnings("unchecked")
+                    Class<? extends IPlayerManager> aliClass = 
+                        (Class<? extends IPlayerManager>) Class.forName("com.shuyu.gsyvideoplayer.player.AliPlayerManager");
+                    PlayerFactory.setPlayManager(aliClass);
+                    android.util.Log.d(TAG, "initPlayerFactory: 已设置 ALI 播放核心");
+                } catch (ClassNotFoundException e) {
+                    android.util.Log.w(TAG, "initPlayerFactory: ALI 播放核心不可用，回退到 IJK");
+                    PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                }
+                break;
+                
+            case PlayerConstants.ENGINE_DEFAULT:
+            default:
+                PlayerFactory.setPlayManager(SystemPlayerManager.class);
+                android.util.Log.d(TAG, "initPlayerFactory: 已设置 System 播放核心");
+                break;
+        }
+        
+        mPlayerFactoryInitialized = true;
     }
 
     public void setDebugLogCallback(DebugLogCallback callback) {
@@ -445,10 +527,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public String getUrl() {
-        return mVideoUrl;
+        return mOriginUrl != null ? mOriginUrl : mVideoUrl;
+    }
+
+    public String getVideoUrl() {
+        return mOriginUrl != null ? mOriginUrl : mVideoUrl;
+    }
+
+    public Map<String, String> getVideoHeaders() {
+        return mVideoHeaders;
     }
 
     public void start() {
+        android.util.Log.d(TAG, "start: 开始播放");
         mIsSniffing = false;
         mIsLiveVideo = false;
         if (mSkipManager != null) {
@@ -515,13 +606,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 重写 setDisplay - 关键方法
      * 
      * 在全屏切换时，跳过 setDisplay(null)，避免播放器重置
+     * 
+     * 注意：SystemPlayerManager 在全屏切换时会先暂停播放，
+     * 所以这里不需要特殊处理 Surface 切换
      */
     @Override
     protected void setDisplay(Surface surface) {
+        // 在全屏切换时跳过 setDisplay(null)
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
             if (surface != null) {
                 super.setDisplay(surface);
             } else {
+                // 跳过 setDisplay(null)，保持播放状态
             }
             return;
         }
@@ -726,6 +822,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @SuppressWarnings("unchecked")
     public void selectPlayerFactory(String engineType) {
+        android.util.Log.d(TAG, "selectPlayerFactory: 请求切换到播放核心=" + engineType);
         if (engineType == null) {
             engineType = PlayerConstants.ENGINE_DEFAULT;
         }
@@ -733,26 +830,32 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
                 PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 IJK 播放核心");
                 break;
             case PlayerConstants.ENGINE_EXO:
                 try {
                     Class<?> exoClass = Class.forName("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) exoClass);
+                    android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 EXO 播放核心");
                 } catch (ClassNotFoundException e) {
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    android.util.Log.w(TAG, "selectPlayerFactory: EXO 播放核心不可用，回退到 IJK");
                 }
                 break;
             case PlayerConstants.ENGINE_ALI:
                 try {
                     Class<?> aliClass = Class.forName("com.shuyu.gsyvideoplayer.player.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
+                    android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 ALI 播放核心");
                 } catch (ClassNotFoundException e) {
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    android.util.Log.w(TAG, "selectPlayerFactory: ALI 播放核心不可用，回退到 IJK");
                 }
                 break;
             case PlayerConstants.ENGINE_DEFAULT:
             default:
                 PlayerFactory.setPlayManager(SystemPlayerManager.class);
+                android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 System 播放核心");
                 break;
         }
     }
@@ -913,8 +1016,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         if (controller != null) {
             controller.setVideoView(this);
-            // 设置播放器引用，用于获取网速
-            controller.setVideoViewRef(this);
 
             if (mTitleView != null) {
                 mTitleView.setController(controller);
@@ -1114,10 +1215,44 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     /**
      * 获取网络速度（字节/秒）
+     * 使用 Android 系统 API 计算实时网速，因为 GSY 的 getNetSpeed 在某些播放器返回 0
      * @return 网络速度
      */
     public long getNetSpeed() {
-        return GSYVideoManager.instance().getNetSpeed();
+        // 先尝试 GSY 的方法
+        long gsySpeed = GSYVideoManager.instance().getNetSpeed();
+        if (gsySpeed > 0) {
+            return gsySpeed;
+        }
+        
+        // GSY 返回 0，使用系统 API 计算（当前应用的 UID）
+        long currentRxBytes = android.net.TrafficStats.getUidRxBytes(android.os.Process.myUid());
+        long currentTime = System.currentTimeMillis();
+        
+        // 处理不支持的情况
+        if (currentRxBytes == android.net.TrafficStats.UNSUPPORTED) {
+            return 0;
+        }
+        
+        if (mLastRxBytes == 0 || mLastSpeedTime == 0) {
+            mLastRxBytes = currentRxBytes;
+            mLastSpeedTime = currentTime;
+            return 0;
+        }
+        
+        long timeDiff = currentTime - mLastSpeedTime;
+        if (timeDiff <= 0) {
+            mLastSpeedTime = currentTime;
+            return 0;
+        }
+        
+        long bytesDiff = currentRxBytes - mLastRxBytes;
+        long speed = (bytesDiff * 1000) / timeDiff; // 字节/秒
+        
+        mLastRxBytes = currentRxBytes;
+        mLastSpeedTime = currentTime;
+        
+        return Math.max(0, speed);
     }
     
     /**
@@ -1595,6 +1730,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public GSYVideoManager getGSYVideoManager() {
+        GSYVideoManager.instance().initContext(getContext().getApplicationContext());
         return GSYVideoManager.instance();
     }
 
@@ -1623,19 +1759,179 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
     }
 
-    protected void changeUiToNormal() {}
-    protected void changeUiToPreparingShow() {}
-    protected void changeUiToPlayingShow() {}
-    protected void changeUiToPlayingBufferingShow() {}
-    protected void changeUiToPauseShow() {}
-    protected void changeUiToError() {}
-    protected void changeUiToCompleteShow() {}
-    protected void changeUiToPrepareingClear() {}
-    protected void changeUiToPlayingClear() {}
-    protected void changeUiToPlayingBufferingClear() {}
-    protected void changeUiToPauseClear() {}
-    protected void changeUiToCompleteClear() {}
-    protected void hideAllWidget() {}
+    @Override
+    protected void changeUiToNormal() {
+        android.util.Log.d(TAG, "changeUiToNormal");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    @Override
+    protected void changeUiToPreparingShow() {
+        android.util.Log.d(TAG, "changeUiToPreparingShow: mLoadingProgressBar=" + mLoadingProgressBar);
+        setViewShowState(mLoadingProgressBar, VISIBLE);
+        startSpeedUpdate();
+    }
+    
+    @Override
+    protected void changeUiToPlayingShow() {
+        android.util.Log.d(TAG, "changeUiToPlayingShow");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        // 不停止网速更新，让它持续运行，updateLoadingSpeed 会根据 loading 可见性决定是否显示
+    }
+    
+    @Override
+    protected void changeUiToPlayingBufferingShow() {
+        android.util.Log.d(TAG, "changeUiToPlayingBufferingShow: mLoadingProgressBar=" + mLoadingProgressBar);
+        setViewShowState(mLoadingProgressBar, VISIBLE);
+        startSpeedUpdate();
+    }
+    
+    @Override
+    protected void changeUiToPauseShow() {
+        android.util.Log.d(TAG, "changeUiToPauseShow");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    @Override
+    protected void changeUiToError() {
+        android.util.Log.d(TAG, "changeUiToError");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    @Override
+    protected void changeUiToCompleteShow() {
+        android.util.Log.d(TAG, "changeUiToCompleteShow");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    protected void changeUiToPrepareingClear() {
+        android.util.Log.d(TAG, "changeUiToPrepareingClear");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    protected void changeUiToPlayingClear() {
+        android.util.Log.d(TAG, "changeUiToPlayingClear");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    protected void changeUiToPlayingBufferingClear() {
+        android.util.Log.d(TAG, "changeUiToPlayingBufferingClear");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    protected void changeUiToPauseClear() {
+        android.util.Log.d(TAG, "changeUiToPauseClear");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    protected void changeUiToCompleteClear() {
+        android.util.Log.d(TAG, "changeUiToCompleteClear");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    @Override
+    protected void hideAllWidget() {
+        android.util.Log.d(TAG, "hideAllWidget");
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
+    /**
+     * 开始网速更新
+     */
+    private void startSpeedUpdate() {
+        if (!mIsShowingLoading && mSpeedHandler != null) {
+            mIsShowingLoading = true;
+            // 重置网速计算初始值（使用当前应用的 UID）
+            mLastRxBytes = android.net.TrafficStats.getUidRxBytes(android.os.Process.myUid());
+            if (mLastRxBytes == android.net.TrafficStats.UNSUPPORTED) {
+                mLastRxBytes = 0;
+            }
+            mLastSpeedTime = System.currentTimeMillis();
+            // 查找网速文本视图
+            if (mLoadingSpeedText == null && mLoadingProgressBar != null) {
+                if (mLoadingProgressBar instanceof android.view.ViewGroup) {
+                    mLoadingSpeedText = ((android.view.ViewGroup) mLoadingProgressBar).findViewById(R.id.tv_loading_speed);
+                } else {
+                    android.view.ViewParent parent = mLoadingProgressBar.getParent();
+                    if (parent instanceof android.view.ViewGroup) {
+                        mLoadingSpeedText = ((android.view.ViewGroup) parent).findViewById(R.id.tv_loading_speed);
+                    }
+                }
+            }
+            if (mLoadingSpeedText != null) {
+                mLoadingSpeedText.setVisibility(VISIBLE);
+            }
+            mSpeedHandler.post(mSpeedUpdateRunnable);
+        }
+    }
+    
+    /**
+     * 停止网速更新
+     */
+    private void stopSpeedUpdate() {
+        if (mIsShowingLoading && mSpeedHandler != null) {
+            mIsShowingLoading = false;
+            mSpeedHandler.removeCallbacks(mSpeedUpdateRunnable);
+            if (mLoadingSpeedText != null) {
+                mLoadingSpeedText.setVisibility(GONE);
+            }
+        }
+    }
+    
+    /**
+     * 更新网速显示
+     * 只在网速大于 1 KB/s 且正在缓冲时显示
+     */
+    private void updateLoadingSpeed() {
+        if (mLoadingSpeedText != null && mIsShowingLoading) {
+            long speed = getNetSpeed();
+            
+            // 限制最大显示速度为 100 MB/s，避免异常值
+            if (speed > 100 * 1024 * 1024) {
+                speed = 100 * 1024 * 1024;
+            }
+            
+            // 只在网速大于 1 KB/s (1024 字节) 时显示
+            if (speed > 1024) {
+                String speedText = formatSpeed(speed);
+                mLoadingSpeedText.setText(speedText);
+                mLoadingSpeedText.setVisibility(VISIBLE);
+            } else {
+                mLoadingSpeedText.setText("");
+                mLoadingSpeedText.setVisibility(GONE);
+            }
+        }
+    }
+    
+    /**
+     * 设置加载动画指示器
+     * 
+     * @param indicator 指示器
+     */
+    public void setLoadingIndicator(com.orange.playerlibrary.loading.Indicator indicator) {
+        if (mLoadingProgressBar != null) {
+            com.orange.playerlibrary.loading.AVLoadingIndicatorView loadingView = null;
+            if (mLoadingProgressBar instanceof android.view.ViewGroup) {
+                loadingView = ((android.view.ViewGroup) mLoadingProgressBar).findViewById(R.id.loading_indicator);
+            } else if (mLoadingProgressBar.getParent() instanceof android.view.ViewGroup) {
+                android.view.ViewGroup parent = (android.view.ViewGroup) mLoadingProgressBar.getParent();
+                loadingView = parent.findViewById(R.id.loading_indicator);
+            }
+            if (loadingView != null) {
+                loadingView.setIndicator(indicator);
+            }
+        }
+    }
     
     private static final int AUTO_HIDE_DELAY = 4000;
     private Runnable mAutoHideRunnable;
@@ -1732,7 +2028,21 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void startPlayLogic() {
+        // 添加日志显示当前播放核心
+        String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+        com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = getGSYVideoManager().getPlayer();
+        String playerClass = playerManager != null ? playerManager.getClass().getSimpleName() : "null";
+        android.util.Log.d(TAG, "startPlayLogic: 设置的播放核心=" + currentEngine + ", 实际播放器=" + playerClass);
+        
         prepareVideo();
+    }
+
+    @Override
+    protected void prepareVideo() {
+        // 添加日志
+        String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+        android.util.Log.d(TAG, "prepareVideo: 准备播放，当前播放核心=" + currentEngine);
+        super.prepareVideo();
     }
 
     @Override

@@ -8,6 +8,7 @@
 	
 	<!-- 允许 HTTP 明文流量 -->
 	<application
+			android:name=".OrangeApplication"
 			android:allowBackup="true"
 			android:dataExtractionRules="@xml/data_extraction_rules"
 			android:fullBackupContent="@xml/backup_rules"

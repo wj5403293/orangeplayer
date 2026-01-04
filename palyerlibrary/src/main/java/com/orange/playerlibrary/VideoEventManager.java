@@ -447,11 +447,38 @@ public class VideoEventManager {
      * 选择播放引擎
      */
     private void selectEngine(String engine) {
+        String oldEngine = mSettingsManager.getPlayerEngine();
+        android.util.Log.d("VideoEventManager", "selectEngine: 切换播放核心 from " + oldEngine + " to " + engine);
+        
+        // 保存播放核心设置
         mSettingsManager.setPlayerEngine(engine);
+        
+        // 关闭设置对话框
         if (mCurrentSetupDialog != null) {
             mCurrentSetupDialog.dismiss();
         }
-        Toast.makeText(mContext, "播放核心已切换，重新播放生效", Toast.LENGTH_SHORT).show();
+        
+        // 提示用户需要重启应用
+        android.widget.Toast.makeText(mVideoView.getContext(), 
+            "播放核心已切换为 " + getEngineName(engine) + "\n请重启应用后生效", 
+            android.widget.Toast.LENGTH_LONG).show();
+    }
+    
+    /**
+     * 获取播放核心名称
+     */
+    private String getEngineName(String engine) {
+        switch (engine) {
+            case PlayerConstants.ENGINE_IJK:
+                return "IJK";
+            case PlayerConstants.ENGINE_EXO:
+                return "EXO";
+            case PlayerConstants.ENGINE_ALI:
+                return "阿里云";
+            case PlayerConstants.ENGINE_DEFAULT:
+            default:
+                return "系统核心";
+        }
     }
     
     /**

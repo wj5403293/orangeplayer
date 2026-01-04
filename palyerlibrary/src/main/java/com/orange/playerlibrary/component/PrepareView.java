@@ -169,9 +169,8 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 break;
                 
             case PlayerConstants.STATE_PREPARING:
-                // 准备中
-                setVisibility(VISIBLE);
-                bringToFront();
+                // 准备中 - 隐藏 PrepareView，让 OrangevideoView 的 AVLoadingIndicatorView 显示
+                setVisibility(GONE);
                 if (mStartPlay != null) {
                     mStartPlay.setVisibility(GONE);
                 }
@@ -181,8 +180,9 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 if (mThumb != null) {
                     mThumb.setVisibility(GONE);
                 }
+                // 不显示 PrepareView 的加载动画，使用 OrangevideoView 的 AVLoadingIndicatorView
                 if (mLoadingProgress != null) {
-                    mLoadingProgress.setVisibility(VISIBLE);
+                    mLoadingProgress.setVisibility(GONE);
                 }
                 break;
                 
