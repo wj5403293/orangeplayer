@@ -46,6 +46,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private boolean mIsSniffing = false;
     private boolean mAutoRotateOnFullscreen = true;
     
+    // 首帧加载状态
+    private boolean mIsLoadingThumbnail = false;
+    
+    // 用户主动暂停标记（用于修复后台自动恢复播放bug）
+    private boolean mUserPaused = false;
+    
     private SkipManager mSkipManager;
     private VideoScaleManager mVideoScaleManager;
     private PlaybackStateManager mPlaybackStateManager;
@@ -599,6 +605,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
         // 设置视频URL给VodControlView用于预览功能
         com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
+        // 异步获取视频首帧作为封面
+        getVideoFirstFrameAsync(url);
         return super.setUp(url, cacheWithPlay, title);
     }
     
@@ -645,8 +653,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void start() {
+        mUserPaused = false;  // 清除用户暂停标记
         mIsSniffing = false;
         mIsLiveVideo = false;
+        mIsLoadingThumbnail = false;  // 重置首帧加载状态
         if (mSkipManager != null) {
             mSkipManager.reset();
         }
@@ -654,11 +664,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mErrorRecoveryManager.startBlackScreenDetection();
             mErrorRecoveryManager.startStateConsistencyCheck();
         }
+        // 清除旧的缩略图
+        if (mOrangeController != null) {
+            mOrangeController.setThumbnail(null);
+        }
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
         startPlayLogic();
     }
 
     public void pause() {
+        mUserPaused = true;  // 标记用户主动暂停
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
@@ -669,6 +684,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void resume() {
+        mUserPaused = false;  // 清除用户暂停标记
         onVideoResume();
         if (mSkipManager != null) {
             mSkipManager.startOutroCheck();
@@ -919,6 +935,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void onVideoResume() {
+        // 如果用户主动暂停了，不自动恢复播放
+        if (mUserPaused) {
+            android.util.Log.d(TAG, "onVideoResume: skipped because user paused");
+            return;
+        }
+        
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
@@ -1123,6 +1145,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 } else if (playState == PlayerConstants.STATE_PAUSED) {
                     showController();
                     cancelAutoHideTimer();
+                } else if (playState == STATE_STARTSNIFFING) {
+                    // 嗅探开始 - 显示加载动画
+                    changeUiToSniffingShow();
+                } else if (playState == STATE_ENDSNIFFING) {
+                    // 嗅探结束 - 隐藏加载动画
+                    changeUiToSniffingEnd();
                 } else {
                     cancelAutoHideTimer();
                 }
@@ -1627,10 +1655,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setOrangePlayState(STATE_ENDSNIFFING);
     }
 
-    public interface OnSniffingListener {
+    /**
+     * 嗅探监听器接口
+     * 注意：这是一个独立接口，不继承 OnStateChangeListener
+     * 通过 addOnStateChangeListener 添加时，会在内部检查是否实现此接口
+     */
+    public interface OnSniffingListener extends OnStateChangeListener {
         void onSniffingReceived(String contentType, java.util.HashMap<String, String> headers, 
                                String title, String url);
         void onSniffingFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize);
+    }
+    
+    /**
+     * 嗅探监听器适配器（提供默认空实现）
+     */
+    public static abstract class OnSniffingAdapter implements OnSniffingListener {
+        @Override
+        public void onPlayStateChanged(int playState) {}
+        
+        @Override
+        public void onPlayerStateChanged(int playerState) {}
     }
 
     public void setDebug(boolean debug) {
@@ -2107,6 +2151,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         stopSpeedUpdate();
     }
     
+    /**
+     * 嗅探开始 - 显示加载动画
+     */
+    protected void changeUiToSniffingShow() {
+        setViewShowState(mLoadingProgressBar, VISIBLE);
+        startSpeedUpdate();
+    }
+    
+    /**
+     * 嗅探结束 - 隐藏加载动画
+     */
+    protected void changeUiToSniffingEnd() {
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+    
     @Override
     protected void hideAllWidget() {
         setViewShowState(mLoadingProgressBar, INVISIBLE);
@@ -2323,5 +2383,85 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void startAfterPrepared() {
         super.startAfterPrepared();
         setSpeed(sSpeed);
+    }
+    
+    // ==================== 首帧预览功能 ====================
+    
+    /**
+     * 异步获取视频首帧作为封面
+     * 使用 MediaMetadataRetriever（IJK/系统播放器自带支持）
+     */
+    private void getVideoFirstFrameAsync(final String videoUrl) {
+        // 检查是否启用自动缩略图
+        if (!mAutoThumbnailEnabled) {
+            return;
+        }
+        
+        // 如果已设置默认缩略图，直接使用
+        if (mDefaultThumbnail != null) {
+            if (mOrangeController != null) {
+                mOrangeController.setThumbnail(mDefaultThumbnail);
+            }
+            return;
+        }
+        
+        // 避免重复加载
+        if (mIsLoadingThumbnail) {
+            return;
+        }
+        mIsLoadingThumbnail = true;
+        
+        // 使用AsyncTask异步获取首帧
+        new android.os.AsyncTask<Void, Void, android.graphics.Bitmap>() {
+            @Override
+            protected android.graphics.Bitmap doInBackground(Void... voids) {
+                android.media.MediaMetadataRetriever retriever = new android.media.MediaMetadataRetriever();
+                try {
+                    if (videoUrl.startsWith("http://") || videoUrl.startsWith("https://")) {
+                        retriever.setDataSource(videoUrl, new java.util.HashMap<>());
+                    } else {
+                        retriever.setDataSource(videoUrl);
+                    }
+                    // 获取1秒处的帧（避免黑屏）
+                    android.graphics.Bitmap bitmap = retriever.getFrameAtTime(
+                            1000000, // 1秒 = 1000000微秒
+                            android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                    retriever.release();
+                    return bitmap;
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "获取视频首帧失败: " + e.getMessage());
+                    try {
+                        retriever.release();
+                    } catch (Exception ignored) {}
+                    return null;
+                }
+            }
+            
+            @Override
+            protected void onPostExecute(android.graphics.Bitmap bitmap) {
+                mIsLoadingThumbnail = false;
+                if (bitmap != null && mOrangeController != null) {
+                    mOrangeController.setThumbnail(bitmap);
+                    android.util.Log.d(TAG, "视频首帧获取成功");
+                } else if (mDefaultThumbnail != null && mOrangeController != null) {
+                    // 首帧获取失败，使用默认缩略图
+                    mOrangeController.setThumbnail(mDefaultThumbnail);
+                }
+            }
+        }.execute();
+    }
+    
+    /**
+     * 检查用户是否主动暂停
+     */
+    public boolean isUserPaused() {
+        return mUserPaused;
+    }
+    
+    /**
+     * 清除用户暂停状态（用于外部控制恢复播放）
+     */
+    public void clearUserPausedState() {
+        mUserPaused = false;
     }
 }

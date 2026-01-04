@@ -95,6 +95,11 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             mVideoEventManager = new VideoEventManager(getContext(), videoView, this);
             debug("VideoEventManager initialized");
         }
+        
+        // 应用默认加载动画
+        if (mCurrentIndicatorType != null && videoView != null) {
+            setLoading(mCurrentIndicatorType);
+        }
     }
     
     /**
@@ -502,12 +507,19 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     // ===== 缩略图管理 =====
 
     /**
-     * 设置缩略图
+     * 设置缩略图并更新PrepareView
      * 
-     * @param thumbnail 缩略图
+     * @param thumbnail 缩略图（Bitmap、资源ID、URL字符串、File对象）
      */
     public void setThumbnail(Object thumbnail) {
         mThumbnail = thumbnail;
+        // 同步更新PrepareView的缩略图
+        if (mVideoView != null) {
+            com.orange.playerlibrary.component.PrepareView prepareView = mVideoView.getPrepareView();
+            if (prepareView != null) {
+                prepareView.setThumbnail(thumbnail);
+            }
+        }
     }
 
     /**
