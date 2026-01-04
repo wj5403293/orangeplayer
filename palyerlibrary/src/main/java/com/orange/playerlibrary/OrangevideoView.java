@@ -300,7 +300,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 
             case PlayerConstants.ENGINE_DEFAULT:
             default:
-                PlayerFactory.setPlayManager(SystemPlayerManager.class);
+                // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
+                PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
+                // 系统播放器也需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                }
                 break;
         }
         
@@ -732,17 +738,23 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     @Override
     protected void setDisplay(Surface surface) {
-        // 检查是否使用 ExoPlayer
+        // 检查是否使用 ExoPlayer 或系统播放器
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         boolean isExoPlayer = PlayerConstants.ENGINE_EXO.equals(currentEngine);
+        boolean isSystemPlayer = PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
         
-        if (isExoPlayer && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // ExoPlayer 使用 SurfaceControl.reparent 方式处理 Surface 切换
-            setDisplayForExo(surface);
-            return;
+        // Android Q+ 使用 SurfaceControl.reparent 方式处理 Surface 切换
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (isExoPlayer) {
+                setDisplayForExo(surface);
+                return;
+            } else if (isSystemPlayer) {
+                setDisplayForSystem(surface);
+                return;
+            }
         }
         
-        // 非 ExoPlayer 或低版本 Android，使用原有逻辑
+        // 其他播放器或低版本 Android，使用原有逻辑
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
             if (surface != null) {
                 super.setDisplay(surface);
@@ -751,6 +763,35 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return;
         }
         super.setDisplay(surface);
+    }
+    
+    /**
+     * 系统播放器专用的 Surface 切换方法
+     * 使用 OrangeSystemPlayerManager 的 setDisplayNew 方法实现无缝切换
+     */
+    @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.Q)
+    private void setDisplayForSystem(Surface surface) {
+        com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = GSYVideoManager.instance().getPlayer();
+        
+        boolean isSurfaceView = mTextureView != null && mTextureView.getShowView() instanceof SurfaceView;
+        
+        if (playerManager instanceof com.orange.playerlibrary.player.OrangeSystemPlayerManager) {
+            com.orange.playerlibrary.player.OrangeSystemPlayerManager systemManager = 
+                (com.orange.playerlibrary.player.OrangeSystemPlayerManager) playerManager;
+            
+            if (surface != null && isSurfaceView) {
+                SurfaceView surfaceView = (SurfaceView) mTextureView.getShowView();
+                systemManager.setDisplayNew(surfaceView);
+            } else if (surface != null) {
+                GSYVideoManager.instance().setDisplay(surface);
+            } else {
+                systemManager.setDisplayNew(null);
+            }
+        } else {
+            if (surface != null) {
+                GSYVideoManager.instance().setDisplay(surface);
+            }
+        }
     }
     
     /**
@@ -1125,7 +1166,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 break;
             case PlayerConstants.ENGINE_DEFAULT:
             default:
-                PlayerFactory.setPlayManager(SystemPlayerManager.class);
+                // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
+                PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
+                // 系统播放器也需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                }
                 break;
         }
         
@@ -1485,39 +1532,51 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 更新 ExoPlayer 的 SurfaceControl 尺寸（如果需要）
+     * 更新 SurfaceControl 尺寸（如果需要）
      * 用于视频比例切换后更新画面位置
+     * 支持 ExoPlayer 和系统播放器
      */
-    public void updateExoSurfaceControlIfNeeded() {
+    public void updateSurfaceControlIfNeeded() {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
             return;
         }
         
         try {
-            // 检查是否使用 ExoPlayer
             String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
-            boolean isExoPlayer = "exo".equals(currentEngine);
+            boolean isExoPlayer = PlayerConstants.ENGINE_EXO.equals(currentEngine);
+            boolean isSystemPlayer = PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
             
-            if (!isExoPlayer) {
+            if (!isExoPlayer && !isSystemPlayer) {
                 return;
             }
             
-            // 获取当前的 PlayerManager
             com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
                 GSYVideoManager.instance().getPlayer();
             
-            if (playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
-                com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
-                    (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
+            if (mTextureView != null && mTextureView.getShowView() instanceof android.view.SurfaceView) {
+                android.view.SurfaceView surfaceView = (android.view.SurfaceView) mTextureView.getShowView();
                 
-                // 获取当前的 SurfaceView
-                if (mTextureView != null && mTextureView.getShowView() instanceof android.view.SurfaceView) {
-                    android.view.SurfaceView surfaceView = (android.view.SurfaceView) mTextureView.getShowView();
+                if (isExoPlayer && playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
+                    com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
+                        (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
                     exoManager.updateSurfaceControlSize(surfaceView);
+                } else if (isSystemPlayer && playerManager instanceof com.orange.playerlibrary.player.OrangeSystemPlayerManager) {
+                    com.orange.playerlibrary.player.OrangeSystemPlayerManager systemManager = 
+                        (com.orange.playerlibrary.player.OrangeSystemPlayerManager) playerManager;
+                    systemManager.updateSurfaceControlSize(surfaceView);
                 }
             }
         } catch (Exception e) {
         }
+    }
+    
+    /**
+     * 更新 ExoPlayer 的 SurfaceControl 尺寸（如果需要）
+     * @deprecated 使用 updateSurfaceControlIfNeeded() 代替
+     */
+    @Deprecated
+    public void updateExoSurfaceControlIfNeeded() {
+        updateSurfaceControlIfNeeded();
     }
 
     public boolean isLiveVideo() {
@@ -2091,9 +2150,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     protected void changeUiToPreparingShow() {
-        // 禁用 GSY 的加载动画，使用 PrepareView 的自定义加载动画
-        setViewShowState(mLoadingProgressBar, INVISIBLE);
-        // 不启动网速更新，避免与 PrepareView 动画重叠
+        // 视频加载时显示加载动画
+        setViewShowState(mLoadingProgressBar, VISIBLE);
+        startSpeedUpdate();
     }
     
     @Override

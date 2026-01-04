@@ -142,8 +142,6 @@ public class OrangeVideoController extends OrangeStandardVideoController {
      * @param isLive 是否直播模式
      */
     public void addDefaultControlComponent(String title, boolean isLive) {
-        android.util.Log.d(TAG, "addDefaultControlComponent: 开始, title=" + title + ", isLive=" + isLive);
-        
         // 清除现有组件
         removeAllControlComponent();
         
@@ -155,26 +153,20 @@ public class OrangeVideoController extends OrangeStandardVideoController {
                 new com.orange.playerlibrary.component.VodControlView(getContext());
         vodControlView.setOrangeVideoController(this);
         addControlComponent(vodControlView);
-        
-        android.util.Log.d(TAG, "addDefaultControlComponent: VodControlView 创建完成");
-        
         // 如果 VideoEventManager 已初始化，绑定控制器组件
         if (mVideoEventManager != null) {
-            android.util.Log.d(TAG, "addDefaultControlComponent: 调用 bindControllerComponents");
             mVideoEventManager.bindControllerComponents(vodControlView);
             
             // 绑定 TitleView（如果存在）
             if (mVideoView != null) {
                 com.orange.playerlibrary.component.TitleView titleView = mVideoView.getTitleView();
                 if (titleView != null) {
-                    android.util.Log.d(TAG, "addDefaultControlComponent: 调用 bindTitleView");
                     mVideoEventManager.bindTitleView(titleView);
                 }
             }
             
             debug("VideoEventManager bound to VodControlView");
         } else {
-            android.util.Log.d(TAG, "addDefaultControlComponent: mVideoEventManager 为 null");
         }
         
         // 自动初始化弹幕功能（如果弹幕库可用）
@@ -863,7 +855,6 @@ public class OrangeVideoController extends OrangeStandardVideoController {
         @Override
         public void log(String tag, Object message) {
             if (sDebug) {
-                android.util.Log.d(tag, String.valueOf(message));
             }
         }
     };

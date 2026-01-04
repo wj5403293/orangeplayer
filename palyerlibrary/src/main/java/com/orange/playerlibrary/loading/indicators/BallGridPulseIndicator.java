@@ -9,22 +9,13 @@ import com.orange.playerlibrary.loading.Indicator;
 import java.util.ArrayList;
 
 /**
- * Created by Jack on 2015/10/20.
+ * Created by Jack on 2015/10/16.
  */
-public class BallSpinFadeLoaderIndicator extends Indicator {
-
-    public static final float SCALE=1.0f;
+public class BallGridPulseIndicator extends Indicator {
 
     public static final int ALPHA=255;
 
-    float[] scaleFloats=new float[]{SCALE,
-            SCALE,
-            SCALE,
-            SCALE,
-            SCALE,
-            SCALE,
-            SCALE,
-            SCALE};
+    public static final float SCALE=1.0f;
 
     int[] alphas=new int[]{ALPHA,
             ALPHA,
@@ -33,31 +24,52 @@ public class BallSpinFadeLoaderIndicator extends Indicator {
             ALPHA,
             ALPHA,
             ALPHA,
+            ALPHA,
             ALPHA};
+
+    float[] scaleFloats=new float[]{SCALE,
+            SCALE,
+            SCALE,
+            SCALE,
+            SCALE,
+            SCALE,
+            SCALE,
+            SCALE,
+            SCALE};
+
 
 
     @Override
     public void draw(Canvas canvas, Paint paint) {
-        float radius=getWidth()/10;
-        for (int i = 0; i < 8; i++) {
-            canvas.save();
-            Point point=circleAt(getWidth(),getHeight(),getWidth()/2-radius,i*(Math.PI/4));
-            canvas.translate(point.x,point.y);
-            canvas.scale(scaleFloats[i],scaleFloats[i]);
-            paint.setAlpha(alphas[i]);
-            canvas.drawCircle(0,0,radius,paint);
-            canvas.restore();
+        float circleSpacing=4;
+        float radius=(getWidth()-circleSpacing*4)/6;
+        float x = getWidth()/ 2-(radius*2+circleSpacing);
+        float y = getWidth()/ 2-(radius*2+circleSpacing);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                canvas.save();
+                float translateX=x+(radius*2)*j+circleSpacing*j;
+                float translateY=y+(radius*2)*i+circleSpacing*i;
+                canvas.translate(translateX, translateY);
+                canvas.scale(scaleFloats[3 * i + j], scaleFloats[3 * i + j]);
+                paint.setAlpha(alphas[3 * i + j]);
+                canvas.drawCircle(0, 0, radius, paint);
+                canvas.restore();
+            }
         }
     }
 
     @Override
     public ArrayList<ValueAnimator> onCreateAnimators() {
         ArrayList<ValueAnimator> animators=new ArrayList<>();
-        int[] delays= {0, 120, 240, 360, 480, 600, 720, 780, 840};
-        for (int i = 0; i < 8; i++) {
+        int[] durations={720, 1020, 1280, 1420, 1450, 1180, 870, 1450, 1060};
+        int[] delays= {-60, 250, -170, 480, 310, 30, 460, 780, 450};
+
+        for (int i = 0; i < 9; i++) {
             final int index=i;
-            ValueAnimator scaleAnim=ValueAnimator.ofFloat(1,0.4f,1);
-            scaleAnim.setDuration(1000);
+            ValueAnimator scaleAnim=ValueAnimator.ofFloat(1,0.5f,1);
+            scaleAnim.setDuration(durations[i]);
             scaleAnim.setRepeatCount(-1);
             scaleAnim.setStartDelay(delays[i]);
             addUpdateListener(scaleAnim,new ValueAnimator.AnimatorUpdateListener() {
@@ -68,8 +80,8 @@ public class BallSpinFadeLoaderIndicator extends Indicator {
                 }
             });
 
-            ValueAnimator alphaAnim=ValueAnimator.ofInt(255, 77, 255);
-            alphaAnim.setDuration(1000);
+            ValueAnimator alphaAnim=ValueAnimator.ofInt(255, 210, 122, 255);
+            alphaAnim.setDuration(durations[i]);
             alphaAnim.setRepeatCount(-1);
             alphaAnim.setStartDelay(delays[i]);
             addUpdateListener(alphaAnim,new ValueAnimator.AnimatorUpdateListener() {
@@ -84,31 +96,5 @@ public class BallSpinFadeLoaderIndicator extends Indicator {
         }
         return animators;
     }
-
-    /**
-     * 圆O的圆心为(a,b),半径为R,点A与到X轴的为角α.
-     *则点A的坐标为(a+R*cosα,b+R*sinα)
-     * @param width
-     * @param height
-     * @param radius
-     * @param angle
-     * @return
-     */
-    Point circleAt(int width,int height,float radius,double angle){
-        float x= (float) (width/2+radius*(Math.cos(angle)));
-        float y= (float) (height/2+radius*(Math.sin(angle)));
-        return new Point(x,y);
-    }
-
-    final class Point{
-        public float x;
-        public float y;
-
-        public Point(float x, float y){
-            this.x=x;
-            this.y=y;
-        }
-    }
-
 
 }

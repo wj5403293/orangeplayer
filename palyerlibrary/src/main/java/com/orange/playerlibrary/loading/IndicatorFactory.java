@@ -3,6 +3,7 @@ package com.orange.playerlibrary.loading;
 import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.loading.indicators.BallPulseIndicator;
 import com.orange.playerlibrary.loading.indicators.BallSpinFadeLoaderIndicator;
+import com.orange.playerlibrary.loading.indicators.LineScalePulseOutIndicator;
 import com.orange.playerlibrary.loading.indicators.LineSpinFadeLoaderIndicator;
 
 /**
@@ -19,7 +20,7 @@ public class IndicatorFactory {
      */
     public static Indicator createIndicator(OrangeVideoController.IndicatorType type) {
         if (type == null) {
-            return new BallPulseIndicator();
+            return new LineScalePulseOutIndicator();
         }
         
         switch (type) {
@@ -29,6 +30,8 @@ public class IndicatorFactory {
                 return new BallSpinFadeLoaderIndicator();
             case LINE_SPIN_FADE_LOADER:
                 return new LineSpinFadeLoaderIndicator();
+            case LINE_SCALE_PULSE_OUT:
+                return new LineScalePulseOutIndicator();
             // 其他类型可以通过反射创建
             default:
                 return createIndicatorByName(type.getIndicatorName());

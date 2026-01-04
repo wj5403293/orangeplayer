@@ -55,21 +55,21 @@
                 android:contentDescription="@string/orange_live_indicator" />
         </LinearLayout>
 
-        <!-- 小窗按钮 (可选) -->
+        <!-- 小窗按钮 -->
         <ImageView
             android:id="@+id/iv_window"
-            android:layout_width="45dp"
-            android:layout_height="45dp"
-            android:padding="@dimen/orange_controller_icon_padding"
-            android:src="@mipmap/window"
-            android:visibility="gone"
+            android:layout_width="@dimen/orange_controller_height"
+            android:layout_height="@dimen/orange_controller_height"
+            android:padding="14dp"
+            android:src="@mipmap/xiaochuang"
+            android:visibility="visible"
             android:contentDescription="@string/orange_window_mode" />
 
         <!-- 定时按钮 (可选) -->
         <ImageView
             android:id="@+id/iv_timer"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="@dimen/orange_controller_height"
+            android:layout_height="@dimen/orange_controller_height"
             android:padding="@dimen/orange_controller_icon_padding"
             android:src="@mipmap/times"
             android:visibility="gone"

@@ -446,12 +446,13 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         if (context == null) {
             return 0;
         }
-        long nowTotalRxBytes = TrafficStats.getUidRxBytes(context.getApplicationInfo().uid) == TrafficStats.UNSUPPORTED ? 0 : (TrafficStats.getTotalRxBytes() / 1024);
+        long nowTotalRxBytes = TrafficStats.getUidRxBytes(context.getApplicationInfo().uid) == TrafficStats.UNSUPPORTED ? 0 : TrafficStats.getTotalRxBytes();
         long nowTimeStamp = System.currentTimeMillis();
         long calculationTime = (nowTimeStamp - lastTimeStamp);
         if (calculationTime == 0) {
-            return calculationTime;
+            return 0;
         }
+        // 返回字节/秒（不是 KB/s）
         long speed = ((nowTotalRxBytes - lastTotalRxBytes) * 1000 / calculationTime);
         lastTimeStamp = nowTimeStamp;
         lastTotalRxBytes = nowTotalRxBytes;

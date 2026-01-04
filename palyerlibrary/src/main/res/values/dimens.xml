@@ -18,6 +18,7 @@
     <dimen name="orange_seekbar_size_n">12dp</dimen>
     <dimen name="orange_seekbar_size_s">12dp</dimen>
     <dimen name="orange_seekbar_height">5dp</dimen>
+    <dimen name="orange_seekbar_height_fullscreen">6dp</dimen>
     <dimen name="orange_seekbar_margin">10dp</dimen>
     
     <!-- VodControlView 预览容器尺寸 -->

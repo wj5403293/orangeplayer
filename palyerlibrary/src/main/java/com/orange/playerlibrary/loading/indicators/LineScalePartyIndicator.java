@@ -2,6 +2,7 @@ package com.orange.playerlibrary.loading.indicators;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.RectF;
 
 import android.animation.ValueAnimator;
 import com.orange.playerlibrary.loading.Indicator;
@@ -9,48 +10,44 @@ import com.orange.playerlibrary.loading.Indicator;
 import java.util.ArrayList;
 
 /**
- * Created by Jack on 2015/10/16.
+ * Created by Jack on 2015/10/19.
  */
-public class BallPulseIndicator extends Indicator {
+public class LineScalePartyIndicator extends Indicator {
 
     public static final float SCALE=1.0f;
 
-    //scale x ,y
-    private float[] scaleFloats=new float[]{SCALE,
+    float[] scaleFloats=new float[]{SCALE,
             SCALE,
-            SCALE};
-
-
+            SCALE,
+            SCALE,
+            SCALE,};
 
     @Override
     public void draw(Canvas canvas, Paint paint) {
-        float circleSpacing=4;
-        float radius=(Math.min(getWidth(),getHeight())-circleSpacing*2)/6;
-        float x = getWidth()/ 2-(radius*2+circleSpacing);
-        float y=getHeight() / 2;
-        for (int i = 0; i < 3; i++) {
+        float translateX=getWidth()/9;
+        float translateY=getHeight()/2;
+        for (int i = 0; i < 4; i++) {
             canvas.save();
-            float translateX=x+(radius*2)*i+circleSpacing*i;
-            canvas.translate(translateX, y);
+            canvas.translate((2 + i * 2) * translateX - translateX / 2, translateY);
             canvas.scale(scaleFloats[i], scaleFloats[i]);
-            canvas.drawCircle(0, 0, radius, paint);
+            RectF rectF=new RectF(-translateX/2,-getHeight()/2.5f,translateX/2,getHeight()/2.5f);
+            canvas.drawRoundRect(rectF,5,5,paint);
             canvas.restore();
         }
     }
 
+
     @Override
     public ArrayList<ValueAnimator> onCreateAnimators() {
         ArrayList<ValueAnimator> animators=new ArrayList<>();
-        int[] delays=new int[]{120,240,360};
-        for (int i = 0; i < 3; i++) {
+        long[] durations=new long[]{1260, 430, 1010, 730};
+        long[] delays=new long[]{770, 290, 280, 740};
+        for (int i = 0; i < 4; i++) {
             final int index=i;
-
-            ValueAnimator scaleAnim=ValueAnimator.ofFloat(1,0.3f,1);
-
-            scaleAnim.setDuration(750);
+            ValueAnimator scaleAnim=ValueAnimator.ofFloat(1,0.4f,1);
+            scaleAnim.setDuration(durations[i]);
             scaleAnim.setRepeatCount(-1);
             scaleAnim.setStartDelay(delays[i]);
-
             addUpdateListener(scaleAnim,new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {

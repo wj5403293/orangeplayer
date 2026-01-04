@@ -60,6 +60,15 @@ public class VideoEventManager {
     }
     
     /**
+     * 显示自定义Toast
+     */
+    private void showToast(String message) {
+        if (mVideoView != null) {
+            OrangeToast.show(mVideoView, message);
+        }
+    }
+    
+    /**
      * 绑定控制器组件
      */
     public void bindControllerComponents(VodControlView vodControlView) {
@@ -71,15 +80,20 @@ public class VideoEventManager {
      * 绑定 TitleView 组件
      */
     public void bindTitleView(com.orange.playerlibrary.component.TitleView titleView) {
-                if (titleView != null) {
+        if (titleView != null) {
             // 绑定设置按钮点击事件
             titleView.setOnSettingsClickListener(v -> {
-                                showSetupDialog();
+                showSetupDialog();
             });
             
-            // 绑定投屏按钮点击事件（暂时只显示提示
+            // 绑定投屏按钮点击事件
             titleView.setOnCastClickListener(v -> {
-                                Toast.makeText(mContext, "投屏功能开发中", Toast.LENGTH_SHORT).show();
+                showCastDialog();
+            });
+            
+            // 绑定小窗按钮点击事件
+            titleView.setOnWindowClickListener(v -> {
+                onSmallWindowPlayClick();
             });
         }
     }
@@ -214,7 +228,7 @@ public class VideoEventManager {
                     // 倍速选择事件
                     speedName.setOnClickListener(v -> {
                         mVideoView.setSpeed(speedValue);
-                                                Toast.makeText(mContext, "倍 " + speedText, Toast.LENGTH_SHORT).show();
+                        showToast("倍速 " + speedText);
                         dialog.dismiss();
                     });
                 });
@@ -279,7 +293,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         mSettingsManager.setPlayMode(mode);
-        Toast.makeText(mActivity, "播放模式: " + getPlayModeName(mode), Toast.LENGTH_SHORT).show();
+        showToast("播放模式: " + getPlayModeName(mode));
     }
     
     /**
@@ -295,6 +309,36 @@ public class VideoEventManager {
     }
     
     // ==================== 设置对话====================
+    
+    /**
+     * 显示投屏对话框
+     */
+    private void showCastDialog() {
+        mController.hide(); // 隐藏播放器UI
+        
+        // 检查投屏库是否可用
+        if (!com.orange.playerlibrary.cast.DLNACastManager.isDLNAAvailable()) {
+            showToast("投屏功能未配置");
+            return;
+        }
+        
+        // 获取当前视频信息
+        String videoUrl = mVideoView.getUrl();
+        String title = mController.getVideoTitle();
+        
+        if (videoUrl == null || videoUrl.isEmpty()) {
+            showToast("无法获取视频地址");
+            return;
+        }
+        
+        try {
+            // 启动投屏
+            com.orange.playerlibrary.cast.DLNACastManager.getInstance().startCast(mActivity, videoUrl, title);
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "投屏失败", e);
+            showToast("投屏失败: " + e.getMessage());
+        }
+    }
     
     /**
      * 显示设置对话框
@@ -422,11 +466,11 @@ public class VideoEventManager {
         android.util.Log.d("VideoEventManager", "setupEngineButtons: ALI=" + isAliPlayerAvailable 
             + ", IJK=" + isIjkPlayerAvailable + ", EXO=" + isExoPlayerAvailable);
         
-        // 设置可见性（屏蔽系统核心按钮）
+        // 设置可见性
         if (aliBtn != null) aliBtn.setVisibility(isAliPlayerAvailable ? View.VISIBLE : View.GONE);
         if (ijkBtn != null) ijkBtn.setVisibility(isIjkPlayerAvailable ? View.VISIBLE : View.GONE);
         if (exoBtn != null) exoBtn.setVisibility(isExoPlayerAvailable ? View.VISIBLE : View.GONE);
-        if (systemBtn != null) systemBtn.setVisibility(View.GONE); // 屏蔽系统核心按钮
+        if (systemBtn != null) systemBtn.setVisibility(View.VISIBLE); // 系统核心始终可用
         
         // 获取当前引擎
         String currentEngine = mSettingsManager.getPlayerEngine();
@@ -444,7 +488,10 @@ public class VideoEventManager {
             ijkBtn.setTextColor(PlayerConstants.ENGINE_IJK.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
             ijkBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_IJK));
         }
-        // 系统核心按钮已屏蔽，不再设置点击事件
+        if (systemBtn != null) {
+            systemBtn.setTextColor(PlayerConstants.ENGINE_DEFAULT.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            systemBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_DEFAULT));
+        }
     }
     
     /**
@@ -493,9 +540,7 @@ public class VideoEventManager {
         }
         
         // 提示用户
-        android.widget.Toast.makeText(mVideoView.getContext(), 
-            "播放核心已切换为 " + getEngineName(engine), 
-            android.widget.Toast.LENGTH_SHORT).show();
+        showToast("播放核心已切换为 " + getEngineName(engine));
     }
     
     /**
@@ -610,7 +655,7 @@ public class VideoEventManager {
                             int minutes = Integer.parseInt(optionText.replace("分钟", ""));
                             startTimer(minutes * 60 * 1000);
                             dialog.dismiss();
-                            Toast.makeText(mContext, "定时关闭: " + optionText, Toast.LENGTH_SHORT).show();
+                            showToast("定时关闭: " + optionText);
                         });
                     });
             }
@@ -660,7 +705,7 @@ public class VideoEventManager {
         if (mTimerRunnable != null) {
             mTimerHandler.removeCallbacks(mTimerRunnable);
         }
-        Toast.makeText(mContext, "定时关闭已取消", Toast.LENGTH_SHORT).show();
+        showToast("定时关闭已取消");
     }
     
     /**
@@ -700,10 +745,10 @@ public class VideoEventManager {
                 mActivity.enterPictureInPictureMode();
             } catch (Exception e) {
                 mVideoView.setEnteringPiPMode(false);
-                Toast.makeText(mActivity, "进入小窗模式失败", Toast.LENGTH_SHORT).show();
+                showToast("进入小窗模式失败");
             }
         } else {
-            Toast.makeText(mActivity, "您的设备不支持小窗播放", Toast.LENGTH_SHORT).show();
+            showToast("您的设备不支持小窗播放");
         }
     }
     
@@ -725,7 +770,7 @@ public class VideoEventManager {
             progressBarIcon.setImageResource(newState ? R.mipmap.kg2 : R.mipmap.kg1);
         }
         
-        Toast.makeText(mContext, newState ? "底部进度条已开启" : "底部进度条已关闭", Toast.LENGTH_SHORT).show();
+        showToast(newState ? "底部进度条已开启" : "底部进度条已关闭");
     }
     
     /**
@@ -741,7 +786,7 @@ public class VideoEventManager {
         String title = mController.getVideoTitle();
         
         if (url == null || url.isEmpty()) {
-            Toast.makeText(mContext, "无法获取视频地址", Toast.LENGTH_SHORT).show();
+            showToast("无法获取视频地址");
             return;
         }
         
@@ -749,7 +794,7 @@ public class VideoEventManager {
         if (mOnDownloadClickListener != null) {
             mOnDownloadClickListener.onDownloadClick(url, title);
         } else {
-            Toast.makeText(mContext, "下载功能未配置", Toast.LENGTH_SHORT).show();
+            showToast("下载功能未配置");
         }
     }
     
@@ -919,7 +964,7 @@ public class VideoEventManager {
                 scaleName.setOnClickListener(v -> {
                     mSettingsManager.setVideoScale(scaleText);
                     setScreenScaleType(scaleText);
-                    Toast.makeText(mContext, "画面比例: " + scaleText, Toast.LENGTH_SHORT).show();
+                    showToast("画面比例: " + scaleText);
                     dialog.dismiss();
                 });
             });
@@ -933,11 +978,11 @@ public class VideoEventManager {
         VideoScaleManager scaleManager = mVideoView.getVideoScaleManager();
         if (scaleManager != null) {
             scaleManager.setAndSaveScale(scaleType);
-            Toast.makeText(mContext, "画面比例: " + scaleType + " 已应用", Toast.LENGTH_SHORT).show();
+            showToast("画面比例: " + scaleType + " 已应用");
         } else {
             // 如果 VideoScaleManager 未初始化，只保存设置
             mSettingsManager.setVideoScale(scaleType);
-            Toast.makeText(mContext, "画面比例: " + scaleType + "\n将在下次播放时生效", Toast.LENGTH_SHORT).show();
+            showToast("画面比例: " + scaleType + "\n将在下次播放时生效");
         }
     }
     
@@ -1007,7 +1052,7 @@ public class VideoEventManager {
                 // 倍速选择事件
                 speedName.setOnClickListener(v -> {
                     setLongPressSpeed(speedValue);
-                    Toast.makeText(mContext, "长按倍 " + speedText, Toast.LENGTH_SHORT).show();
+                    showToast("长按倍 " + speedText);
                     dialog.dismiss();
                 });
             });
@@ -1065,7 +1110,7 @@ public class VideoEventManager {
         builder.setTitle("播放引擎");
         builder.setSingleChoiceItems(engines, checkedItem, (dialog, which) -> {
             mSettingsManager.setPlayerEngine(engineValues[which]);
-            Toast.makeText(mContext, "播放引擎: " + engines[which] + "\n重新播放生效", Toast.LENGTH_SHORT).show();
+            showToast("播放引擎: " + engines[which] + "\n重新播放生效");
             dialog.dismiss();
         });
         builder.setNegativeButton("取消", null);
@@ -1159,7 +1204,7 @@ public class VideoEventManager {
                 public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
                     int progress = seekBar.getProgress();
                     mSettingsManager.setSkipOpening(progress);
-                    Toast.makeText(mContext, "跳过片头: " + formatSkipTime(progress), Toast.LENGTH_SHORT).show();
+                    showToast("跳过片头: " + formatSkipTime(progress));
                 }
             });
         }
@@ -1189,7 +1234,7 @@ public class VideoEventManager {
                 public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
                     int progress = seekBar.getProgress();
                     mSettingsManager.setSkipEnding(progress);
-                    Toast.makeText(mContext, "跳过片尾: " + formatSkipTime(progress), Toast.LENGTH_SHORT).show();
+                    showToast("跳过片尾: " + formatSkipTime(progress));
                 }
             });
         }
@@ -1289,7 +1334,7 @@ public class VideoEventManager {
                 final int finalSeconds = seconds;
                 title.setOnClickListener(v -> {
                     mSettingsManager.setSkipOpening(finalSeconds);
-                    Toast.makeText(mContext, "跳过片头: " + optionText, Toast.LENGTH_SHORT).show();
+                    showToast("跳过片头: " + optionText);
                     dialog.dismiss();
                 });
             });
@@ -1368,7 +1413,7 @@ public class VideoEventManager {
                 final int finalSeconds = seconds;
                 title.setOnClickListener(v -> {
                     mSettingsManager.setSkipEnding(finalSeconds);
-                    Toast.makeText(mContext, "跳过片尾: " + optionText, Toast.LENGTH_SHORT).show();
+                    showToast("跳过片尾: " + optionText);
                     dialog.dismiss();
                 });
             });
@@ -1386,7 +1431,7 @@ public class VideoEventManager {
     public void showPlaylistDialog() {
         final ArrayList<HashMap<String, Object>> originalList = mController.getVideoList();
         if (originalList == null || originalList.isEmpty()) {
-            Toast.makeText(mActivity, "暂无选集", Toast.LENGTH_SHORT).show();
+            showToast("暂无选集");
             return;
         }
         
@@ -1523,7 +1568,7 @@ public class VideoEventManager {
         String name = item.get("name") != null ? item.get("name").toString() : "";
         
         if (url.isEmpty()) {
-            Toast.makeText(mActivity, "播放地址异常", Toast.LENGTH_SHORT).show();
+            showToast("播放地址异常");
             return;
         }
         
@@ -1607,7 +1652,7 @@ public class VideoEventManager {
         String name = item.get("name") != null ? item.get("name").toString() : "";
         
         if (url.isEmpty()) {
-            Toast.makeText(mActivity, "播放地址异常", Toast.LENGTH_SHORT).show();
+            showToast("播放地址异常");
             return;
         }
         
@@ -1655,7 +1700,7 @@ public class VideoEventManager {
         if (currentIndex >= 0 && currentIndex < videoList.size() - 1) {
             playEpisode(currentIndex + 1);
         } else {
-            Toast.makeText(mActivity, "已经是最后一集了", Toast.LENGTH_SHORT).show();
+            showToast("已经是最后一集了");
         }
     }
     
@@ -1742,7 +1787,7 @@ public class VideoEventManager {
             mController.getDanmakuController().setDanmakuEnabled(newState);
         }
         
-        Toast.makeText(mContext, newState ? "弹幕已开启" : "弹幕已关闭", Toast.LENGTH_SHORT).show();
+        showToast(newState ? "弹幕已开启" : "弹幕已关闭");
     }
     
     /**
@@ -1811,7 +1856,7 @@ public class VideoEventManager {
                 mController.getDanmakuController().sendDanmaku(text, color);
             }
             
-            Toast.makeText(mContext, "弹幕已发送", Toast.LENGTH_SHORT).show();
+            showToast("弹幕已发送");
         });
         
         // 显示对话框
@@ -1918,7 +1963,7 @@ public class VideoEventManager {
                     if (mController != null && mController.getDanmakuController() != null) {
                         mController.getDanmakuController().setDanmakuTextSize(size);
                     }
-                    Toast.makeText(mContext, "弹幕文字大小: " + String.format("%.0f", size) + "sp", Toast.LENGTH_SHORT).show();
+                    showToast("弹幕文字大小: " + String.format("%.0f", size) + "sp");
                 }
             });
         }
@@ -1955,7 +2000,7 @@ public class VideoEventManager {
                     if (mController != null && mController.getDanmakuController() != null) {
                         mController.getDanmakuController().setDanmakuSpeed(speed);
                     }
-                    Toast.makeText(mContext, "弹幕速度: " + String.format("%.1f", speed) + "x", Toast.LENGTH_SHORT).show();
+                    showToast("弹幕速度: " + String.format("%.1f", speed) + "x");
                 }
             });
         }
@@ -1989,7 +2034,7 @@ public class VideoEventManager {
                     if (mController != null && mController.getDanmakuController() != null) {
                         mController.getDanmakuController().setDanmakuAlpha(alpha);
                     }
-                    Toast.makeText(mContext, "弹幕透明度: " + seekBar.getProgress() + "%", Toast.LENGTH_SHORT).show();
+                    showToast("弹幕透明度: " + seekBar.getProgress() + "%");
                 }
             });
         }

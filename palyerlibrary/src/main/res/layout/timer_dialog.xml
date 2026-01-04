@@ -1,100 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#00000000"
-    android:id="@+id/layout">
+    android:background="#00000000">
 
-    <!-- 内容区域 - 右侧对齐 -->
+    <!-- 内容面板 - 右侧居中 -->
     <LinearLayout
+        android:id="@+id/content_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end|center_vertical"
-        android:orientation="vertical"
-        android:gravity="center_horizontal|right"
-        android:id="@+id/content_layout"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
-        android:paddingEnd="48dp">
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="vertical"
-        android:layout_margin="10dp"
-        android:padding="5dp"
+        android:layout_marginEnd="32dp"
+        android:background="@drawable/setup_card_bg"
         android:minWidth="200dp"
-        android:background="@drawable/round"
-        android:clickable="true"
-        android:focusable="true">
-        
-        <LinearLayout
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题 -->
+        <TextView
+            android:id="@+id/title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_margin="5dp"
-            android:gravity="center">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="定时关闭"
-                android:textSize="12dp"
-                android:textColor="#ffffffff"
-                android:id="@+id/title"
-                android:layout_weight="1"/>
-        </LinearLayout>
+            android:layout_marginBottom="12dp"
+            android:text="定时关闭"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
         <!-- 倒计时显示区域 -->
         <LinearLayout
+            android:id="@+id/line1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:orientation="vertical"
-            android:id="@+id/line1"
-            android:visibility="gone"
-            android:gravity="center">
-            
+            android:visibility="gone">
+
             <TextView
+                android:id="@+id/times"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:id="@+id/times"
-                android:minHeight="30dp"
-                android:textColor="#FFFFFF"
-                android:shadowRadius="1"
-                android:shadowDy="1"
-                android:shadowDx="1"
-                android:layout_weight="1"
+                android:layout_marginVertical="16dp"
                 android:text="00:00:00"
-                android:textSize="24sp"
-                android:shadowColor="#FFFFFF"
-                android:gravity="center"
-                android:layout_margin="5dp"/>
-                
+                android:textColor="#FFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+
             <TextView
+                android:id="@+id/cancel"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="50dp"
-                android:text="取消定时"
+                android:layout_height="44dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/setup_option_bg"
                 android:gravity="center"
-                android:textColor="#FF0000"
-                android:id="@+id/cancel"/>
+                android:text="取消定时"
+                android:textColor="#FF6B6B"
+                android:textSize="14sp" />
         </LinearLayout>
 
         <!-- 定时选项列表 -->
         <LinearLayout
+            android:id="@+id/line2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:id="@+id/line2"
-            android:gravity="center">
+            android:gravity="center"
+            android:orientation="vertical">
+
             <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/recycler"/>
+                android:overScrollMode="never" />
         </LinearLayout>
-
-    </LinearLayout>
 
     </LinearLayout>
 </FrameLayout>

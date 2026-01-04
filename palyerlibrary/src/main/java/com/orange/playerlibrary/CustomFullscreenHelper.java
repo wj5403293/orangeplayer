@@ -11,6 +11,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import com.orange.playerlibrary.exo.OrangeExoPlayerManager;
+import com.orange.playerlibrary.player.OrangeSystemPlayerManager;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
 
 /**
@@ -524,7 +525,7 @@ public class CustomFullscreenHelper {
     }
     
     /**
-     * 检查是否使用 SystemPlayerManager
+     * 检查是否使用 SystemPlayerManager 或 OrangeSystemPlayerManager
      */
     private boolean isUsingSystemPlayer() {
         try {
@@ -532,7 +533,9 @@ public class CustomFullscreenHelper {
                 com.shuyu.gsyvideoplayer.GSYVideoManager.instance().getPlayer();
             if (playerManager != null) {
                 String className = playerManager.getClass().getSimpleName();
-                return "SystemPlayerManager".equals(className);
+                return "SystemPlayerManager".equals(className) || 
+                       "OrangeSystemPlayerManager".equals(className) ||
+                       playerManager instanceof OrangeSystemPlayerManager;
             }
         } catch (Exception e) {
         }
@@ -540,8 +543,9 @@ public class CustomFullscreenHelper {
     }
     
     /**
-     * 更新 ExoPlayer 的 SurfaceControl 尺寸
+     * 更新 SurfaceControl 尺寸
      * 解决全屏切换后画面只显示一小块的问题
+     * 支持 ExoPlayer 和系统播放器
      */
     private void updateExoSurfaceControlSize() {
         if (mVideoView == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -553,16 +557,26 @@ public class CustomFullscreenHelper {
             com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
                 GSYVideoManager.instance().getPlayer();
             
+            // 获取当前的 SurfaceView
+            SurfaceView surfaceView = null;
+            if (mVideoView.getRenderProxy() != null && 
+                mVideoView.getRenderProxy().getShowView() instanceof SurfaceView) {
+                surfaceView = (SurfaceView) mVideoView.getRenderProxy().getShowView();
+            }
+            
+            if (surfaceView == null) {
+                return;
+            }
+            
+            // ExoPlayer
             if (playerManager instanceof OrangeExoPlayerManager) {
                 OrangeExoPlayerManager exoManager = (OrangeExoPlayerManager) playerManager;
-                
-                // 获取当前的 SurfaceView
-                if (mVideoView.getRenderProxy() != null && 
-                    mVideoView.getRenderProxy().getShowView() instanceof SurfaceView) {
-                    SurfaceView surfaceView = (SurfaceView) mVideoView.getRenderProxy().getShowView();
-                    // 更新 SurfaceControl 尺寸
-                    exoManager.updateSurfaceControlSize(surfaceView);
-                }
+                exoManager.updateSurfaceControlSize(surfaceView);
+            }
+            // 系统播放器
+            else if (playerManager instanceof OrangeSystemPlayerManager) {
+                OrangeSystemPlayerManager systemManager = (OrangeSystemPlayerManager) playerManager;
+                systemManager.updateSurfaceControlSize(surfaceView);
             }
         } catch (Exception e) {
         }
