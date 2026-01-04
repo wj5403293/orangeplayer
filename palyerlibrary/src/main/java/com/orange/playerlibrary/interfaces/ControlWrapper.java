@@ -120,6 +120,32 @@ public interface ControlWrapper {
     void show();
     
     /**
+     * 控制器是否正在显示
+     * @return true 正在显示
+     */
+    boolean isShowing();
+
+    /**
+     * 停止进度更新
+     */
+    void stopProgress();
+    
+    /**
+     * 开始进度更新
+     */
+    void startProgress();
+    
+    /**
+     * 停止自动隐藏
+     */
+    void stopFadeOut();
+    
+    /**
+     * 开始自动隐藏倒计时
+     */
+    void startFadeOut();
+    
+    /**
      * 是否有刘海屏
      * @return true 有刘海屏
      */
@@ -130,4 +156,28 @@ public interface ControlWrapper {
      * @return 刘海高度
      */
     int getCutoutHeight();
+    
+    /**
+     * 获取视频宽度
+     * @return 视频宽度
+     */
+    int getVideoWidth();
+    
+    /**
+     * 获取视频高度
+     * @return 视频高度
+     */
+    int getVideoHeight();
+    
+    /**
+     * 获取视频URL
+     * @return 视频URL
+     */
+    String getVideoUrl();
+    
+    /**
+     * 获取视频标题
+     * @return 视频标题
+     */
+    String getVideoTitle();
 }

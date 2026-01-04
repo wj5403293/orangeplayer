@@ -471,6 +471,37 @@ public class OrangeStandardVideoController extends FrameLayout {
         return mDefaultTimeout;
     }
 
+    // ==================== 进度和淡出控制 ====================
+
+    /**
+     * 停止进度更新
+     */
+    public void stopProgress() {
+        // 进度更新由播放器内部控制，这里主要用于拖动时暂停更新
+    }
+
+    /**
+     * 开始进度更新
+     */
+    public void startProgress() {
+        // 进度更新由播放器内部控制
+    }
+
+    /**
+     * 停止自动隐藏倒计时
+     */
+    public void stopFadeOut() {
+        removeCallbacks(mFadeOut);
+    }
+
+    /**
+     * 开始自动隐藏倒计时
+     */
+    public void startFadeOut() {
+        removeCallbacks(mFadeOut);
+        postDelayed(mFadeOut, mDefaultTimeout);
+    }
+
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();

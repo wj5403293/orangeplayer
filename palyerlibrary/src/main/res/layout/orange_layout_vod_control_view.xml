@@ -212,7 +212,7 @@
                     android:layout_width="38dp"
                     android:layout_height="38dp"
                     android:padding="8dp"
-                    android:src="@mipmap/danmu_open1"
+                    android:src="@mipmap/danmu_open"
                     android:scaleType="fitCenter"
                     android:visibility="gone"
                     android:contentDescription="@string/orange_play_desc" />

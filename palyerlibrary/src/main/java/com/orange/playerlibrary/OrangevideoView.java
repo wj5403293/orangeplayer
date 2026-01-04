@@ -478,10 +478,55 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
 
             @Override
-            public void hide() {}
+            public void hide() {
+                if (mOrangeController != null) {
+                    mOrangeController.hide();
+                }
+            }
 
             @Override
-            public void show() {}
+            public void show() {
+                if (mOrangeController != null) {
+                    mOrangeController.show();
+                }
+            }
+
+            @Override
+            public boolean isShowing() {
+                return mOrangeController != null && mOrangeController.isShowing();
+            }
+
+            @Override
+            public void stopProgress() {
+                // 停止进度更新 - 由控制器处理
+                if (mOrangeController != null) {
+                    mOrangeController.stopProgress();
+                }
+            }
+
+            @Override
+            public void startProgress() {
+                // 开始进度更新 - 由控制器处理
+                if (mOrangeController != null) {
+                    mOrangeController.startProgress();
+                }
+            }
+
+            @Override
+            public void stopFadeOut() {
+                // 停止自动隐藏 - 由控制器处理
+                if (mOrangeController != null) {
+                    mOrangeController.stopFadeOut();
+                }
+            }
+
+            @Override
+            public void startFadeOut() {
+                // 开始自动隐藏倒计时 - 由控制器处理
+                if (mOrangeController != null) {
+                    mOrangeController.startFadeOut();
+                }
+            }
 
             @Override
             public boolean hasCutout() {
@@ -491,6 +536,27 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public int getCutoutHeight() {
                 return 0;
+            }
+            
+            @Override
+            public int getVideoWidth() {
+                return videoView.getCurrentVideoWidth();
+            }
+            
+            @Override
+            public int getVideoHeight() {
+                return videoView.getCurrentVideoHeight();
+            }
+            
+            @Override
+            public String getVideoUrl() {
+                return videoView.getVideoUrl();
+            }
+            
+            @Override
+            public String getVideoTitle() {
+                // GSY基类使用 mTitle 存储标题
+                return mTitle;
             }
         };
     }
@@ -527,6 +593,27 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         return mControlWrapper;
     }
 
+    // ==================== 重写 setUp 方法以支持预览功能 ====================
+    
+    @Override
+    public boolean setUp(String url, boolean cacheWithPlay, String title) {
+        // 设置视频URL给VodControlView用于预览功能
+        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
+        return super.setUp(url, cacheWithPlay, title);
+    }
+    
+    @Override
+    public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
+        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
+        return super.setUp(url, cacheWithPlay, cachePath, title);
+    }
+    
+    @Override
+    public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
+        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
+        return super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
+    }
+
     public void setUrl(String url) {
         setUrl(url, null);
     }
@@ -534,6 +621,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void setUrl(String url, Map<String, String> headers) {
         this.mVideoUrl = url;
         this.mVideoHeaders = headers;
+        
+        // 设置视频URL给VodControlView用于预览功能
+        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
+        
         if (headers != null) {
             setUp(url, true, null, headers, "");
         } else {

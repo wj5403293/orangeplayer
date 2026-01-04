@@ -2,11 +2,18 @@ package com.orange.playerlibrary.component;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
+import android.view.animation.ScaleAnimation;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -18,6 +25,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.OrangevideoView;
 import com.orange.playerlibrary.PlayerConstants;
@@ -100,6 +112,33 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     private boolean mIsDragging = false;
     private boolean mIsShowBottomProgress = true;
     private static boolean sShowBottomProgress = true;
+    
+    // ===== 进度条拖动预览功能 =====
+    private LinearLayout mPreviewContainer;
+    private FrameLayout mPreviewContent;
+    private ImageView mPreviewImage;
+    private TextView mPreviewTime;
+    private ProgressBar mPreviewProgress;
+    private TextView mPreviewError;
+    
+    private boolean mIsPreviewShowing = false;
+    private boolean mIsLongDrag = false;  // 是否长时间拖动
+    private long mLastPreviewTime = 0;
+    private long mCurrentPreviewPosition = -1;
+    private CustomTarget<Bitmap> mCurrentPreviewTarget;
+    
+    private Handler mPreviewHandler = new Handler(Looper.getMainLooper());
+    private Handler mDelayHandler = new Handler(Looper.getMainLooper());
+    
+    // 预览配置
+    private static boolean sPreviewEnabled = true;  // 是否启用预览
+    private static String sVideoUrl = "";  // 视频URL
+    private static final int PREVIEW_WIDTH = 320;
+    private static final int PREVIEW_HEIGHT = 180;
+    private static final long PREVIEW_DELAY_MS = 400;  // 拖动多久后显示预览
+    private static final long PREVIEW_THROTTLE_MS = 500;  // 预览图加载节流
+    
+    private Runnable mShowPreviewRunnable;
 
     public VodControlView(@NonNull Context context) {
         super(context);
@@ -201,6 +240,33 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (mFullScreenDanmu != null) {
             mFullScreenDanmu.setOnClickListener(this);
         }
+        
+        // 初始化预览视图
+        initPreviewViews();
+    }
+    
+    /**
+     * 初始化预览视图
+     */
+    private void initPreviewViews() {
+        mPreviewContainer = findViewById(R.id.preview_container);
+        mPreviewContent = findViewById(R.id.preview_content);
+        mPreviewImage = findViewById(R.id.preview_image);
+        mPreviewTime = findViewById(R.id.preview_time);
+        mPreviewProgress = findViewById(R.id.preview_progress);
+        mPreviewError = findViewById(R.id.preview_error);
+        
+        if (mPreviewImage != null) {
+            mPreviewImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        }
+        
+        // 初始化延迟显示预览的任务
+        mShowPreviewRunnable = () -> {
+            mIsLongDrag = true;
+            if (sPreviewEnabled && isFullScreen() && mIsDragging) {
+                showPreviewContainer();
+            }
+        };
     }
 
     public void setOrangeVideoController(OrangeVideoController controller) {
@@ -519,20 +585,51 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             if (mCurrTime != null) {
                 mCurrTime.setText(stringForTime((int) position));
             }
+            
+            // 预览功能：仅在全屏模式且长时间拖动时显示
+            if (sPreviewEnabled && isFullScreen() && mIsDragging && mIsLongDrag) {
+                updatePreview(seekBar, progress, position, duration);
+            }
         }
     }
 
     @Override
     public void onStartTrackingTouch(SeekBar seekBar) {
         mIsDragging = true;
+        mIsLongDrag = false;
+        
+        // 延迟显示预览（避免快速点击时显示）
+        if (mDelayHandler != null && mShowPreviewRunnable != null) {
+            mDelayHandler.postDelayed(mShowPreviewRunnable, PREVIEW_DELAY_MS);
+        }
+        
+        if (mControlWrapper != null) {
+            mControlWrapper.stopProgress();
+            mControlWrapper.stopFadeOut();
+        }
     }
 
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
+        // 取消延迟任务
+        if (mDelayHandler != null) {
+            mDelayHandler.removeCallbacks(mShowPreviewRunnable);
+        }
+        cancelPreviewLoad();
+        
+        // 隐藏预览
+        if (mIsLongDrag) {
+            hidePreviewContainer();
+        }
+        mIsLongDrag = false;
+        
+        // 执行 seek
         if (mControlWrapper != null) {
             long duration = mControlWrapper.getDuration();
             long position = duration * seekBar.getProgress() / mVideoProgress.getMax();
             mControlWrapper.seekTo(position);
+            mControlWrapper.startProgress();
+            mControlWrapper.startFadeOut();
         }
         mIsDragging = false;
     }
@@ -663,5 +760,244 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 mDanmuSet.setVisibility(finalEnabled ? VISIBLE : GONE);
             }
         });
+    }
+    
+    // ===== 进度条拖动预览功能方法 =====
+    
+    /**
+     * 设置视频URL（用于预览加载）
+     */
+    public static void setVideoUrl(String url) {
+        sVideoUrl = url;
+        android.util.Log.d(TAG, "setVideoUrl: " + url);
+    }
+    
+    /**
+     * 设置是否启用预览功能
+     */
+    public static void setPreviewEnabled(boolean enabled) {
+        sPreviewEnabled = enabled;
+    }
+    
+    /**
+     * 显示预览容器
+     */
+    private void showPreviewContainer() {
+        if (mPreviewContainer != null) {
+            mPreviewContainer.setVisibility(VISIBLE);
+            mIsPreviewShowing = true;
+        }
+    }
+    
+    /**
+     * 隐藏预览容器
+     */
+    private void hidePreviewContainer() {
+        if (mPreviewContainer != null) {
+            mPreviewContainer.setVisibility(GONE);
+            mIsPreviewShowing = false;
+        }
+    }
+    
+    /**
+     * 更新预览
+     */
+    private void updatePreview(SeekBar seekBar, int progress, long position, long duration) {
+        // 更新预览时间
+        if (mPreviewTime != null) {
+            mPreviewTime.setText(stringForTime((int) position));
+        }
+        
+        // 更新预览位置
+        updatePreviewPosition(seekBar, progress);
+        
+        // 节流加载预览图
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - mLastPreviewTime > PREVIEW_THROTTLE_MS) {
+            cancelPreviewLoad();
+            loadPreviewImage(position);
+            mLastPreviewTime = currentTime;
+        }
+        
+        // 确保预览容器可见
+        if (!mIsPreviewShowing) {
+            showPreviewContainer();
+        }
+    }
+    
+    /**
+     * 更新预览容器位置（跟随拖动位置）
+     */
+    private void updatePreviewPosition(SeekBar seekBar, int progress) {
+        if (mPreviewContainer == null || seekBar == null) return;
+        
+        int seekBarWidth = seekBar.getWidth();
+        int seekBarPaddingLeft = seekBar.getPaddingLeft();
+        int seekBarPaddingRight = seekBar.getPaddingRight();
+        int availableWidth = seekBarWidth - seekBarPaddingLeft - seekBarPaddingRight;
+        
+        // 计算拖动位置
+        int thumbPosition = (int) (availableWidth * (progress / 1000f));
+        
+        // 获取 SeekBar 在父容器中的位置
+        int[] seekBarLocation = new int[2];
+        seekBar.getLocationInWindow(seekBarLocation);
+        
+        int[] containerLocation = new int[2];
+        ((View) mPreviewContainer.getParent()).getLocationInWindow(containerLocation);
+        
+        int thumbCenterX = seekBarLocation[0] - containerLocation[0] + seekBarPaddingLeft + thumbPosition;
+        
+        // 计算预览容器位置
+        int previewWidth = mPreviewContainer.getWidth();
+        if (previewWidth == 0) previewWidth = 340; // 默认宽度
+        
+        int parentWidth = ((View) mPreviewContainer.getParent()).getWidth();
+        int leftPosition = thumbCenterX - previewWidth / 2;
+        
+        // 边界检查
+        if (leftPosition < 0) {
+            leftPosition = 0;
+        } else if (leftPosition + previewWidth > parentWidth) {
+            leftPosition = parentWidth - previewWidth;
+        }
+        
+        // 更新位置
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mPreviewContainer.getLayoutParams();
+        params.leftMargin = leftPosition;
+        mPreviewContainer.setLayoutParams(params);
+    }
+    
+    /**
+     * 加载预览图
+     */
+    private void loadPreviewImage(long timeMs) {
+        android.util.Log.d(TAG, "loadPreviewImage: timeMs=" + timeMs + ", sVideoUrl=" + sVideoUrl);
+        
+        if (TextUtils.isEmpty(sVideoUrl)) {
+            showPreviewError("无法加载预览");
+            android.util.Log.e(TAG, "loadPreviewImage: sVideoUrl is empty!");
+            return;
+        }
+        
+        // 避免重复加载相同位置
+        if (mCurrentPreviewPosition == timeMs) {
+            return;
+        }
+        mCurrentPreviewPosition = timeMs;
+        
+        // 显示加载状态
+        showPreviewLoading();
+        
+        try {
+            Context context = getContext().getApplicationContext();
+            
+            RequestOptions options = new RequestOptions()
+                    .frame(timeMs * 1000)  // 微秒
+                    .override(PREVIEW_WIDTH, PREVIEW_HEIGHT)
+                    .fitCenter()
+                    .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC);
+            
+            mCurrentPreviewTarget = new CustomTarget<Bitmap>(PREVIEW_WIDTH, PREVIEW_HEIGHT) {
+                @Override
+                public void onResourceReady(@NonNull Bitmap resource,
+                        @Nullable Transition<? super Bitmap> transition) {
+                    android.util.Log.d(TAG, "Preview loaded successfully");
+                    if (mPreviewImage != null && mCurrentPreviewPosition == timeMs) {
+                        mPreviewImage.setImageBitmap(resource);
+                        hidePreviewLoading();
+                        animatePreviewChange();
+                    }
+                }
+                
+                @Override
+                public void onLoadCleared(@Nullable Drawable placeholder) {
+                    // 清理资源
+                }
+                
+                @Override
+                public void onLoadFailed(@Nullable Drawable errorDrawable) {
+                    // 加载失败时静默处理，不显示错误
+                    android.util.Log.e(TAG, "Preview load failed for url: " + sVideoUrl);
+                    hidePreviewLoading();
+                }
+            };
+            
+            Glide.with(context)
+                    .asBitmap()
+                    .load(sVideoUrl)
+                    .apply(options)
+                    .into(mCurrentPreviewTarget);
+                    
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "loadPreviewImage exception: " + e.getMessage());
+            showPreviewError("预览加载失败");
+        }
+    }
+    
+    /**
+     * 取消预览加载
+     */
+    private void cancelPreviewLoad() {
+        if (mCurrentPreviewTarget != null) {
+            try {
+                Glide.with(getContext()).clear(mCurrentPreviewTarget);
+            } catch (Exception ignored) {
+            }
+            mCurrentPreviewTarget = null;
+        }
+    }
+    
+    /**
+     * 显示预览加载状态
+     */
+    private void showPreviewLoading() {
+        if (mPreviewProgress != null) {
+            mPreviewProgress.setVisibility(VISIBLE);
+        }
+        if (mPreviewError != null) {
+            mPreviewError.setVisibility(GONE);
+        }
+    }
+    
+    /**
+     * 隐藏预览加载状态
+     */
+    private void hidePreviewLoading() {
+        if (mPreviewProgress != null) {
+            mPreviewProgress.setVisibility(GONE);
+        }
+    }
+    
+    /**
+     * 显示预览错误
+     */
+    private void showPreviewError(String message) {
+        hidePreviewLoading();
+        if (mPreviewError != null) {
+            mPreviewError.setText(message);
+            mPreviewError.setVisibility(VISIBLE);
+        }
+    }
+    
+    /**
+     * 预览图切换动画
+     */
+    private void animatePreviewChange() {
+        if (mPreviewContainer == null) return;
+        
+        AnimationSet animationSet = new AnimationSet(true);
+        animationSet.setDuration(150);
+        
+        AlphaAnimation fadeIn = new AlphaAnimation(0.7f, 1.0f);
+        ScaleAnimation scale = new ScaleAnimation(
+                0.97f, 1.0f, 0.97f, 1.0f,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f);
+        
+        animationSet.addAnimation(fadeIn);
+        animationSet.addAnimation(scale);
+        
+        mPreviewContainer.startAnimation(animationSet);
     }
 }
