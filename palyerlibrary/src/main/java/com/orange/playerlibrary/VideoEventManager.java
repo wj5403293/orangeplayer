@@ -413,13 +413,20 @@ public class VideoEventManager {
         // 检查核心是否可用
         boolean isAliPlayerAvailable = isClassPresent("com.aliyun.player.AliPlayer");
         boolean isIjkPlayerAvailable = isClassPresent("tv.danmaku.ijk.media.player.IjkMediaPlayer");
-        boolean isExoPlayerAvailable = isClassPresent("com.google.android.exoplayer2.ExoPlayer") ||
-                                       isClassPresent("com.google.android.exoplayer2.Player");
+        // ExoPlayer 检测：GSY 11.x 使用 Media3，也检测旧版 ExoPlayer2
+        boolean isExoPlayerAvailable = isClassPresent("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager") ||
+                                       isClassPresent("com.google.android.exoplayer2.ExoPlayer") ||
+                                       isClassPresent("com.google.android.exoplayer2.Player") ||
+                                       isClassPresent("androidx.media3.exoplayer.ExoPlayer");
         
-        // 设置可见性
+        android.util.Log.d("VideoEventManager", "setupEngineButtons: ALI=" + isAliPlayerAvailable 
+            + ", IJK=" + isIjkPlayerAvailable + ", EXO=" + isExoPlayerAvailable);
+        
+        // 设置可见性（屏蔽系统核心按钮）
         if (aliBtn != null) aliBtn.setVisibility(isAliPlayerAvailable ? View.VISIBLE : View.GONE);
         if (ijkBtn != null) ijkBtn.setVisibility(isIjkPlayerAvailable ? View.VISIBLE : View.GONE);
         if (exoBtn != null) exoBtn.setVisibility(isExoPlayerAvailable ? View.VISIBLE : View.GONE);
+        if (systemBtn != null) systemBtn.setVisibility(View.GONE); // 屏蔽系统核心按钮
         
         // 获取当前引擎
         String currentEngine = mSettingsManager.getPlayerEngine();
@@ -437,10 +444,7 @@ public class VideoEventManager {
             ijkBtn.setTextColor(PlayerConstants.ENGINE_IJK.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
             ijkBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_IJK));
         }
-        if (systemBtn != null) {
-            systemBtn.setTextColor(PlayerConstants.ENGINE_DEFAULT.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
-            systemBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_DEFAULT));
-        }
+        // 系统核心按钮已屏蔽，不再设置点击事件
     }
     
     /**
@@ -448,7 +452,7 @@ public class VideoEventManager {
      */
     private void selectEngine(String engine) {
         String oldEngine = mSettingsManager.getPlayerEngine();
-        android.util.Log.d("VideoEventManager", "selectEngine: 切换播放核心 from " + oldEngine + " to " + engine);
+        android.util.Log.d(TAG, "selectEngine: 切换播放核心 from " + oldEngine + " to " + engine);
         
         // 保存播放核心设置
         mSettingsManager.setPlayerEngine(engine);
@@ -458,10 +462,40 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
-        // 提示用户需要重启应用
+        // 即时切换播放核心
+        if (mVideoView != null) {
+            // 记录当前播放位置和URL
+            long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+            String currentUrl = mVideoView.getUrl();
+            boolean wasPlaying = mVideoView.isPlaying();
+            
+            android.util.Log.d(TAG, "selectEngine: currentUrl=" + currentUrl 
+                + ", position=" + currentPosition + ", wasPlaying=" + wasPlaying);
+            
+            // 1. 先完全释放旧播放器（关键！）
+            mVideoView.release();
+            com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+            
+            // 2. 切换播放器工厂
+            mVideoView.selectPlayerFactory(engine);
+            android.util.Log.d(TAG, "selectEngine: PlayerFactory 已切换为 " + engine);
+            
+            // 3. 如果有正在播放的视频，重新加载
+            if (currentUrl != null && !currentUrl.isEmpty()) {
+                mVideoView.setUp(currentUrl, false, "");
+                if (currentPosition > 0) {
+                    mVideoView.setSeekOnStart(currentPosition);
+                }
+                if (wasPlaying) {
+                    mVideoView.startPlayLogic();
+                }
+            }
+        }
+        
+        // 提示用户
         android.widget.Toast.makeText(mVideoView.getContext(), 
-            "播放核心已切换为 " + getEngineName(engine) + "\n请重启应用后生效", 
-            android.widget.Toast.LENGTH_LONG).show();
+            "播放核心已切换为 " + getEngineName(engine), 
+            android.widget.Toast.LENGTH_SHORT).show();
     }
     
     /**

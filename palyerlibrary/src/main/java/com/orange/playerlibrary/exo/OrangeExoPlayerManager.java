@@ -1,0 +1,468 @@
+package com.orange.playerlibrary.exo;
+
+import android.content.Context;
+import android.media.AudioManager;
+import android.net.TrafficStats;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Message;
+import android.view.Surface;
+import android.view.SurfaceControl;
+import android.view.SurfaceView;
+
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.media3.exoplayer.SeekParameters;
+import androidx.media3.exoplayer.video.PlaceholderSurface;
+
+import com.shuyu.gsyvideoplayer.cache.ICacheManager;
+import com.shuyu.gsyvideoplayer.model.GSYModel;
+import com.shuyu.gsyvideoplayer.model.VideoOptionModel;
+import com.shuyu.gsyvideoplayer.player.BasePlayerManager;
+
+import java.util.List;
+
+import tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer;
+import tv.danmaku.ijk.media.player.IMediaPlayer;
+
+/**
+ * 自定义 ExoPlayer 管理器
+ * 
+ * 核心改进：使用 SurfaceControl.reparent() 实现无缝 Surface 切换
+ * 解决横竖屏切换时 MediaCodec IllegalStateException 问题
+ * 
+ * 参考 GSY 官方 app 中的 GSYExoPlayerManager 实现
+ */
+public class OrangeExoPlayerManager extends BasePlayerManager {
+
+    private static final String TAG = "OrangeExoPlayerManager";
+    private static final String SURFACE_CONTROL_NAME = "OrangeExoSurface";
+
+    private Context context;
+    private IjkExo2MediaPlayer mediaPlayer;
+    private Surface surface;
+    private PlaceholderSurface dummySurface;
+
+    // SurfaceControl 相关 (Android Q+)
+    private SurfaceControl surfaceControl;
+    private Surface videoSurface;
+    private boolean useSurfaceControl = false;
+
+    private long lastTotalRxBytes = 0;
+    private long lastTimeStamp = 0;
+
+    @Override
+    public IMediaPlayer getMediaPlayer() {
+        return mediaPlayer;
+    }
+
+    @Override
+    public void initVideoPlayer(Context context, Message msg, List<VideoOptionModel> optionModelList, ICacheManager cacheManager) {
+        this.context = context.getApplicationContext();
+        mediaPlayer = new IjkExo2MediaPlayer(context);
+        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        
+        // 创建 PlaceholderSurface
+        if (dummySurface == null) {
+            dummySurface = PlaceholderSurface.newInstanceV17(context, false);
+        }
+        
+        // Android Q+ 使用 SurfaceControl 实现无缝切换
+        // 注意：这里只创建 SurfaceControl，不设置 Surface
+        // Surface 会在 showDisplay 中通过 reparent 设置
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            initSurfaceControl();
+            // 关键：设置 videoSurface 给 mediaPlayer
+            // GSY 官方也是这样做的
+            if (useSurfaceControl && videoSurface != null) {
+                mediaPlayer.setSurface(videoSurface);
+                android.util.Log.d(TAG, "initVideoPlayer: 设置 videoSurface");
+            }
+        }
+        
+        GSYModel gsyModel = (GSYModel) msg.obj;
+        try {
+            mediaPlayer.setLooping(gsyModel.isLooping());
+            mediaPlayer.setPreview(gsyModel.getMapHeadData() != null && gsyModel.getMapHeadData().size() > 0);
+            
+            if (gsyModel.isCache() && cacheManager != null) {
+                cacheManager.doCacheLogic(context, mediaPlayer, gsyModel.getUrl(), gsyModel.getMapHeadData(), gsyModel.getCachePath());
+            } else {
+                mediaPlayer.setCache(gsyModel.isCache());
+                mediaPlayer.setCacheDir(gsyModel.getCachePath());
+                mediaPlayer.setOverrideExtension(gsyModel.getOverrideExtension());
+                mediaPlayer.setDataSource(context, Uri.parse(gsyModel.getUrl()), gsyModel.getMapHeadData());
+            }
+            
+            if (gsyModel.getSpeed() != 1 && gsyModel.getSpeed() > 0) {
+                mediaPlayer.setSpeed(gsyModel.getSpeed(), 1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();;
+        }
+        initSuccess(gsyModel);
+    }
+
+    /**
+     * 初始化 SurfaceControl (Android Q+)
+     */
+    /**
+     * 初始化 SurfaceControl (Android Q+)
+     * 不设置 BufferSize，让 ExoPlayer 自己决定渲染尺寸
+     */
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void initSurfaceControl() {
+        try {
+            surfaceControl = new SurfaceControl.Builder()
+                .setName(SURFACE_CONTROL_NAME)
+                .build();
+            videoSurface = new Surface(surfaceControl);
+            useSurfaceControl = true;
+            android.util.Log.d(TAG, "initSurfaceControl: 成功");
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "initSurfaceControl 失败: " + e.getMessage());
+            useSurfaceControl = false;
+        }
+    }
+
+    /**
+     * 显示 Surface - 核心方法
+     * 
+     * Android Q+ 使用 SurfaceControl.reparent() 实现无缝切换
+     * 低版本使用传统方式
+     */
+    @Override
+    public void showDisplay(final Message msg) {
+        if (mediaPlayer == null) {
+            return;
+        }
+        
+        if (msg.obj == null) {
+            // Surface 为 null，使用 dummySurface
+            if (useSurfaceControl && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                reparentSurface(null);
+            }
+            mediaPlayer.setSurface(dummySurface);
+        } else {
+            // 检查是否是 SurfaceView (Android Q+ 使用 reparent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && msg.obj instanceof SurfaceView) {
+                reparentSurface((SurfaceView) msg.obj);
+            } else if (msg.obj instanceof Surface) {
+                // 传统方式：直接设置 Surface
+                Surface holder = (Surface) msg.obj;
+                surface = holder;
+                mediaPlayer.setSurface(holder);
+            } else {
+            }
+        }
+    }
+    
+    /**
+     * 使用 SurfaceControl.reparent 切换 Surface (Android Q+)
+     * 
+     * 这是解决 ExoPlayer 横竖屏切换问题的关键方法
+     * 通过 reparent 将视频画面从一个 SurfaceView 转移到另一个
+     * 而不是重新设置 Surface，避免 MediaCodec 被释放
+     */
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void reparentSurface(@Nullable SurfaceView surfaceView) {
+        android.util.Log.d(TAG, "reparentSurface: surfaceView=" + surfaceView);
+        
+        if (surfaceControl == null || !useSurfaceControl) {
+            // 回退到传统方式
+            if (surfaceView != null && mediaPlayer != null) {
+                android.util.Log.d(TAG, "reparentSurface: 回退到传统 setSurface");
+                mediaPlayer.setSurface(surfaceView.getHolder().getSurface());
+            }
+            return;
+        }
+        
+        try {
+            if (surfaceView == null) {
+                // reparent 到空，隐藏视频
+                new SurfaceControl.Transaction()
+                    .reparent(surfaceControl, null)
+                    .setVisibility(surfaceControl, false)
+                    .apply();
+                android.util.Log.d(TAG, "reparentSurface: reparent to null");
+            } else {
+                // reparent 到新的 SurfaceView
+                SurfaceControl newParentSurfaceControl = surfaceView.getSurfaceControl();
+                int width = surfaceView.getWidth();
+                int height = surfaceView.getHeight();
+                android.util.Log.d(TAG, "reparentSurface: SurfaceView size=" + width + "x" + height);
+                
+                if (newParentSurfaceControl != null && newParentSurfaceControl.isValid()) {
+                    // 设置 SurfaceControl 填充整个父 SurfaceView
+                    // 使用 setGeometry 来正确缩放和定位
+                    android.graphics.Rect sourceRect = new android.graphics.Rect(0, 0, width, height);
+                    android.graphics.Rect destRect = new android.graphics.Rect(0, 0, width, height);
+                    
+                    SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()
+                        .reparent(surfaceControl, newParentSurfaceControl)
+                        .setVisibility(surfaceControl, true);
+                    
+                    // 使用 setGeometry 设置源和目标矩形，确保视频填充整个区域
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        // Android 12+ 使用 setCrop
+                        transaction.setCrop(surfaceControl, destRect);
+                    }
+                    
+                    // 设置位置为 (0,0)，确保从左上角开始
+                    transaction.setPosition(surfaceControl, 0, 0);
+                    
+                    // 设置 BufferSize 为 SurfaceView 的尺寸
+                    if (width > 0 && height > 0) {
+                        transaction.setBufferSize(surfaceControl, width, height);
+                    }
+                    
+                    transaction.apply();
+                    android.util.Log.d(TAG, "reparentSurface: 成功, size=" + width + "x" + height);
+                } else {
+                    android.util.Log.w(TAG, "reparentSurface: newParent 无效, 回退");
+                    if (mediaPlayer != null) {
+                        mediaPlayer.setSurface(surfaceView.getHolder().getSurface());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "reparentSurface 异常: " + e.getMessage());
+            if (surfaceView != null && mediaPlayer != null) {
+                try {
+                    mediaPlayer.setSurface(surfaceView.getHolder().getSurface());
+                } catch (Exception ex) {
+                }
+            }
+        }
+    }
+    
+    /**
+     * 更新 SurfaceControl 的 BufferSize
+     */
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void updateSurfaceControlSize(int width, int height) {
+        if (surfaceControl == null || !useSurfaceControl || width <= 0 || height <= 0) {
+            return;
+        }
+        try {
+            new SurfaceControl.Transaction()
+                .setBufferSize(surfaceControl, width, height)
+                .apply();
+            android.util.Log.d(TAG, "updateSurfaceControlSize: " + width + "x" + height);
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "updateSurfaceControlSize 异常: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 提供给外部调用的 Surface 切换方法
+     * 用于 OrangevideoView 中的 setDisplay 重写
+     */
+    public void setDisplayNew(Object holder) {
+        Message msg = new Message();
+        msg.obj = holder;
+        showDisplay(msg);
+    }
+
+    @Override
+    public void setSpeed(final float speed, final boolean soundTouch) {
+        if (mediaPlayer != null) {
+            try {
+                mediaPlayer.setSpeed(speed, 1);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void setNeedMute(final boolean needMute) {
+        if (mediaPlayer != null) {
+            if (needMute) {
+                mediaPlayer.setVolume(0, 0);
+            } else {
+                mediaPlayer.setVolume(1, 1);
+            }
+        }
+    }
+
+    @Override
+    public void setVolume(float left, float right) {
+        if (mediaPlayer != null) {
+            mediaPlayer.setVolume(left, right);
+        }
+    }
+
+    @Override
+    public void releaseSurface() {
+        if (surface != null) {
+            surface = null;
+        }
+    }
+
+    @Override
+    public void release() {
+        if (mediaPlayer != null) {
+            mediaPlayer.setSurface(null);
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+        if (dummySurface != null) {
+            dummySurface.release();
+            dummySurface = null;
+        }
+        // 释放 SurfaceControl
+        if (videoSurface != null) {
+            videoSurface.release();
+            videoSurface = null;
+        }
+        if (surfaceControl != null) {
+            surfaceControl.release();
+            surfaceControl = null;
+        }
+        useSurfaceControl = false;
+        lastTotalRxBytes = 0;
+        lastTimeStamp = 0;
+    }
+
+    @Override
+    public int getBufferedPercentage() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getBufferedPercentage();
+        }
+        return 0;
+    }
+
+    @Override
+    public long getNetSpeed() {
+        if (mediaPlayer != null) {
+            return getNetSpeed(context);
+        }
+        return 0;
+    }
+
+    @Override
+    public void setSpeedPlaying(float speed, boolean soundTouch) {
+    }
+
+    @Override
+    public void start() {
+        if (mediaPlayer != null) {
+            mediaPlayer.start();
+        }
+    }
+
+    @Override
+    public void stop() {
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+        }
+    }
+
+    @Override
+    public void pause() {
+        if (mediaPlayer != null) {
+            mediaPlayer.pause();
+        }
+    }
+
+    @Override
+    public int getVideoWidth() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getVideoWidth();
+        }
+        return 0;
+    }
+
+    @Override
+    public int getVideoHeight() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getVideoHeight();
+        }
+        return 0;
+    }
+
+    @Override
+    public boolean isPlaying() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.isPlaying();
+        }
+        return false;
+    }
+
+    @Override
+    public void seekTo(long time) {
+        if (mediaPlayer != null) {
+            mediaPlayer.seekTo(time);
+        }
+    }
+
+    @Override
+    public long getCurrentPosition() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getCurrentPosition();
+        }
+        return 0;
+    }
+
+    @Override
+    public long getDuration() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getDuration();
+        }
+        return 0;
+    }
+
+    @Override
+    public int getVideoSarNum() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getVideoSarNum();
+        }
+        return 1;
+    }
+
+    @Override
+    public int getVideoSarDen() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getVideoSarDen();
+        }
+        return 1;
+    }
+
+    @Override
+    public boolean isSurfaceSupportLockCanvas() {
+        return false;
+    }
+
+    /**
+     * 设置 seek 的临近帧
+     */
+    public void setSeekParameter(@Nullable SeekParameters seekParameters) {
+        if (mediaPlayer != null) {
+            mediaPlayer.setSeekParameter(seekParameters);
+        }
+    }
+
+    private long getNetSpeed(Context context) {
+        if (context == null) {
+            return 0;
+        }
+        long nowTotalRxBytes = TrafficStats.getUidRxBytes(context.getApplicationInfo().uid) == TrafficStats.UNSUPPORTED ? 0 : (TrafficStats.getTotalRxBytes() / 1024);
+        long nowTimeStamp = System.currentTimeMillis();
+        long calculationTime = (nowTimeStamp - lastTimeStamp);
+        if (calculationTime == 0) {
+            return calculationTime;
+        }
+        long speed = ((nowTotalRxBytes - lastTotalRxBytes) * 1000 / calculationTime);
+        lastTimeStamp = nowTimeStamp;
+        lastTotalRxBytes = nowTotalRxBytes;
+        return speed;
+    }
+    
+    /**
+     * 是否使用 SurfaceControl 模式
+     */
+    public boolean isUseSurfaceControl() {
+        return useSurfaceControl;
+    }
+}

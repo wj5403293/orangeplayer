@@ -18,6 +18,9 @@ dependencyResolutionManagement {
         mavenCentral()
         // GSYVideoPlayer jitpack 备用仓库
         maven { url 'https://jitpack.io' }
+        // 阿里云播放器 SDK 仓库
+        maven { url 'https://maven.aliyun.com/repository/releases' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
     }
 }
 

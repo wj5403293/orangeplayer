@@ -91,7 +91,6 @@ public class CustomFullscreenHelper {
         
         // SystemPlayerManager: 先暂停播放，避免 Surface 切换时出错
         if (isSystemPlayer && wasPlaying) {
-            android.util.Log.d(TAG, "startFullScreen: SystemPlayerManager 检测到，先暂停播放");
             mVideoView.pause();
             mPendingSeekPosition = currentPosition;
             mPendingResume = true;
@@ -155,7 +154,6 @@ public class CustomFullscreenHelper {
                         
                         // SystemPlayerManager: 恢复播放
                         if (isSystemPlayer && mPendingResume) {
-                            android.util.Log.d(TAG, "startFullScreen: SystemPlayerManager 恢复播放, position=" + mPendingSeekPosition);
                             if (mPendingSeekPosition > 0) {
                                 mVideoView.seekTo(mPendingSeekPosition);
                             }
@@ -208,7 +206,6 @@ public class CustomFullscreenHelper {
         
         // SystemPlayerManager: 先暂停播放，避免 Surface 切换时出错
         if (isSystemPlayer && wasPlaying) {
-            android.util.Log.d(TAG, "stopFullScreen: SystemPlayerManager 检测到，先暂停播放");
             mVideoView.pause();
             mPendingSeekPosition = currentPosition;
             mPendingResume = true;
@@ -260,7 +257,6 @@ public class CustomFullscreenHelper {
                         
                         // SystemPlayerManager: 恢复播放
                         if (isSystemPlayer && mPendingResume) {
-                            android.util.Log.d(TAG, "stopFullScreen: SystemPlayerManager 恢复播放, position=" + mPendingSeekPosition);
                             if (mPendingSeekPosition > 0) {
                                 mVideoView.seekTo(mPendingSeekPosition);
                             }
@@ -475,7 +471,6 @@ public class CustomFullscreenHelper {
                 return "SystemPlayerManager".equals(className);
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "isUsingSystemPlayer: 检查失败", e);
         }
         return false;
     }

@@ -48,7 +48,7 @@ public class PlayerSettingsManager {
     }
     
     public String getPlayerEngine() {
-        return mPreferences.getString(KEY_PLAYER_ENGINE, PlayerConstants.ENGINE_DEFAULT);
+        return mPreferences.getString(KEY_PLAYER_ENGINE, PlayerConstants.ENGINE_IJK);
     }
     
     // ===== 长按倍速设置 =====

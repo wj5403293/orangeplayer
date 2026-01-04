@@ -2,8 +2,12 @@ package com.orange.playerlibrary;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Build;
+import android.os.Message;
 import android.util.AttributeSet;
 import android.view.Surface;
+import android.view.SurfaceControl;
+import android.view.SurfaceView;
 
 import com.orange.playerlibrary.interfaces.OnPlayCompleteListener;
 import com.orange.playerlibrary.interfaces.OnProgressListener;
@@ -24,6 +28,7 @@ import java.util.Map;
 public class OrangevideoView extends GSYBaseVideoPlayer {
 
     private static final String TAG = "OrangevideoView";
+    private static final String SURFACE_CONTROL_NAME = "OrangeExoSurface";
     
     public static final int STATE_STARTSNIFFING = PlayerConstants.STATE_STARTSNIFFING;
     public static final int STATE_ENDSNIFFING = PlayerConstants.STATE_ENDSNIFFING;
@@ -47,6 +52,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private ComponentStateManager mComponentStateManager;
     private ErrorRecoveryManager mErrorRecoveryManager;
     private CustomFullscreenHelper mFullscreenHelper;
+    
+    // ExoPlayer Surface 切换相关 (Android Q+)
+    private SurfaceControl mExoSurfaceControl;
+    private Surface mExoVideoSurface;
+    private boolean mUseExoSurfaceControl = false;
     
     private com.orange.playerlibrary.interfaces.ControlWrapper mControlWrapper;
     private OrangeVideoController mOrangeController;
@@ -240,38 +250,44 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
         String engine = settingsManager.getPlayerEngine();
-        
-        android.util.Log.d(TAG, "initPlayerFactory: 初始化播放核心=" + engine);
-        
         // 根据设置切换播放器核心
         switch (engine) {
             case PlayerConstants.ENGINE_IJK:
                 PlayerFactory.setPlayManager(IjkPlayerManager.class);
-                android.util.Log.d(TAG, "initPlayerFactory: 已设置 IJK 播放核心");
                 break;
                 
             case PlayerConstants.ENGINE_EXO:
+                // 使用自定义的 OrangeExoPlayerManager，支持 SurfaceControl 无缝切换
+                // 解决横竖屏切换时 MediaCodec IllegalStateException 问题
                 try {
-                    @SuppressWarnings("unchecked")
-                    Class<? extends IPlayerManager> exoClass = 
-                        (Class<? extends IPlayerManager>) Class.forName("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager");
-                    PlayerFactory.setPlayManager(exoClass);
-                    android.util.Log.d(TAG, "initPlayerFactory: 已设置 EXO 播放核心");
-                } catch (ClassNotFoundException e) {
-                    android.util.Log.w(TAG, "initPlayerFactory: EXO 播放核心不可用，回退到 IJK");
-                    PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
+                    // ExoPlayer 需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
+                    // 设置渲染类型为 SurfaceView (Android Q+)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                    }
+                } catch (Exception e) {
+                    // 回退到 GSY 原生 Exo2PlayerManager
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Class<? extends IPlayerManager> exoClass = 
+                            (Class<? extends IPlayerManager>) Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
+                        PlayerFactory.setPlayManager(exoClass);
+                    } catch (ClassNotFoundException ex) {
+                        PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    }
                 }
                 break;
                 
             case PlayerConstants.ENGINE_ALI:
+                // GSY AliPlayer 类名: com.shuyu.aliplay.AliPlayerManager
                 try {
                     @SuppressWarnings("unchecked")
                     Class<? extends IPlayerManager> aliClass = 
-                        (Class<? extends IPlayerManager>) Class.forName("com.shuyu.gsyvideoplayer.player.AliPlayerManager");
+                        (Class<? extends IPlayerManager>) Class.forName("com.shuyu.aliplay.AliPlayerManager");
                     PlayerFactory.setPlayManager(aliClass);
-                    android.util.Log.d(TAG, "initPlayerFactory: 已设置 ALI 播放核心");
                 } catch (ClassNotFoundException e) {
-                    android.util.Log.w(TAG, "initPlayerFactory: ALI 播放核心不可用，回退到 IJK");
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
                 }
                 break;
@@ -279,7 +295,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             case PlayerConstants.ENGINE_DEFAULT:
             default:
                 PlayerFactory.setPlayManager(SystemPlayerManager.class);
-                android.util.Log.d(TAG, "initPlayerFactory: 已设置 System 播放核心");
                 break;
         }
         
@@ -539,7 +554,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void start() {
-        android.util.Log.d(TAG, "start: 开始播放");
         mIsSniffing = false;
         mIsLiveVideo = false;
         if (mSkipManager != null) {
@@ -605,32 +619,160 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     /**
      * 重写 setDisplay - 关键方法
      * 
-     * 在全屏切换时，跳过 setDisplay(null)，避免播放器重置
-     * 
-     * 注意：SystemPlayerManager 在全屏切换时会先暂停播放，
-     * 所以这里不需要特殊处理 Surface 切换
+     * ExoPlayer 全屏切换问题解决方案：
+     * 使用 SurfaceControl.reparent() (Android Q+) 来无缝切换 Surface，
+     * 避免 MediaCodec 在 Surface 切换时被释放导致的 IllegalStateException
      */
     @Override
     protected void setDisplay(Surface surface) {
-        // 在全屏切换时跳过 setDisplay(null)
+        // 检查是否使用 ExoPlayer
+        String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+        boolean isExoPlayer = PlayerConstants.ENGINE_EXO.equals(currentEngine);
+        
+        if (isExoPlayer && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // ExoPlayer 使用 SurfaceControl.reparent 方式处理 Surface 切换
+            setDisplayForExo(surface);
+            return;
+        }
+        
+        // 非 ExoPlayer 或低版本 Android，使用原有逻辑
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
             if (surface != null) {
                 super.setDisplay(surface);
-            } else {
-                // 跳过 setDisplay(null)，保持播放状态
             }
+            // 跳过 setDisplay(null)，保持播放状态
             return;
         }
         super.setDisplay(surface);
     }
     
     /**
+     * ExoPlayer 专用的 Surface 切换方法
+     * 使用 OrangeExoPlayerManager 的 setDisplayNew 方法实现无缝切换
+     */
+    @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.Q)
+    private void setDisplayForExo(Surface surface) {
+        // 获取当前的 PlayerManager
+        com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = GSYVideoManager.instance().getPlayer();
+        
+        // 检查是否是 OrangeExoPlayerManager
+        if (playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
+            com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
+                (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
+            
+            if (surface != null && mTextureView != null && mTextureView.getShowView() instanceof SurfaceView) {
+                // 使用 SurfaceView 进行 reparent
+                SurfaceView surfaceView = (SurfaceView) mTextureView.getShowView();
+                exoManager.setDisplayNew(surfaceView);
+            } else if (surface != null) {
+                // 非 SurfaceView，使用普通方式
+                exoManager.setDisplayNew(surface);
+            } else {
+                // surface 为 null
+                exoManager.setDisplayNew(null);
+            }
+        } else {
+            // 不是 OrangeExoPlayerManager，回退到原有逻辑
+            reparentExoSurface(surface != null && mTextureView != null && mTextureView.getShowView() instanceof SurfaceView 
+                ? (SurfaceView) mTextureView.getShowView() : null);
+        }
+    }
+    
+    /**
+     * 使用 SurfaceControl.reparent 切换 Surface
+     * 这是 GSY 官方 ExoPlayer 示例的核心方法
+     */
+    @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.Q)
+    private void reparentExoSurface(SurfaceView surfaceView) {
+        // 确保 SurfaceControl 已初始化
+        if (mExoSurfaceControl == null) {
+            // 如果 SurfaceControl 未初始化，回退到普通方式
+            if (surfaceView != null) {
+                super.setDisplay(surfaceView.getHolder().getSurface());
+            }
+            return;
+        }
+        
+        try {
+            if (surfaceView == null) {
+                // reparent 到空，隐藏视频
+                new SurfaceControl.Transaction()
+                    .reparent(mExoSurfaceControl, null)
+                    .setBufferSize(mExoSurfaceControl, 0, 0)
+                    .setVisibility(mExoSurfaceControl, false)
+                    .apply();
+            } else {
+                // reparent 到新的 SurfaceView
+                SurfaceControl newParentSurfaceControl = surfaceView.getSurfaceControl();
+                if (newParentSurfaceControl != null && newParentSurfaceControl.isValid()) {
+                    new SurfaceControl.Transaction()
+                        .reparent(mExoSurfaceControl, newParentSurfaceControl)
+                        .setBufferSize(mExoSurfaceControl, surfaceView.getWidth(), surfaceView.getHeight())
+                        .setVisibility(mExoSurfaceControl, true)
+                        .apply();
+                } else {
+                    // SurfaceControl 无效，回退到普通方式
+                    super.setDisplay(surfaceView.getHolder().getSurface());
+                }
+            }
+        } catch (Exception e) {
+            // 出错时回退到普通方式
+            if (surfaceView != null) {
+                super.setDisplay(surfaceView.getHolder().getSurface());
+            }
+        }
+    }
+    
+    /**
+     * 初始化 ExoPlayer 的 SurfaceControl
+     * 在播放开始时调用
+     */
+    @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.Q)
+    private void initExoSurfaceControl() {
+        if (mExoSurfaceControl != null) {
+            return; // 已初始化
+        }
+        
+        try {
+            mExoSurfaceControl = new SurfaceControl.Builder()
+                .setName(SURFACE_CONTROL_NAME)
+                .setBufferSize(0, 0)
+                .build();
+            mExoVideoSurface = new Surface(mExoSurfaceControl);
+            mUseExoSurfaceControl = true;
+        } catch (Exception e) {
+            mUseExoSurfaceControl = false;
+        }
+    }
+    
+    /**
+     * 释放 ExoPlayer 的 SurfaceControl
+     */
+    private void releaseExoSurfaceControl() {
+        if (mExoVideoSurface != null) {
+            mExoVideoSurface.release();
+            mExoVideoSurface = null;
+        }
+        if (mExoSurfaceControl != null) {
+            mExoSurfaceControl.release();
+            mExoSurfaceControl = null;
+        }
+        mUseExoSurfaceControl = false;
+    }
+    
+    /**
      * 重写 releaseSurface - 关键方法
      * 
      * 在全屏切换时跳过 Surface 释放
+     * ExoPlayer 使用 SurfaceControl 时不需要释放 Surface
      */
     @Override
     protected void releaseSurface(Surface surface) {
+        // ExoPlayer 使用 SurfaceControl 时，不释放 Surface
+        if (mUseExoSurfaceControl) {
+            return;
+        }
+        
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
             return;
         }
@@ -717,6 +859,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mErrorRecoveryManager != null) {
             mErrorRecoveryManager.detachVideoView();
         }
+        // 释放 ExoPlayer 的 SurfaceControl
+        releaseExoSurfaceControl();
         super.release();
         setOrangePlayState(PlayerConstants.STATE_IDLE);
         GSYVideoManager.releaseAllVideos();
@@ -822,42 +966,53 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @SuppressWarnings("unchecked")
     public void selectPlayerFactory(String engineType) {
-        android.util.Log.d(TAG, "selectPlayerFactory: 请求切换到播放核心=" + engineType);
         if (engineType == null) {
             engineType = PlayerConstants.ENGINE_DEFAULT;
         }
+        // 1. 先释放当前播放器
+        GSYVideoManager.releaseAllVideos();
         
+        // 2. 设置新的播放器工厂
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
                 PlayerFactory.setPlayManager(IjkPlayerManager.class);
-                android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 IJK 播放核心");
                 break;
             case PlayerConstants.ENGINE_EXO:
+                // 使用自定义的 OrangeExoPlayerManager，支持 SurfaceControl 无缝切换
                 try {
-                    Class<?> exoClass = Class.forName("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager");
-                    PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) exoClass);
-                    android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 EXO 播放核心");
-                } catch (ClassNotFoundException e) {
-                    PlayerFactory.setPlayManager(IjkPlayerManager.class);
-                    android.util.Log.w(TAG, "selectPlayerFactory: EXO 播放核心不可用，回退到 IJK");
+                    PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
+                    // ExoPlayer 需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                    }
+                } catch (Exception e) {
+                    // 回退到 GSY 原生 Exo2PlayerManager
+                    try {
+                        Class<?> exoClass = Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
+                        PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) exoClass);
+                    } catch (ClassNotFoundException ex) {
+                        PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    }
                 }
                 break;
             case PlayerConstants.ENGINE_ALI:
+                // GSY AliPlayer 类名: com.shuyu.aliplay.AliPlayerManager
                 try {
-                    Class<?> aliClass = Class.forName("com.shuyu.gsyvideoplayer.player.AliPlayerManager");
+                    Class<?> aliClass = Class.forName("com.shuyu.aliplay.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
-                    android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 ALI 播放核心");
                 } catch (ClassNotFoundException e) {
                     PlayerFactory.setPlayManager(IjkPlayerManager.class);
-                    android.util.Log.w(TAG, "selectPlayerFactory: ALI 播放核心不可用，回退到 IJK");
                 }
                 break;
             case PlayerConstants.ENGINE_DEFAULT:
             default:
                 PlayerFactory.setPlayManager(SystemPlayerManager.class);
-                android.util.Log.d(TAG, "selectPlayerFactory: 已切换到 System 播放核心");
                 break;
         }
+        
+        // 3. 重置播放器初始化标志，确保下次播放时使用新的工厂
+        mPlayerFactoryInitialized = true;
     }
 
     protected void setOrangePlayState(int playState) {
@@ -1661,14 +1816,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     protected void orangeResolveNormalVideoShow(android.view.View oldF, android.view.ViewGroup vp, OrangevideoView orangeVideoPlayer) {
-        final long savedPosition = (orangeVideoPlayer != null) ? orangeVideoPlayer.getCurrentPositionWhenPlaying() : 0;
-        final boolean wasPlaying = (orangeVideoPlayer != null) ? orangeVideoPlayer.isPlaying() : false;
-        
+        // 移除全屏 View
         if (oldF != null && oldF.getParent() != null) {
             android.view.ViewGroup viewGroup = (android.view.ViewGroup) oldF.getParent();
             vp.removeView(viewGroup);
         }
         
+        // 恢复状态（与 GSY 基类保持一致）
         mCurrentState = getGSYVideoManager().getLastState();
         
         if (orangeVideoPlayer != null) {
@@ -1680,29 +1834,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             createNetWorkState();
         }
         
+        // 切换监听器（关键：让原始播放器接管）
         getGSYVideoManager().setListener(getGSYVideoManager().lastListener());
         getGSYVideoManager().setLastListener(null);
         setStateAndUi(mCurrentState);
         
+        // 重新添加 TextureView（GSY 基类的标准做法）
         addTextureView();
         
+        // 延迟恢复组件状态（不做 seekTo，避免 ExoPlayer 状态混乱）
         postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (savedPosition > 0) {
-                    seekTo(savedPosition);
-                    if (wasPlaying) {
-                        postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (mCurrentState == CURRENT_STATE_PAUSE) {
-                                    onVideoResume();
-                                }
-                            }
-                        }, 200);
-                    }
-                }
-                
                 if (mComponentStateManager != null) {
                     mComponentStateManager.restoreComponentState(OrangevideoView.this);
                     mComponentStateManager.reregisterProgressListener(OrangevideoView.this);
@@ -1711,7 +1854,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
             }
-        }, 500);
+        }, 300);
         
         mSaveChangeViewTIme = System.currentTimeMillis();
         if (mVideoAllCallBack != null) {
@@ -1761,86 +1904,73 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void changeUiToNormal() {
-        android.util.Log.d(TAG, "changeUiToNormal");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void changeUiToPreparingShow() {
-        android.util.Log.d(TAG, "changeUiToPreparingShow: mLoadingProgressBar=" + mLoadingProgressBar);
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
     
     @Override
     protected void changeUiToPlayingShow() {
-        android.util.Log.d(TAG, "changeUiToPlayingShow");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         // 不停止网速更新，让它持续运行，updateLoadingSpeed 会根据 loading 可见性决定是否显示
     }
     
     @Override
     protected void changeUiToPlayingBufferingShow() {
-        android.util.Log.d(TAG, "changeUiToPlayingBufferingShow: mLoadingProgressBar=" + mLoadingProgressBar);
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
     
     @Override
     protected void changeUiToPauseShow() {
-        android.util.Log.d(TAG, "changeUiToPauseShow");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void changeUiToError() {
-        android.util.Log.d(TAG, "changeUiToError");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void changeUiToCompleteShow() {
-        android.util.Log.d(TAG, "changeUiToCompleteShow");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPrepareingClear() {
-        android.util.Log.d(TAG, "changeUiToPrepareingClear");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPlayingClear() {
-        android.util.Log.d(TAG, "changeUiToPlayingClear");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPlayingBufferingClear() {
-        android.util.Log.d(TAG, "changeUiToPlayingBufferingClear");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPauseClear() {
-        android.util.Log.d(TAG, "changeUiToPauseClear");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToCompleteClear() {
-        android.util.Log.d(TAG, "changeUiToCompleteClear");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void hideAllWidget() {
-        android.util.Log.d(TAG, "hideAllWidget");
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
@@ -2032,7 +2162,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = getGSYVideoManager().getPlayer();
         String playerClass = playerManager != null ? playerManager.getClass().getSimpleName() : "null";
-        android.util.Log.d(TAG, "startPlayLogic: 设置的播放核心=" + currentEngine + ", 实际播放器=" + playerClass);
+        // ExoPlayer 使用 SurfaceControl 处理全屏切换 (Android Q+)
+        if (PlayerConstants.ENGINE_EXO.equals(currentEngine) && 
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            initExoSurfaceControl();
+        } else {
+            // 非 ExoPlayer，确保释放之前的 SurfaceControl
+            releaseExoSurfaceControl();
+        }
         
         prepareVideo();
     }
@@ -2041,7 +2178,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void prepareVideo() {
         // 添加日志
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
-        android.util.Log.d(TAG, "prepareVideo: 准备播放，当前播放核心=" + currentEngine);
         super.prepareVideo();
     }
 

@@ -341,7 +341,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 return "SystemPlayerManager".equals(className);
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "isUsingSystemPlayer: 检查失败", e);
         }
         return false;
     }
