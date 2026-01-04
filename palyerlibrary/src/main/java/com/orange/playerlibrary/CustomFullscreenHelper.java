@@ -560,16 +560,11 @@ public class CustomFullscreenHelper {
                 if (mVideoView.getRenderProxy() != null && 
                     mVideoView.getRenderProxy().getShowView() instanceof SurfaceView) {
                     SurfaceView surfaceView = (SurfaceView) mVideoView.getRenderProxy().getShowView();
-                    
-                    android.util.Log.d(TAG, "updateExoSurfaceControlSize: SurfaceView size=" + 
-                        surfaceView.getWidth() + "x" + surfaceView.getHeight());
-                    
                     // 更新 SurfaceControl 尺寸
                     exoManager.updateSurfaceControlSize(surfaceView);
                 }
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "updateExoSurfaceControlSize 异常: " + e.getMessage());
         }
     }
     

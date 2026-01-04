@@ -55,7 +55,7 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     private boolean mPreViewEnabled = false;
     
     // ===== 加载动画类型 =====
-    private IndicatorType mCurrentIndicatorType = IndicatorType.BALL_PULSE;
+    private IndicatorType mCurrentIndicatorType = IndicatorType.LINE_SCALE_PULSE_OUT;
 
     // ===== 构造函数 (Requirements: 2.1) =====
 
@@ -170,6 +170,11 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             debug("VideoEventManager bound to VodControlView");
         } else {
             android.util.Log.d(TAG, "addDefaultControlComponent: mVideoEventManager 为 null");
+        }
+        
+        // 自动初始化弹幕功能（如果弹幕库可用）
+        if (mDanmakuController == null) {
+            initDanmaku();
         }
         
         debug("addDefaultControlComponent: title=" + title + ", isLive=" + isLive);
@@ -573,6 +578,50 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     public boolean isDanmakuAvailable() {
         return DanmakuHelper.isDanmakuLibraryAvailable() && mDanmakuController != null;
     }
+    
+    /**
+     * 初始化弹幕功能（SDK 层封装）
+     * 自动检测弹幕库是否可用，创建控制器并附加到播放器
+     * 
+     * @return 弹幕控制器，如果弹幕库不可用返回 null
+     */
+    public DanmakuControllerImpl initDanmaku() {
+        if (!DanmakuHelper.isDanmakuLibraryAvailable()) {
+            debug("initDanmaku: 弹幕库不可用");
+            return null;
+        }
+        
+        if (mVideoView == null) {
+            debug("initDanmaku: mVideoView 为 null");
+            return null;
+        }
+        
+        // 创建弹幕控制器
+        DanmakuControllerImpl controller = new DanmakuControllerImpl(getContext());
+        
+        // 附加到播放器容器
+        controller.attachToContainer(mVideoView);
+        
+        // 设置到控制器
+        setDanmakuController(controller);
+        
+        debug("initDanmaku: 弹幕初始化完成");
+        return controller;
+    }
+    
+    /**
+     * 释放弹幕资源
+     * 在 Activity onDestroy 时调用
+     */
+    public void releaseDanmaku() {
+        if (mDanmakuController instanceof DanmakuControllerImpl) {
+            DanmakuControllerImpl impl = (DanmakuControllerImpl) mDanmakuController;
+            impl.releaseDanmaku();
+            impl.detachFromContainer();
+        }
+        mDanmakuController = null;
+        debug("releaseDanmaku: 弹幕资源已释放");
+    }
 
     // ===== 预览功能 =====
 
@@ -664,7 +713,7 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     public void setLoading(IndicatorType type) {
         if (type == null) {
             debug("setLoading: type is null, using default");
-            type = IndicatorType.BALL_PULSE;
+            type = IndicatorType.LINE_SCALE_PULSE_OUT;
         }
         mCurrentIndicatorType = type;
         

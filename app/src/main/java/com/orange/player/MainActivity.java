@@ -1,10 +1,8 @@
 package com.orange.player;
 
-import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -12,89 +10,44 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.orange.playerlibrary.DanmakuControllerImpl;
-import com.orange.playerlibrary.DanmakuHelper;
+import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.OrangevideoView;
+import com.orange.playerlibrary.PiPHelper;
 import com.orange.playerlibrary.interfaces.IDanmakuController;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  * 橘子播放器 Demo
+ * 演示如何使用 OrangevideoView SDK
  */
 public class MainActivity extends AppCompatActivity {
 
     private static final String VIDEO_URL = "http://player.alicdn.com/video/aliyunmedia.mp4";
-    private static final String PREFS_NAME = "pip_prefs";
-    private static final String KEY_PIP_POSITION = "pip_position";
-    private static final String KEY_PIP_URL = "pip_url";
-    private static final String KEY_PIP_ACTIVE = "pip_active";
+    private static final String VIDEO_TITLE = "阿里云测试视频";
 
     private OrangevideoView mVideoView;
+    private OrangeVideoController mController;
+    private PiPHelper mPiPHelper;
+    private DanmakuControllerImpl mDanmakuController;
+    
+    // Demo UI
     private TextView mTvInfo;
     private TextView mTvDebugLog;
     private StringBuilder mLogBuilder = new StringBuilder();
-    
-    // 弹幕控制器（使用 SDK 层实现）
-    private DanmakuControllerImpl mDanmakuController;
-    
-    // PiP 恢复相关
-    private long mPendingSeekPosition = -1;
-    private boolean mRestoringFromPiP = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
         setContentView(R.layout.activity_main);
-        
-        // 检查是否从 PiP 模式恢复
-        checkPiPRestore();
 
         initViews();
         initPlayer();
+        initPiPHelper();
         setupBackPressedHandler();
-    }
-    
-    /**
-     * 检查是否从 PiP 模式恢复，如果是则读取保存的播放位置
-     */
-    private void checkPiPRestore() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        boolean pipActive = prefs.getBoolean(KEY_PIP_ACTIVE, false);
-        String pipUrl = prefs.getString(KEY_PIP_URL, "");
-        long pipPosition = prefs.getLong(KEY_PIP_POSITION, -1);
-        
-        android.util.Log.d("PiP_DEBUG", "=== checkPiPRestore ===");
-        android.util.Log.d("PiP_DEBUG", "pipActive: " + pipActive);
-        android.util.Log.d("PiP_DEBUG", "pipUrl: " + pipUrl);
-        android.util.Log.d("PiP_DEBUG", "pipPosition: " + pipPosition);
-        
-        if (pipActive && pipPosition > 0 && VIDEO_URL.equals(pipUrl)) {
-            mPendingSeekPosition = pipPosition;
-            mRestoringFromPiP = true;
-            android.util.Log.d("PiP_DEBUG", "Will restore to position: " + pipPosition);
-        }
-        
-        // 清除 PiP 状态
-        prefs.edit()
-            .putBoolean(KEY_PIP_ACTIVE, false)
-            .putLong(KEY_PIP_POSITION, -1)
-            .apply();
-    }
-    
-    /**
-     * 保存 PiP 播放位置
-     */
-    private void savePiPPosition(long position) {
-        android.util.Log.d("PiP_DEBUG", "=== savePiPPosition: " + position + " ===");
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        prefs.edit()
-            .putBoolean(KEY_PIP_ACTIVE, true)
-            .putString(KEY_PIP_URL, VIDEO_URL)
-            .putLong(KEY_PIP_POSITION, position)
-            .apply();
     }
 
     private void initViews() {
@@ -102,32 +55,27 @@ public class MainActivity extends AppCompatActivity {
         mTvInfo = findViewById(R.id.tv_info);
         mTvDebugLog = findViewById(R.id.tv_debug_log);
 
+        // 播放控制按钮
         Button btnPlay = findViewById(R.id.btn_play);
         Button btnPause = findViewById(R.id.btn_pause);
         Button btnFullscreen = findViewById(R.id.btn_fullscreen);
 
         btnPlay.setOnClickListener(v -> {
-            log("点击播放按钮");
+            log("播放");
             mVideoView.startPlayLogic();
-            updateInfo("播放中...");
         });
 
         btnPause.setOnClickListener(v -> {
             if (mVideoView.isInPlayingState()) {
                 mVideoView.onVideoPause();
-                updateInfo("已暂停");
                 log("暂停");
             } else {
                 mVideoView.onVideoResume();
-                updateInfo("继续播放");
-                log("继续播放");
+                log("继续");
             }
         });
 
         btnFullscreen.setOnClickListener(v -> {
-            log("点击全屏按钮");
-            // 使用 ControlWrapper 的 toggleFullScreen，它会调用 CustomFullscreenHelper
-            // 这样不会创建新的播放器实例，播放进度得以保持
             if (mVideoView.getControlWrapper() != null) {
                 mVideoView.getControlWrapper().toggleFullScreen();
             }
@@ -138,126 +86,120 @@ public class MainActivity extends AppCompatActivity {
         Button btnSendDanmaku = findViewById(R.id.btn_send_danmaku);
         Button btnToggleDanmaku = findViewById(R.id.btn_toggle_danmaku);
         
-        // 批量弹幕按钮 - 加载大量弹幕到指定时间点
-        btnBatchDanmaku.setOnClickListener(v -> {
-            loadBatchDanmakuData();
-        });
-        
-        // 发送弹幕按钮 - 立即发送一条弹幕
-        btnSendDanmaku.setOnClickListener(v -> {
-            if (mDanmakuController != null) {
-                mDanmakuController.sendDanmaku("用户发送的弹幕 " + System.currentTimeMillis() % 1000, Color.YELLOW);
-                log("发送弹幕");
-            } else {
-                log("弹幕控制器未初始化");
-            }
-        });
-        
-        // 弹幕开关按钮
-        btnToggleDanmaku.setOnClickListener(v -> {
-            if (mDanmakuController != null) {
-                boolean enabled = mDanmakuController.isDanmakuEnabled();
-                mDanmakuController.setDanmakuEnabled(!enabled);
-                log("弹幕开关: " + (!enabled ? "开" : "关"));
-                btnToggleDanmaku.setText(!enabled ? "关闭弹幕" : "开启弹幕");
-            }
-        });
+        btnBatchDanmaku.setOnClickListener(v -> loadBatchDanmaku());
+        btnSendDanmaku.setOnClickListener(v -> sendDanmaku());
+        btnToggleDanmaku.setOnClickListener(v -> toggleDanmaku(btnToggleDanmaku));
+
+        updateInfo("橘子播放器 Demo\n视频: " + VIDEO_URL);
     }
 
     private void initPlayer() {
-        log("initPlayer 开始");
+        // 创建控制器
+        mController = new OrangeVideoController(this);
+        mVideoView.setVideoController(mController);
         
-        // 创建并设置控制器
-        com.orange.playerlibrary.OrangeVideoController controller = 
-                new com.orange.playerlibrary.OrangeVideoController(this);
-        mVideoView.setVideoController(controller);
-        log("控制器创建完成");
+        // 添加默认控制组件（内部会自动初始化弹幕）
+        mController.addDefaultControlComponent(VIDEO_TITLE, false);
         
-        // 添加默认控制组件
-        controller.addDefaultControlComponent("阿里云测试视频", false);
-        log("控制组件添加完成");
-        
-        // 初始化弹幕功能
-        initDanmaku(controller);
-        
-        // 设置测试视频列表（用于测试选集功能）
-        java.util.ArrayList<java.util.HashMap<String, Object>> videoList = new java.util.ArrayList<>();
-        for (int i = 1; i <= 5; i++) {
-            java.util.HashMap<String, Object> video = new java.util.HashMap<>();
-            video.put("name", "第" + i + "集");
-            video.put("url", VIDEO_URL); // 使用相同的测试视频
-            videoList.add(video);
+        // 获取弹幕控制器（用于加载测试数据）
+        if (mController.isDanmakuAvailable()) {
+            mDanmakuController = (DanmakuControllerImpl) mController.getDanmakuController();
+            loadTestDanmaku();
+            log("弹幕已启用");
         }
-        controller.setVideoList(videoList);
-        log("视频列表设置完成: " + videoList.size() + " 集");
         
-        // 设置外部日志回调
-        mVideoView.setDebugLogCallback(msg -> runOnUiThread(() -> log(msg)));
+        // 设置测试视频列表
+        setupVideoList();
         
-        // 设置视频地址和标题（禁用缓存避免 NullPointerException）
-        mVideoView.setUp(VIDEO_URL, false, "阿里云测试视频");
-        log("setUp 完成");
-        
-        // 设置是否循环播放
+        // 设置视频
+        mVideoView.setUp(VIDEO_URL, false, VIDEO_TITLE);
         mVideoView.setLooping(false);
-        
-        // 设置播放速度
-        mVideoView.setSpeed(1.0f);
-        
-        // 启用全屏自动旋转（默认已启用）
         mVideoView.setAutoRotateOnFullscreen(true);
         
-        // 设置 TitleView 的标题
+        // 设置标题
         if (mVideoView.getTitleView() != null) {
-            mVideoView.getTitleView().setTitle("阿里云测试视频");
+            mVideoView.getTitleView().setTitle(VIDEO_TITLE);
         }
         
-        // 如果从 PiP 恢复，设置 onPrepared 回调来恢复播放位置
-        if (mRestoringFromPiP && mPendingSeekPosition > 0) {
-            android.util.Log.d("PiP_DEBUG", "Setting up PiP restore callback, position: " + mPendingSeekPosition);
-            final long seekPosition = mPendingSeekPosition;
+        log("播放器初始化完成");
+    }
+    
+    private void initPiPHelper() {
+        mPiPHelper = new PiPHelper(this, mVideoView);
+        
+        // 检查是否从 PiP 恢复
+        long restorePosition = mPiPHelper.checkPiPRestore(VIDEO_URL);
+        if (restorePosition > 0) {
+            // 设置恢复回调
             mVideoView.setVideoAllCallBack(new com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack() {
                 @Override
                 public void onPrepared(String url, Object... objects) {
                     super.onPrepared(url, objects);
-                    android.util.Log.d("PiP_DEBUG", "=== onPrepared (PiP restore) ===");
-                    android.util.Log.d("PiP_DEBUG", "Seeking to: " + seekPosition);
-                    // 延迟执行 seek，确保播放器完全准备好
                     mVideoView.postDelayed(() -> {
-                        mVideoView.seekTo(seekPosition);
-                        android.util.Log.d("PiP_DEBUG", "Seek completed to: " + seekPosition);
-                        // 清除恢复状态
-                        mRestoringFromPiP = false;
-                        mPendingSeekPosition = -1;
+                        mVideoView.seekTo(restorePosition);
+                        mPiPHelper.clearPendingSeekPosition();
                     }, 200);
                 }
             });
         }
-
-        updateInfo("橘子播放器 Demo\n视频地址: " + VIDEO_URL);
-        log("initPlayer 完成");
     }
-
-    private void log(String msg) {
-        mLogBuilder.append(msg).append("\n");
-        // 只保留最后10行
-        String[] lines = mLogBuilder.toString().split("\n");
-        if (lines.length > 10) {
-            mLogBuilder = new StringBuilder();
-            for (int i = lines.length - 10; i < lines.length; i++) {
-                mLogBuilder.append(lines[i]).append("\n");
-            }
+    
+    private void setupVideoList() {
+        ArrayList<HashMap<String, Object>> videoList = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            HashMap<String, Object> video = new HashMap<>();
+            video.put("name", "第" + i + "集");
+            video.put("url", VIDEO_URL);
+            videoList.add(video);
         }
-        if (mTvDebugLog != null) {
-            mTvDebugLog.setText(mLogBuilder.toString());
+        mController.setVideoList(videoList);
+    }
+    
+    // ===== 弹幕测试方法（App 层提供测试数据）=====
+    
+    private void loadTestDanmaku() {
+        if (mDanmakuController == null) return;
+        
+        List<IDanmakuController.DanmakuItem> danmakus = new ArrayList<>();
+        String[] texts = {"测试弹幕1", "橘子播放器！", "666", "前方高能", "好看"};
+        int[] colors = {Color.WHITE, Color.RED, Color.GREEN, Color.CYAN, Color.YELLOW};
+        
+        for (int i = 0; i < texts.length; i++) {
+            danmakus.add(new IDanmakuController.DanmakuItem(
+                texts[i], colors[i], (i + 1) * 3000, false));
+        }
+        mDanmakuController.setDanmakuData(danmakus);
+    }
+    
+    private void loadBatchDanmaku() {
+        if (mDanmakuController == null) return;
+        
+        List<IDanmakuController.DanmakuItem> danmakus = new ArrayList<>();
+        int[] colors = {Color.WHITE, Color.RED, Color.GREEN, Color.CYAN, Color.YELLOW};
+        long currentPos = mVideoView.getCurrentPositionWhenPlaying();
+        
+        for (int i = 0; i < 30; i++) {
+            danmakus.add(new IDanmakuController.DanmakuItem(
+                "弹幕" + (i + 1), colors[i % colors.length], currentPos + i * 500, false));
+        }
+        mDanmakuController.setDanmakuData(danmakus);
+        log("加载 30 条弹幕");
+    }
+    
+    private void sendDanmaku() {
+        if (mDanmakuController != null) {
+            mDanmakuController.sendDanmaku("用户弹幕 " + System.currentTimeMillis() % 1000, Color.YELLOW);
+            log("发送弹幕");
         }
     }
-
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        log("配置改变: orientation=" + newConfig.orientation);
-        // CustomFullscreenHelper 会处理全屏切换，不需要额外处理
+    
+    private void toggleDanmaku(Button btn) {
+        if (mDanmakuController != null) {
+            boolean enabled = !mDanmakuController.isDanmakuEnabled();
+            mDanmakuController.setDanmakuEnabled(enabled);
+            btn.setText(enabled ? "关闭弹幕" : "开启弹幕");
+            log("弹幕: " + (enabled ? "开" : "关"));
+        }
     }
 
     private void setupBackPressedHandler() {
@@ -274,240 +216,71 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void updateInfo(String info) {
-        if (mTvInfo != null) {
-            mTvInfo.setText(info);
-        }
-    }
-
-    // 记录是否从小窗模式退出
-    private boolean mExitingPiP = false;
-    // 记录是否正在进入小窗模式
-    private boolean mEnteringPiP = false;
-
+    // ===== 生命周期 =====
+    
     @Override
     protected void onPause() {
         super.onPause();
-        android.util.Log.d("PiP_DEBUG", "=== MainActivity.onPause ===");
-        android.util.Log.d("PiP_DEBUG", "mEnteringPiP: " + mEnteringPiP);
-        android.util.Log.d("PiP_DEBUG", "mVideoView.isEnteringPiPMode: " + mVideoView.isEnteringPiPMode());
-        
-        // 检查是否处于画中画模式或正在进入画中画模式
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            boolean isInPiP = isInPictureInPictureMode();
-            android.util.Log.d("PiP_DEBUG", "isInPictureInPictureMode: " + isInPiP);
-            if (isInPiP || mEnteringPiP || mVideoView.isEnteringPiPMode()) {
-                android.util.Log.d("PiP_DEBUG", "onPause: SKIP pause - PiP mode");
-                mEnteringPiP = false;
-                return; // 小窗模式下不暂停
-            }
+        if (mPiPHelper != null && mPiPHelper.handleOnPause()) {
+            return; // PiP 模式，跳过暂停
         }
-        android.util.Log.d("PiP_DEBUG", "onPause: calling mVideoView.onVideoPause()");
         mVideoView.onVideoPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        android.util.Log.d("PiP_DEBUG", "=== MainActivity.onResume ===");
-        android.util.Log.d("PiP_DEBUG", "mExitingPiP: " + mExitingPiP);
-        
-        // 如果是从小窗模式退出，不需要调用 onVideoResume，因为视频一直在播放
-        if (mExitingPiP) {
-            android.util.Log.d("PiP_DEBUG", "onResume: SKIP - exiting PiP");
-            mExitingPiP = false;
-            return;
+        if (mPiPHelper != null && mPiPHelper.handleOnResume()) {
+            return; // 从 PiP 退出，跳过恢复
         }
-        // 如果当前处于画中画模式，不需要恢复
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            if (isInPictureInPictureMode()) {
-                android.util.Log.d("PiP_DEBUG", "onResume: SKIP - in PiP mode");
-                return;
-            }
-        }
-        android.util.Log.d("PiP_DEBUG", "onResume: calling mVideoView.onVideoResume()");
         mVideoView.onVideoResume();
     }
     
     @Override
     protected void onStop() {
         super.onStop();
-        // 如果处于画中画模式，不做任何操作，让视频继续播放
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            if (isInPictureInPictureMode()) {
-                return;
-            }
+        if (mPiPHelper != null && mPiPHelper.handleOnStop()) {
+            return; // PiP 模式，跳过处理
         }
     }
     
     @Override
-    public void onUserLeaveHint() {
-        super.onUserLeaveHint();
-        // 用户按 Home 键或进入小窗时会调用此方法
-        // 可以在这里标记正在进入小窗模式
-    }
-    
-    @Override
-    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
-        android.util.Log.d("PiP_DEBUG", "=== onPictureInPictureModeChanged ===");
-        android.util.Log.d("PiP_DEBUG", "isInPictureInPictureMode: " + isInPictureInPictureMode);
-        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        android.util.Log.d("PiP_DEBUG", "current position: " + currentPosition);
-        
-        if (isInPictureInPictureMode) {
-            // 进入小窗模式，保存当前播放位置并清除进入标志
-            android.util.Log.d("PiP_DEBUG", "Entered PiP mode - saving position and clearing flags");
-            savePiPPosition(currentPosition);
-            mVideoView.setEnteringPiPMode(false);
-            mEnteringPiP = false;
-            // 隐藏控制器
-            if (mVideoView.getVideoController() != null) {
-                mVideoView.getVideoController().hide();
-            }
-        } else {
-            // 退出小窗模式，再次保存位置（以防万一），标记状态
-            android.util.Log.d("PiP_DEBUG", "Exited PiP mode - saving position, setting mExitingPiP = true");
-            savePiPPosition(currentPosition);
-            mExitingPiP = true;
-            // 显示控制器
-            if (mVideoView.getVideoController() != null) {
-                mVideoView.getVideoController().show();
-            }
+    public void onPictureInPictureModeChanged(boolean isInPiP, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPiP, newConfig);
+        if (mPiPHelper != null) {
+            mPiPHelper.onPictureInPictureModeChanged(isInPiP, VIDEO_URL);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // 释放弹幕资源
-        if (mDanmakuController != null) {
-            mDanmakuController.releaseDanmaku();
-            mDanmakuController.detachFromContainer();
+        // 使用 SDK 封装的方法释放弹幕资源
+        if (mController != null) {
+            mController.releaseDanmaku();
         }
         mVideoView.release();
     }
+
+    // ===== Demo 辅助方法 =====
     
-    /**
-     * 初始化弹幕功能
-     */
-    private void initDanmaku(com.orange.playerlibrary.OrangeVideoController controller) {
-        // 检查弹幕库是否可用
-        if (!DanmakuHelper.isDanmakuLibraryAvailable()) {
-            log("弹幕库未导入，弹幕功能不可用");
-            return;
+    private void log(String msg) {
+        mLogBuilder.append(msg).append("\n");
+        String[] lines = mLogBuilder.toString().split("\n");
+        if (lines.length > 8) {
+            mLogBuilder = new StringBuilder();
+            for (int i = lines.length - 8; i < lines.length; i++) {
+                mLogBuilder.append(lines[i]).append("\n");
+            }
         }
-        
-        log("初始化弹幕功能");
-        
-        // 创建弹幕控制器
-        mDanmakuController = new DanmakuControllerImpl(this);
-        
-        // 将弹幕视图附加到播放器
-        mDanmakuController.attachToContainer(mVideoView);
-        
-        // 设置弹幕控制器到 OrangeVideoController
-        controller.setDanmakuController(mDanmakuController);
-        
-        // 加载测试弹幕数据
-        loadTestDanmakuData();
-        
-        log("弹幕功能初始化完成");
+        if (mTvDebugLog != null) {
+            mTvDebugLog.setText(mLogBuilder.toString());
+        }
     }
-    
-    /**
-     * 加载测试弹幕数据
-     */
-    private void loadTestDanmakuData() {
-        if (mDanmakuController == null) return;
-        
-        // 创建测试弹幕数据
-        List<IDanmakuController.DanmakuItem> testDanmakus = new ArrayList<>();
-        
-        // 添加一些测试弹幕
-        String[] testTexts = {
-            "这是测试弹幕1",
-            "橘子播放器真好用！",
-            "弹幕功能测试中...",
-            "Hello World!",
-            "666666",
-            "前方高能预警！",
-            "这个视频不错",
-            "弹幕来啦~"
-        };
-        
-        int[] colors = {
-            Color.WHITE,
-            Color.RED,
-            Color.GREEN,
-            Color.CYAN,
-            Color.YELLOW,
-            Color.MAGENTA,
-            Color.WHITE,
-            Color.parseColor("#FF6600")
-        };
-        
-        // 在不同时间点添加弹幕
-        for (int i = 0; i < testTexts.length; i++) {
-            long timestamp = (i + 1) * 3000; // 每3秒一条弹幕
-            testDanmakus.add(new IDanmakuController.DanmakuItem(
-                    testTexts[i],
-                    colors[i % colors.length],
-                    timestamp,
-                    false
-            ));
+
+    private void updateInfo(String info) {
+        if (mTvInfo != null) {
+            mTvInfo.setText(info);
         }
-        
-        // 设置弹幕数据
-        mDanmakuController.setDanmakuData(testDanmakus);
-        log("加载了 " + testDanmakus.size() + " 条测试弹幕");
-    }
-    
-    /**
-     * 批量加载弹幕数据
-     * 演示如何在指定时间点加载大量弹幕
-     */
-    private void loadBatchDanmakuData() {
-        if (mDanmakuController == null) {
-            log("弹幕控制器未初始化");
-            return;
-        }
-        
-        List<IDanmakuController.DanmakuItem> batchDanmakus = new ArrayList<>();
-        
-        // 颜色数组
-        int[] colors = {
-            Color.WHITE, Color.RED, Color.GREEN, Color.CYAN,
-            Color.YELLOW, Color.MAGENTA, Color.parseColor("#FF6600"),
-            Color.parseColor("#00FF99"), Color.parseColor("#FF99CC")
-        };
-        
-        // 弹幕文本模板
-        String[] templates = {
-            "弹幕测试 %d", "666666", "哈哈哈", "前方高能",
-            "太精彩了", "好看！", "支持一下", "路过~",
-            "第一次看", "收藏了", "转发了", "点赞！"
-        };
-        
-        // 获取当前播放位置
-        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        
-        // 批量生成弹幕：从当前位置开始，每500ms一条，共生成50条
-        for (int i = 0; i < 50; i++) {
-            long timestamp = currentPosition + (i * 500); // 每500ms一条
-            String text = String.format(templates[i % templates.length], i + 1);
-            int color = colors[i % colors.length];
-            
-            batchDanmakus.add(new IDanmakuController.DanmakuItem(
-                    text,
-                    color,
-                    timestamp,
-                    false
-            ));
-        }
-        
-        // 设置弹幕数据（会自动按时间排序和去重）
-        mDanmakuController.setDanmakuData(batchDanmakus);
-        log("批量加载 " + batchDanmakus.size() + " 条弹幕，起始时间: " + currentPosition + "ms");
     }
 }

@@ -3,6 +3,9 @@
 	<style name="Base.Theme.橘子播放器" parent="Theme.Material3.DayNight.NoActionBar">
 		<!-- Customize your light theme here. -->
 		<!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+		<!-- 状态栏设置 -->
+		<item name="android:statusBarColor">@android:color/black</item>
+		<item name="android:windowLightStatusBar">false</item>
 	</style>
 	
 	<style name="Theme.橘子播放器" parent="Base.Theme.橘子播放器"/>

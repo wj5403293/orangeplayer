@@ -658,10 +658,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         // 添加调试日志
         boolean isSurfaceView = mTextureView != null && mTextureView.getShowView() instanceof SurfaceView;
-        android.util.Log.d(TAG, "setDisplayForExo: surface=" + surface + 
-            ", isSurfaceView=" + isSurfaceView + 
-            ", playerManager=" + (playerManager != null ? playerManager.getClass().getSimpleName() : "null"));
-        
         // 检查是否是 OrangeExoPlayerManager
         if (playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
             com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
@@ -671,21 +667,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             if (surface != null && isSurfaceView) {
                 // 使用 SurfaceView 进行 reparent
                 SurfaceView surfaceView = (SurfaceView) mTextureView.getShowView();
-                android.util.Log.d(TAG, "setDisplayForExo: 使用 SurfaceView reparent, size=" + 
-                    surfaceView.getWidth() + "x" + surfaceView.getHeight());
                 exoManager.setDisplayNew(surfaceView);
             } else if (surface != null) {
                 // 非 SurfaceView，使用普通方式（这种情况不应该发生）
-                android.util.Log.w(TAG, "setDisplayForExo: 不是 SurfaceView，使用传统方式");
                 GSYVideoManager.instance().setDisplay(surface);
             } else {
                 // surface 为 null，也要通过 setDisplayNew 处理
-                android.util.Log.d(TAG, "setDisplayForExo: surface 为 null");
                 exoManager.setDisplayNew(null);
             }
         } else {
             // 不是 OrangeExoPlayerManager，使用传统方式
-            android.util.Log.w(TAG, "setDisplayForExo: 不是 OrangeExoPlayerManager，回退到传统方式");
             if (surface != null) {
                 GSYVideoManager.instance().setDisplay(surface);
             }
@@ -1407,7 +1398,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "updateExoSurfaceControlIfNeeded 异常: " + e.getMessage());
         }
     }
 
@@ -1585,7 +1575,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void touchSurfaceMove(float deltaX, float deltaY, float y) {
-        android.util.Log.d(TAG, "touchSurfaceMove: mChangeVolume=" + mChangeVolume + ", mBrightness=" + mBrightness + ", mChangePosition=" + mChangePosition);
         super.touchSurfaceMove(deltaX, deltaY, y);
     }
 
@@ -1600,11 +1589,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void showVolumeDialog(float deltaY, int volumePercent) {
-        android.util.Log.d(TAG, "showVolumeDialog called: deltaY=" + deltaY + ", volumePercent=" + volumePercent);
         ensureGestureView();
         if (mGestureView != null) {
-            android.util.Log.d(TAG, "mGestureView isAttachedToWindow=" + mGestureView.isAttachedToWindow() 
-                + ", size=" + mGestureView.getWidth() + "x" + mGestureView.getHeight());
             mGestureView.onStartSlide();
             mGestureView.onVolumeChange(volumePercent);
         }
