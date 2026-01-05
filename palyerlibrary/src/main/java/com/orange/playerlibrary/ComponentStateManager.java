@@ -209,6 +209,10 @@ public class ComponentStateManager {
             // 获取全屏播放器
             OrangevideoView fullPlayer = videoView.getOrangeFullWindowPlayer();
             
+            Log.d(TAG, "syncFullScreenProgress: videoView=" + videoView.hashCode() 
+                + ", fullPlayer=" + (fullPlayer != null ? fullPlayer.hashCode() : "null")
+                + ", isFullScreen=" + videoView.isIfCurrentIsFullscreen());
+            
             // 检查全屏播放器是否存在且不是当前播放器（避免重复更新）
             if (fullPlayer != null && fullPlayer != videoView) {
                 // 检查全屏播放器是否已初始化组件

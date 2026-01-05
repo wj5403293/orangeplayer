@@ -1942,17 +1942,33 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         orangeFullPlayer.mComponentStateManager.reregisterProgressListener(orangeFullPlayer);
                     }
                     
-                    orangeFullPlayer.showController();
-                    if (orangeFullPlayer.mTitleView != null) {
-                        orangeFullPlayer.mTitleView.setVisibility(android.view.View.VISIBLE);
-                        orangeFullPlayer.mTitleView.bringToFront();
-                    }
-                    if (orangeFullPlayer.mVodControlView != null) {
-                        orangeFullPlayer.mVodControlView.setVisibility(android.view.View.VISIBLE);
-                        orangeFullPlayer.mVodControlView.bringToFront();
-                        orangeFullPlayer.mVodControlView.onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
-                    }
-                    orangeFullPlayer.requestLayout();
+                    // 先隐藏原始播放器的控制器
+                    hideController();
+                    
+                    // 强制刷新全屏播放器的控制器：先隐藏再显示
+                    orangeFullPlayer.hideController();
+                    orangeFullPlayer.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            orangeFullPlayer.showController();
+                            if (orangeFullPlayer.mTitleView != null) {
+                                orangeFullPlayer.mTitleView.setVisibility(android.view.View.VISIBLE);
+                                orangeFullPlayer.mTitleView.bringToFront();
+                            }
+                            if (orangeFullPlayer.mVodControlView != null) {
+                                orangeFullPlayer.mVodControlView.setVisibility(android.view.View.VISIBLE);
+                                orangeFullPlayer.mVodControlView.bringToFront();
+                                orangeFullPlayer.mVodControlView.onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
+                                // 强制刷新进度
+                                if (mComponentStateManager != null) {
+                                    int duration = (int) getDuration();
+                                    int position = (int) getCurrentPositionWhenPlaying();
+                                    orangeFullPlayer.mVodControlView.setProgress(duration, position);
+                                }
+                            }
+                            orangeFullPlayer.requestLayout();
+                        }
+                    }, 100);
                 }
             }, 300);
         }
@@ -2093,6 +2109,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
+                
+                // 强制刷新控制器：先隐藏再显示，确保使用正确的实例
+                hideController();
+                postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        showController();
+                        if (mVodControlView != null) {
+                            mVodControlView.setVisibility(android.view.View.VISIBLE);
+                            mVodControlView.onPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
+                            // 强制刷新进度
+                            int duration = (int) getDuration();
+                            int position = (int) getCurrentPositionWhenPlaying();
+                            mVodControlView.setProgress(duration, position);
+                        }
+                        requestLayout();
+                    }
+                }, 100);
             }
         }, 300);
         

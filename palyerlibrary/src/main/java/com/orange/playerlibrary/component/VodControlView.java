@@ -113,6 +113,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     private boolean mIsShowBottomProgress = true;
     private static boolean sShowBottomProgress = true;
     
+    // ===== 自主进度更新 =====
+    private Handler mProgressHandler;
+    private Runnable mProgressRunnable;
+    private static final int PROGRESS_UPDATE_INTERVAL = 1000; // 1秒更新一次
+    private boolean mIsProgressUpdating = false;
+    
     // ===== 进度条拖动预览功能 =====
     private LinearLayout mPreviewContainer;
     private FrameLayout mPreviewContent;
@@ -292,6 +298,103 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         
         // 初始化弹幕按钮状态
         initDanmakuButtonState();
+        
+        // 初始化自主进度更新
+        initProgressUpdater();
+    }
+    
+    /**
+     * 初始化自主进度更新器
+     */
+    private void initProgressUpdater() {
+        if (mProgressHandler == null) {
+            mProgressHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        mProgressRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mControlWrapper != null && isAttachedToWindow() && !mIsDragging) {
+                    int duration = (int) mControlWrapper.getDuration();
+                    int position = (int) mControlWrapper.getCurrentPosition();
+                    if (duration > 0) {
+                        updateProgressInternal(duration, position);
+                    }
+                }
+                // 继续下一次更新
+                if (mIsProgressUpdating && mProgressHandler != null) {
+                    mProgressHandler.postDelayed(this, PROGRESS_UPDATE_INTERVAL);
+                }
+            }
+        };
+    }
+    
+    /**
+     * 内部进度更新方法（不打印日志，避免刷屏）
+     */
+    private void updateProgressInternal(int duration, int position) {
+        if (mVideoProgress != null && duration > 0) {
+            mVideoProgress.setEnabled(true);
+            int progress = (int) ((position * 1.0 / duration) * mVideoProgress.getMax());
+            mVideoProgress.setProgress(progress);
+            if (mBottomProgress != null) {
+                mBottomProgress.setProgress(progress);
+            }
+            
+            if (mControlWrapper != null) {
+                int buffered = mControlWrapper.getBufferedPercentage();
+                if (buffered >= 95) {
+                    mVideoProgress.setSecondaryProgress(mVideoProgress.getMax());
+                    if (mBottomProgress != null) {
+                        mBottomProgress.setSecondaryProgress(mBottomProgress.getMax());
+                    }
+                } else {
+                    mVideoProgress.setSecondaryProgress(buffered * 10);
+                    if (mBottomProgress != null) {
+                        mBottomProgress.setSecondaryProgress(buffered * 10);
+                    }
+                }
+            }
+        }
+        
+        if (mTotalTime != null) mTotalTime.setText(stringForTime(duration));
+        if (mCurrTime != null) mCurrTime.setText(stringForTime(position));
+    }
+    
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        android.util.Log.d(TAG, "onAttachedToWindow: this=" + this.hashCode());
+        startProgressUpdate();
+    }
+    
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        android.util.Log.d(TAG, "onDetachedFromWindow: this=" + this.hashCode());
+        stopProgressUpdate();
+    }
+    
+    /**
+     * 启动自主进度更新
+     */
+    private void startProgressUpdate() {
+        if (!mIsProgressUpdating && mProgressHandler != null && mProgressRunnable != null) {
+            mIsProgressUpdating = true;
+            mProgressHandler.post(mProgressRunnable);
+            android.util.Log.d(TAG, "startProgressUpdate: started");
+        }
+    }
+    
+    /**
+     * 停止自主进度更新
+     */
+    private void stopProgressUpdate() {
+        mIsProgressUpdating = false;
+        if (mProgressHandler != null && mProgressRunnable != null) {
+            mProgressHandler.removeCallbacks(mProgressRunnable);
+            android.util.Log.d(TAG, "stopProgressUpdate: stopped");
+        }
     }
     
     /**
@@ -499,8 +602,13 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onPlayerStateChanged(int playerState) {
+        android.util.Log.d(TAG, "onPlayerStateChanged: playerState=" + playerState 
+            + ", isAttachedToWindow=" + isAttachedToWindow() 
+            + ", this=" + this.hashCode());
+        
         // 如果当前实例没有附加到窗口，跳过UI更新
         if (!isAttachedToWindow()) {
+            android.util.Log.d(TAG, "onPlayerStateChanged: skipped - not attached to window");
             return;
         }
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN) {
@@ -538,13 +646,42 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void setProgress(int duration, int position) {
+        android.util.Log.d(TAG, "setProgress: duration=" + duration + ", position=" + position 
+            + ", mIsDragging=" + mIsDragging 
+            + ", isAttachedToWindow=" + isAttachedToWindow()
+            + ", this=" + this.hashCode());
+        
         if (mIsDragging) return;
+        
+        // 如果不在窗口中，跳过更新
+        if (!isAttachedToWindow()) {
+            return;
+        }
 
         if (mVideoProgress != null) {
             if (duration > 0) {
                 mVideoProgress.setEnabled(true);
                 int progress = (int) ((position * 1.0 / duration) * mVideoProgress.getMax());
+                int oldProgress = mVideoProgress.getProgress();
+                // 获取 SeekBar 在屏幕上的位置
+                int[] location = new int[2];
+                mVideoProgress.getLocationOnScreen(location);
+                android.util.Log.d(TAG, "setProgress: setting seekbar progress=" + progress 
+                    + ", oldProgress=" + oldProgress
+                    + ", max=" + mVideoProgress.getMax()
+                    + ", seekbar.isAttachedToWindow=" + mVideoProgress.isAttachedToWindow()
+                    + ", seekbar.getVisibility=" + mVideoProgress.getVisibility()
+                    + ", seekbar.getWidth=" + mVideoProgress.getWidth()
+                    + ", seekbar.getHeight=" + mVideoProgress.getHeight()
+                    + ", screenX=" + location[0] + ", screenY=" + location[1]
+                    + ", seekbarId=" + mVideoProgress.hashCode());
                 mVideoProgress.setProgress(progress);
+                // 验证设置后的值
+                int afterProgress = mVideoProgress.getProgress();
+                android.util.Log.d(TAG, "setProgress: after setProgress, value=" + afterProgress);
+                // 强制刷新 - 使用 post 确保在主线程执行
+                mVideoProgress.postInvalidate();
+                mVideoProgress.requestLayout();
                 if (mBottomProgress != null) {
                     mBottomProgress.setProgress(progress);
                 }
@@ -569,7 +706,19 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         }
 
         if (mTotalTime != null) mTotalTime.setText(stringForTime(duration));
-        if (mCurrTime != null) mCurrTime.setText(stringForTime(position));
+        if (mCurrTime != null) {
+            String newTime = stringForTime(position);
+            String oldTime = mCurrTime.getText().toString();
+            android.util.Log.d(TAG, "setProgress: setting currTime=" + newTime
+                + ", oldTime=" + oldTime
+                + ", currTime.isAttachedToWindow=" + mCurrTime.isAttachedToWindow()
+                + ", currTime.getVisibility=" + mCurrTime.getVisibility()
+                + ", currTime.getWidth=" + mCurrTime.getWidth());
+            mCurrTime.setText(newTime);
+            // 强制刷新
+            mCurrTime.postInvalidate();
+            mCurrTime.requestLayout();
+        }
     }
 
     @Override
