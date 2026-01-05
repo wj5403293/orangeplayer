@@ -75,19 +75,28 @@ public class CustomFullscreenHelper {
      * SystemPlayerManager 特殊处理：暂停播放，切换后恢复
      */
     public void startFullScreen() {
+        android.util.Log.d(TAG, "startFullScreen: called");
+        
         if (mIsFullscreen || mVideoView == null) {
+            android.util.Log.d(TAG, "startFullScreen: already fullscreen or videoView is null");
             return;
         }
         
         Activity activity = mVideoView.getActivity();
         if (activity == null || activity.isFinishing()) {
+            android.util.Log.d(TAG, "startFullScreen: activity is null or finishing");
             return;
         }
         
         final ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
         if (decorView == null) {
+            android.util.Log.d(TAG, "startFullScreen: decorView is null");
             return;
         }
+        
+        // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
+        android.util.Log.d(TAG, "startFullScreen: calling pauseOcrIfRunning");
+        pauseOcrIfRunning();
         
         // 检查是否使用 SystemPlayerManager
         final boolean isSystemPlayer = isUsingSystemPlayer();
@@ -228,19 +237,28 @@ public class CustomFullscreenHelper {
      * SystemPlayerManager 特殊处理：暂停播放，切换后恢复
      */
     public void stopFullScreen() {
+        android.util.Log.d(TAG, "stopFullScreen: called");
+        
         if (!mIsFullscreen || mVideoView == null) {
+            android.util.Log.d(TAG, "stopFullScreen: not fullscreen or videoView is null");
             return;
         }
         
         Activity activity = mVideoView.getActivity();
         if (activity == null || activity.isFinishing()) {
+            android.util.Log.d(TAG, "stopFullScreen: activity is null or finishing");
             return;
         }
         
         final ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
         if (decorView == null) {
+            android.util.Log.d(TAG, "stopFullScreen: decorView is null");
             return;
         }
+        
+        // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
+        android.util.Log.d(TAG, "stopFullScreen: calling pauseOcrIfRunning");
+        pauseOcrIfRunning();
         
         // 检查是否使用 SystemPlayerManager
         final boolean isSystemPlayer = isUsingSystemPlayer();
@@ -587,6 +605,46 @@ public class CustomFullscreenHelper {
             stopFullScreen();
         } else {
             startFullScreen();
+        }
+    }
+    
+    /**
+     * 如果 OCR 正在运行，暂停 OCR 并切换到 SurfaceView 模式
+     * 用于全屏切换前调用，避免 TextureView 模式下屏幕旋转导致崩溃
+     */
+    private void pauseOcrIfRunning() {
+        android.util.Log.d(TAG, "pauseOcrIfRunning: called, mVideoView=" + mVideoView);
+        
+        if (mVideoView == null) {
+            android.util.Log.w(TAG, "pauseOcrIfRunning: mVideoView is null");
+            return;
+        }
+        
+        try {
+            // 获取 VideoEventManager
+            OrangeVideoController controller = mVideoView.getVideoController();
+            android.util.Log.d(TAG, "pauseOcrIfRunning: controller=" + controller);
+            
+            if (controller != null) {
+                VideoEventManager eventManager = controller.getVideoEventManager();
+                android.util.Log.d(TAG, "pauseOcrIfRunning: eventManager=" + eventManager);
+                
+                if (eventManager != null) {
+                    boolean ocrRunning = eventManager.isOcrRunning();
+                    android.util.Log.d(TAG, "pauseOcrIfRunning: ocrRunning=" + ocrRunning);
+                    
+                    if (ocrRunning) {
+                        android.util.Log.d(TAG, "pauseOcrIfRunning: OCR 正在运行，暂停并切换到 SurfaceView");
+                        eventManager.pauseOcrForFullscreenSwitch();
+                    }
+                } else {
+                    android.util.Log.w(TAG, "pauseOcrIfRunning: eventManager is null");
+                }
+            } else {
+                android.util.Log.w(TAG, "pauseOcrIfRunning: controller is null");
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "Error pausing OCR for fullscreen switch", e);
         }
     }
     

@@ -108,17 +108,46 @@ public class OrangeSystemPlayerManager extends BasePlayerManager {
         if (mediaPlayer == null) return;
         
         if (msg.obj == null) {
+            // Surface 为 null（横竖屏切换时旧 Surface 被销毁）
+            android.util.Log.d(TAG, "showDisplay: Surface 为 null");
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null) {
                 reparent(null);
-            } else {
-                mediaPlayer.setSurface(null);
             }
+            // 系统播放器设置 null Surface 是安全的，不会像 ExoPlayer 那样崩溃
+            // 但为了保持一致性，我们也不设置 null
+            // mediaPlayer.setSurface(null); // 不设置 null，避免潜在问题
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && msg.obj instanceof SurfaceView) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null && msg.obj instanceof SurfaceView) {
                 reparent((SurfaceView) msg.obj);
             } else if (msg.obj instanceof Surface) {
-                surface = (Surface) msg.obj;
-                mediaPlayer.setSurface(surface);
+                // TextureView 模式或低版本：直接设置 Surface
+                Surface holder = (Surface) msg.obj;
+                if (holder.isValid()) {
+                    surface = holder;
+                    try {
+                        mediaPlayer.setSurface(surface);
+                        android.util.Log.d(TAG, "showDisplay: 直接设置 Surface (TextureView 模式)");
+                    } catch (Exception e) {
+                        android.util.Log.e(TAG, "showDisplay: 设置 Surface 失败: " + e.getMessage());
+                    }
+                } else {
+                    android.util.Log.w(TAG, "showDisplay: Surface 无效");
+                }
+            } else if (msg.obj instanceof SurfaceView) {
+                // TextureView 模式下收到 SurfaceView，获取其 Surface
+                SurfaceView sv = (SurfaceView) msg.obj;
+                if (sv.getHolder() != null && sv.getHolder().getSurface() != null && sv.getHolder().getSurface().isValid()) {
+                    surface = sv.getHolder().getSurface();
+                    try {
+                        mediaPlayer.setSurface(surface);
+                        android.util.Log.d(TAG, "showDisplay: 从 SurfaceView 获取 Surface (TextureView 模式)");
+                    } catch (Exception e) {
+                        android.util.Log.e(TAG, "showDisplay: 从 SurfaceView 设置 Surface 失败: " + e.getMessage());
+                    }
+                } else {
+                    android.util.Log.w(TAG, "showDisplay: SurfaceView 的 Surface 无效");
+                }
             }
         }
     }

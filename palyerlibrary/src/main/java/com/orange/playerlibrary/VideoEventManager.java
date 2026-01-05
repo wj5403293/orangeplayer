@@ -44,6 +44,11 @@ public class VideoEventManager {
     private float mNormalSpeed = 1.0f;
     private boolean mIsLongPressing = false;
     
+    // OCR 全屏切换相关
+    private boolean mOcrPausedForFullscreen = false;
+    private String mOcrSourceLang = "chi_sim";
+    private String mOcrTargetLang = "en";
+    
     public VideoEventManager(Context context, OrangevideoView videoView, OrangeVideoController controller) {
         mContext = context;
         mVideoView = videoView;
@@ -57,6 +62,216 @@ public class VideoEventManager {
         
         // 绑定基础事件
         bindEvents();
+        
+        // 注册播放器状态监听器（用于处理 OCR 全屏切换）
+        registerPlayerStateListener();
+    }
+    
+    /**
+     * 注册播放器状态监听器
+     * 用于在全屏切换时暂停/恢复 OCR
+     */
+    private void registerPlayerStateListener() {
+        if (mVideoView != null) {
+            mVideoView.addOnStateChangeListener(new com.orange.playerlibrary.interfaces.OnStateChangeListener() {
+                @Override
+                public void onPlayerStateChanged(int playerState) {
+                    handlePlayerStateChangedForOcr(playerState);
+                }
+                
+                @Override
+                public void onPlayStateChanged(int playState) {
+                    // 不需要处理
+                }
+            });
+        }
+    }
+    
+    /**
+     * 处理播放器状态变化（用于 OCR 全屏切换）
+     * 
+     * 问题：TextureView 模式下全屏切换（屏幕旋转）会导致 MediaCodec 崩溃
+     * 解决方案：
+     * 1. 全屏切换前：停止 OCR，切换到 SurfaceView 模式（由 shouldInterceptFullscreenForOcr 处理）
+     * 2. 全屏切换后：切换回 TextureView 模式，恢复 OCR（由本方法处理）
+     */
+    private void handlePlayerStateChangedForOcr(int playerState) {
+        android.util.Log.d(TAG, "handlePlayerStateChangedForOcr: playerState=" + playerState 
+            + ", ocrPaused=" + mOcrPausedForFullscreen);
+        
+        // 只有在 OCR 被暂停等待恢复时才处理
+        if (!mOcrPausedForFullscreen) {
+            return;
+        }
+        
+        // 全屏切换完成后恢复 OCR
+        // PLAYER_FULL_SCREEN = 11, PLAYER_NORMAL = 10
+        if (playerState == PlayerConstants.PLAYER_FULL_SCREEN 
+            || playerState == PlayerConstants.PLAYER_NORMAL) {
+            android.util.Log.d(TAG, "handlePlayerStateChangedForOcr: 全屏切换完成，准备恢复 OCR");
+            // 延迟恢复 OCR，等待全屏切换动画和视频重新加载完成
+            mMainHandler.postDelayed(() -> {
+                resumeOcrAfterFullscreenSwitch();
+            }, 2000);
+        }
+    }
+    
+    /**
+     * 检查是否需要为 OCR 拦截全屏切换
+     * 在全屏/竖屏切换前调用，如果返回 true，调用方应该先调用 pauseOcrForFullscreenSwitch
+     * 
+     * @return true 如果 OCR 正在运行且使用 EXO/系统内核（需要拦截）
+     */
+    public boolean shouldInterceptFullscreenForOcr() {
+        // 检查 OCR 是否正在运行
+        if (mOcrSubtitleManager == null || !mOcrSubtitleManager.isRunning()) {
+            android.util.Log.d(TAG, "shouldInterceptFullscreenForOcr: OCR 未运行，不需要拦截");
+            return false;
+        }
+        
+        // 检查是否使用 EXO 或系统内核
+        String currentEngine = mSettingsManager.getPlayerEngine();
+        boolean isExoOrSystem = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
+            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        
+        // 检查是否 Android Q+（只有 Q+ 才使用 SurfaceControl.reparent）
+        boolean isAndroidQ = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q;
+        
+        android.util.Log.d(TAG, "shouldInterceptFullscreenForOcr: engine=" + currentEngine 
+            + ", isExoOrSystem=" + isExoOrSystem + ", isAndroidQ=" + isAndroidQ);
+        
+        return isExoOrSystem && isAndroidQ;
+    }
+    
+    /**
+     * 在全屏切换前暂停 OCR 并切换到 SurfaceView
+     * 调用方应该先调用 shouldInterceptFullscreenForOcr 检查是否需要拦截
+     */
+    public void pauseOcrForFullscreenSwitch() {
+        android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 开始暂停 OCR");
+        
+        if (mOcrSubtitleManager == null || !mOcrSubtitleManager.isRunning()) {
+            android.util.Log.w(TAG, "pauseOcrForFullscreenSwitch: OCR 未运行");
+            return;
+        }
+        
+        // 标记 OCR 已暂停，等待全屏切换完成后恢复
+        mOcrPausedForFullscreen = true;
+        
+        // 1. 先暂停视频播放，避免切换过程中的画面撕裂
+        boolean wasPlaying = false;
+        long currentPosition = 0;
+        String url = null;
+        
+        if (mVideoView != null) {
+            wasPlaying = mVideoView.isPlaying();
+            currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+            url = mVideoView.getUrl();
+            
+            if (wasPlaying) {
+                android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 暂停视频播放");
+                mVideoView.pause();
+            }
+        }
+        
+        // 2. 停止 OCR
+        android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 停止 OCR");
+        if (mOcrSubtitleManager != null) {
+            mOcrSubtitleManager.release();
+            mOcrSubtitleManager = null;
+        }
+        
+        // 3. 切换到 SurfaceView 模式并重新加载视频
+        try {
+            String currentEngine = mSettingsManager.getPlayerEngine();
+            android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 当前引擎=" + currentEngine);
+            
+            // 设置回 SurfaceView 模式
+            if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
+                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
+            } else if (PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
+            }
+            
+            // 设置 GSYVideoType 为 SurfaceView
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+            
+            android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 已设置 SurfaceView 模式，准备重新加载视频");
+            
+            // 重新加载视频以应用新的渲染模式
+            if (mVideoView != null && url != null && !url.isEmpty()) {
+                final long seekPosition = currentPosition;
+                final boolean shouldResume = wasPlaying;
+                
+                // 释放当前播放器
+                mVideoView.release();
+                com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+                
+                // 重新选择播放器工厂
+                mVideoView.selectPlayerFactory(currentEngine);
+                
+                // 重新设置视频
+                mVideoView.setUp(url, false, "");
+                mVideoView.setSeekOnStart(seekPosition);
+                
+                // 暂停状态启动，让全屏切换更平滑
+                // 全屏切换完成后会自动恢复 OCR 并继续播放
+                mVideoView.startPlayLogic();
+                
+                android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 视频重新加载完成，position=" + seekPosition);
+            }
+            
+            android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 完成");
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "Error in pauseOcrForFullscreenSwitch", e);
+        }
+    }
+    
+    /**
+     * 在全屏切换后恢复 OCR
+     */
+    private void resumeOcrAfterFullscreenSwitch() {
+        if (!mOcrPausedForFullscreen) {
+            android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: OCR 未被暂停，跳过");
+            return;
+        }
+        
+        android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: 恢复 OCR，语言=" 
+            + mOcrSourceLang + " -> " + mOcrTargetLang);
+        mOcrPausedForFullscreen = false;
+        
+        // 重新启动 OCR
+        // 注意：doStartOcrTranslate 会自动切换到 TextureView 模式并重新加载视频
+        // 这里需要确保在正确的时机调用
+        String currentEngine = mSettingsManager.getPlayerEngine();
+        boolean needSwitchToTexture = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
+            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        
+        if (needSwitchToTexture && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            // 对于 EXO/系统内核，需要先切换到 TextureView 模式
+            // doStartOcrTranslate 会处理这个
+            android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: 调用 doStartOcrTranslate 切换到 TextureView");
+            doStartOcrTranslate(mOcrSourceLang, mOcrTargetLang);
+        } else {
+            // 其他内核直接启动 OCR
+            android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: 直接启动 OCR");
+            doStartOcrTranslateInternal(mOcrSourceLang, mOcrTargetLang);
+        }
+    }
+    
+    /**
+     * 检查 OCR 是否正在运行
+     */
+    public boolean isOcrRunning() {
+        return mOcrSubtitleManager != null && mOcrSubtitleManager.isRunning();
+    }
+    
+    /**
+     * 检查 OCR 是否被暂停等待恢复
+     */
+    public boolean isOcrPausedForFullscreen() {
+        return mOcrPausedForFullscreen;
     }
     
     /**
@@ -2391,12 +2606,20 @@ public class VideoEventManager {
      * 开始 OCR 翻译
      */
     private void startOcrTranslate(String sourceLang, String targetLang) {
+        // 保存语言设置，用于全屏切换后恢复
+        mOcrSourceLang = sourceLang;
+        mOcrTargetLang = targetLang;
+        
         showToast("正在初始化 OCR...");
         doStartOcrTranslate(sourceLang, targetLang);
     }
     
     /**
      * 实际启动 OCR 翻译
+     * 
+     * 注意：Exo 和系统核心使用 SurfaceControl 模式时无法截图，
+     * 需要切换到 TextureView 模式。
+     * 横竖屏切换时通过 onSurfaceDestroyed 中先切换到 PlaceholderSurface 来避免崩溃。
      */
     private void doStartOcrTranslate(String sourceLang, String targetLang) {
         // 检查当前播放核心，如果是 Exo 或系统核心，需要切换到 TextureView 模式
@@ -2410,12 +2633,19 @@ public class VideoEventManager {
             String currentUrl = mVideoView.getUrl();
             boolean wasPlaying = mVideoView.isPlaying();
             
+            android.util.Log.d(TAG, "doStartOcrTranslate: 切换到 TextureView 模式, engine=" + currentEngine);
+            
             // 设置强制 TextureView 模式
             if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
                 com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
             } else {
                 com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
             }
+            
+            // 先设置 GSYVideoType 为 TextureView
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+            android.util.Log.d(TAG, "doStartOcrTranslate: 已设置 GSYVideoType.TEXTURE");
             
             // 重新加载视频以应用新的渲染模式
             mVideoView.release();
@@ -2448,8 +2678,11 @@ public class VideoEventManager {
     
     /**
      * 实际启动 OCR 翻译（内部方法）
+     * 注意：调用此方法前，调用方应该已经确保切换到了 TextureView 模式（如果需要的话）
      */
     private void doStartOcrTranslateInternal(String sourceLang, String targetLang) {
+        android.util.Log.d(TAG, "doStartOcrTranslateInternal: 开始启动 OCR, sourceLang=" + sourceLang + ", targetLang=" + targetLang);
+        
         // 获取 OcrSubtitleManager
         com.orange.playerlibrary.ocr.OcrSubtitleManager ocrManager = 
             new com.orange.playerlibrary.ocr.OcrSubtitleManager(mActivity);
@@ -2548,20 +2781,59 @@ public class VideoEventManager {
             mOcrSubtitleManager = null;
         }
         
-        // 注意：不在这里恢复 SurfaceView 模式
-        // 因为播放器已经初始化，切换渲染模式需要重新加载视频
-        // 只是设置标志，下次播放新视频时会使用 SurfaceView 模式
+        // 切换回 SurfaceView 模式（Android Q+ 需要 SurfaceView 才能无缝切换全屏）
         try {
             String currentEngine = mSettingsManager.getPlayerEngine();
-            if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
-                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
-                android.util.Log.d(TAG, "stopOcrTranslate: 已设置 Exo 下次使用 SurfaceView 模式");
-            } else if (PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
-                android.util.Log.d(TAG, "stopOcrTranslate: 已设置系统核心下次使用 SurfaceView 模式");
+            boolean needSwitchBack = (PlayerConstants.ENGINE_EXO.equals(currentEngine) 
+                && com.orange.playerlibrary.exo.OrangeExoPlayerManager.isForceTextureViewMode())
+                || (PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)
+                && com.orange.playerlibrary.player.OrangeSystemPlayerManager.isForceTextureViewMode());
+            
+            if (needSwitchBack && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                android.util.Log.d(TAG, "stopOcrTranslate: 切换回 SurfaceView 模式");
+                
+                // 记录当前播放状态
+                long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+                String currentUrl = mVideoView.getUrl();
+                boolean wasPlaying = mVideoView.isPlaying();
+                
+                // 设置回 SurfaceView 模式
+                if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
+                    com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
+                } else {
+                    com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
+                }
+                
+                // 设置 GSYVideoType 为 SurfaceView
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                
+                // 重新加载视频
+                mVideoView.release();
+                com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+                mVideoView.selectPlayerFactory(currentEngine);
+                
+                if (currentUrl != null && !currentUrl.isEmpty()) {
+                    mVideoView.setUp(currentUrl, false, "");
+                    if (currentPosition > 0) {
+                        mVideoView.setSeekOnStart(currentPosition);
+                    }
+                    if (wasPlaying) {
+                        mVideoView.startPlayLogic();
+                    }
+                }
+                
+                showToast("已切换回 SurfaceView 模式");
+            } else {
+                // 只设置标志，不重新加载
+                if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
+                    com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
+                } else if (PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
+                    com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
+                }
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "Error setting SurfaceView mode flag", e);
+            android.util.Log.e(TAG, "Error switching back to SurfaceView mode", e);
         }
     }
 }

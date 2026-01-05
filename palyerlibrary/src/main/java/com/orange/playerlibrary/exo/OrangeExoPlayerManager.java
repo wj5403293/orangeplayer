@@ -129,6 +129,9 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
      * 
      * Android Q+ 使用 SurfaceControl.reparent() 实现无缝切换
      * 低版本或 TextureView 模式使用传统方式
+     * 
+     * 关键修复：TextureView 模式下横竖屏切换时，先切换到 PlaceholderSurface
+     * 避免 MediaCodec 渲染到已销毁的 Surface 导致崩溃
      */
     @Override
     public void showDisplay(final Message msg) {
@@ -137,13 +140,22 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         }
         
         if (msg.obj == null) {
-            // Surface 为 null
+            // Surface 为 null（横竖屏切换时旧 Surface 被销毁）
+            android.util.Log.d(TAG, "showDisplay: Surface 为 null, 切换到 PlaceholderSurface");
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null) {
                 reparent(null);
             }
-            // 使用 dummySurface 而不是 null，避免 MediaCodec 错误
-            if (dummySurface != null) {
-                mediaPlayer.setSurface(dummySurface);
+            
+            // 关键：使用 PlaceholderSurface 而不是 null，避免 MediaCodec 错误
+            // 这样 MediaCodec 可以继续渲染到 PlaceholderSurface，不会崩溃
+            if (dummySurface != null && dummySurface.isValid()) {
+                try {
+                    mediaPlayer.setSurface(dummySurface);
+                    android.util.Log.d(TAG, "showDisplay: 已切换到 PlaceholderSurface");
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "showDisplay: 切换到 PlaceholderSurface 失败: " + e.getMessage());
+                }
             }
         } else {
             // 检查是否是 SurfaceView (Android Q+ 且有 SurfaceControl 时使用 reparent)
@@ -152,16 +164,43 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             } else if (msg.obj instanceof Surface) {
                 // TextureView 模式或低版本：直接设置 Surface
                 Surface holder = (Surface) msg.obj;
-                surface = holder;
-                mediaPlayer.setSurface(holder);
-                android.util.Log.d(TAG, "showDisplay: 直接设置 Surface (TextureView 模式)");
+                if (holder.isValid()) {
+                    surface = holder;
+                    try {
+                        mediaPlayer.setSurface(holder);
+                        android.util.Log.d(TAG, "showDisplay: 直接设置 Surface (TextureView 模式)");
+                    } catch (Exception e) {
+                        android.util.Log.e(TAG, "showDisplay: 设置 Surface 失败: " + e.getMessage());
+                        // 回退到 PlaceholderSurface
+                        if (dummySurface != null && dummySurface.isValid()) {
+                            mediaPlayer.setSurface(dummySurface);
+                        }
+                    }
+                } else {
+                    android.util.Log.w(TAG, "showDisplay: Surface 无效, 使用 PlaceholderSurface");
+                    if (dummySurface != null && dummySurface.isValid()) {
+                        mediaPlayer.setSurface(dummySurface);
+                    }
+                }
             } else if (msg.obj instanceof SurfaceView) {
                 // TextureView 模式下收到 SurfaceView，获取其 Surface
                 SurfaceView sv = (SurfaceView) msg.obj;
-                if (sv.getHolder() != null && sv.getHolder().getSurface() != null) {
+                if (sv.getHolder() != null && sv.getHolder().getSurface() != null && sv.getHolder().getSurface().isValid()) {
                     surface = sv.getHolder().getSurface();
-                    mediaPlayer.setSurface(surface);
-                    android.util.Log.d(TAG, "showDisplay: 从 SurfaceView 获取 Surface (TextureView 模式)");
+                    try {
+                        mediaPlayer.setSurface(surface);
+                        android.util.Log.d(TAG, "showDisplay: 从 SurfaceView 获取 Surface (TextureView 模式)");
+                    } catch (Exception e) {
+                        android.util.Log.e(TAG, "showDisplay: 从 SurfaceView 设置 Surface 失败: " + e.getMessage());
+                        if (dummySurface != null && dummySurface.isValid()) {
+                            mediaPlayer.setSurface(dummySurface);
+                        }
+                    }
+                } else {
+                    android.util.Log.w(TAG, "showDisplay: SurfaceView 的 Surface 无效, 使用 PlaceholderSurface");
+                    if (dummySurface != null && dummySurface.isValid()) {
+                        mediaPlayer.setSurface(dummySurface);
+                    }
                 }
             }
         }

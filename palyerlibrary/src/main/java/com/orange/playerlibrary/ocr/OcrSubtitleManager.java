@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -12,6 +13,9 @@ import android.view.PixelCopy;
 import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
+
+import java.io.File;
+import java.io.FileOutputStream;
 
 import com.shuyu.gsyvideoplayer.listener.GSYVideoShotListener;
 import com.shuyu.gsyvideoplayer.render.GSYRenderView;
@@ -252,6 +256,7 @@ public class OcrSubtitleManager {
     }
     
     private int mFrameCount = 0;
+    private static final boolean DEBUG_SAVE_SCREENSHOT = false; // 调试：保存截图到文件
     
     private final Runnable mOcrRunnable = new Runnable() {
         @Override
@@ -269,9 +274,20 @@ public class OcrSubtitleManager {
             Log.d(TAG, "captureFrame result: " + (frame != null ? frame.getWidth() + "x" + frame.getHeight() : "null"));
             
             if (frame != null) {
+                // 调试：保存截图到文件
+                if (DEBUG_SAVE_SCREENSHOT && mFrameCount <= 3) {
+                    saveDebugBitmap(frame, "ocr_frame_" + mFrameCount + ".png");
+                }
+                
                 // 裁剪字幕区域
                 Bitmap subtitleRegion = cropSubtitleRegion(frame);
                 Log.d(TAG, "cropSubtitleRegion result: " + (subtitleRegion != null ? subtitleRegion.getWidth() + "x" + subtitleRegion.getHeight() : "null"));
+                
+                // 调试：保存字幕区域截图
+                if (DEBUG_SAVE_SCREENSHOT && mFrameCount <= 3 && subtitleRegion != null) {
+                    saveDebugBitmap(subtitleRegion, "ocr_subtitle_" + mFrameCount + ".png");
+                }
+                
                 frame.recycle();
                 
                 if (subtitleRegion != null) {
@@ -330,43 +346,311 @@ public class OcrSubtitleManager {
     
     /**
      * 截取视频帧
+     * 优先使用 PixelCopy（SurfaceView），其次使用 TextureView.getBitmap()
+     * 最后回退到 GSY 的 taskShotPic
      */
     private Bitmap captureFrame() {
-        // 优先使用 GSY 的 taskShotPic API（支持 SurfaceView）
+        if (mVideoView == null && mRenderProxy == null) {
+            Log.w(TAG, "captureFrame: no video view available");
+            return null;
+        }
+        
+        // 1. 尝试从 SurfaceView 使用 PixelCopy 截图（最可靠的方式）
+        SurfaceView surfaceView = findSurfaceView();
+        if (surfaceView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Bitmap bitmap = captureFromSurfaceViewDirect(surfaceView);
+            if (bitmap != null) {
+                return bitmap;
+            }
+        }
+        
+        // 2. 尝试从 TextureView 截图
+        TextureView textureView = findTextureView();
+        if (textureView != null && textureView.isAvailable()) {
+            Bitmap bitmap = textureView.getBitmap();
+            if (bitmap != null) {
+                Log.d(TAG, "TextureView.getBitmap() success: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                return bitmap;
+            }
+        }
+        
+        // 3. 回退到 GSY 的 taskShotPic API
         if (mRenderProxy != null) {
             return captureFromRenderProxy();
         }
         
-        if (mVideoView == null) {
-            Log.w(TAG, "captureFrame: mVideoView is null");
+        Log.w(TAG, "captureFrame: all methods failed");
+        return null;
+    }
+    
+    /**
+     * 查找 SurfaceView
+     */
+    private SurfaceView findSurfaceView() {
+        // 从 mVideoView 查找
+        if (mVideoView instanceof SurfaceView) {
+            return (SurfaceView) mVideoView;
+        }
+        if (mVideoView instanceof android.view.ViewGroup) {
+            SurfaceView sv = findSurfaceViewInGroup((android.view.ViewGroup) mVideoView);
+            if (sv != null) return sv;
+        }
+        
+        // 从 RenderProxy 查找
+        if (mRenderProxy != null) {
+            View showView = mRenderProxy.getShowView();
+            if (showView instanceof SurfaceView) {
+                return (SurfaceView) showView;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 递归查找 SurfaceView
+     */
+    private SurfaceView findSurfaceViewInGroup(android.view.ViewGroup group) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof SurfaceView) {
+                return (SurfaceView) child;
+            }
+            if (child instanceof android.view.ViewGroup) {
+                SurfaceView sv = findSurfaceViewInGroup((android.view.ViewGroup) child);
+                if (sv != null) return sv;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 查找 TextureView
+     */
+    private TextureView findTextureView() {
+        // 从 mVideoView 查找
+        if (mVideoView instanceof TextureView) {
+            return (TextureView) mVideoView;
+        }
+        if (mVideoView instanceof android.view.ViewGroup) {
+            TextureView tv = findTextureViewInGroup((android.view.ViewGroup) mVideoView);
+            if (tv != null) return tv;
+        }
+        
+        // 从 RenderProxy 查找
+        if (mRenderProxy != null) {
+            View showView = mRenderProxy.getShowView();
+            if (showView instanceof TextureView) {
+                return (TextureView) showView;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 递归查找 TextureView
+     */
+    private TextureView findTextureViewInGroup(android.view.ViewGroup group) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof TextureView) {
+                return (TextureView) child;
+            }
+            if (child instanceof android.view.ViewGroup) {
+                TextureView tv = findTextureViewInGroup((android.view.ViewGroup) child);
+                if (tv != null) return tv;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 直接从 SurfaceView 截图 (使用 PixelCopy API, Android O+)
+     * 注意：当使用 SurfaceControl.reparent() 时，需要使用 Window 级别的 PixelCopy
+     */
+    private Bitmap captureFromSurfaceViewDirect(SurfaceView surfaceView) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return null;
         }
         
-        Log.d(TAG, "captureFrame: mVideoView type=" + mVideoView.getClass().getSimpleName() 
-            + ", size=" + mVideoView.getWidth() + "x" + mVideoView.getHeight()
-            + ", isAttachedToWindow=" + mVideoView.isAttachedToWindow());
+        // 检查 Surface 是否有效
+        if (surfaceView.getHolder() == null || surfaceView.getHolder().getSurface() == null 
+            || !surfaceView.getHolder().getSurface().isValid()) {
+            Log.w(TAG, "SurfaceView surface not valid");
+            return null;
+        }
+        
+        int width = surfaceView.getWidth();
+        int height = surfaceView.getHeight();
+        
+        if (width <= 0 || height <= 0) {
+            Log.w(TAG, "SurfaceView size invalid: " + width + "x" + height);
+            return null;
+        }
+        
+        // 先尝试直接从 SurfaceView 截图
+        Bitmap bitmap = captureFromSurfaceViewInternal(surfaceView, width, height);
+        if (bitmap != null) {
+            return bitmap;
+        }
+        
+        // 如果失败（可能是 SurfaceControl.reparent 模式），尝试从 Window 截图
+        Log.d(TAG, "SurfaceView PixelCopy failed, trying Window PixelCopy");
+        return captureFromWindow(surfaceView);
+    }
+    
+    /**
+     * 从 SurfaceView 内部截图
+     */
+    private Bitmap captureFromSurfaceViewInternal(SurfaceView surfaceView, int width, int height) {
+        final Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        final AtomicReference<Integer> resultRef = new AtomicReference<>(-1);
+        final CountDownLatch latch = new CountDownLatch(1);
         
         try {
-            if (mVideoView instanceof TextureView) {
-                TextureView tv = (TextureView) mVideoView;
-                Log.d(TAG, "TextureView isAvailable=" + tv.isAvailable());
-                if (!tv.isAvailable()) {
-                    Log.w(TAG, "TextureView not available");
-                    return null;
-                }
-                Bitmap bitmap = tv.getBitmap();
-                Log.d(TAG, "TextureView.getBitmap() = " + (bitmap != null ? bitmap.getWidth() + "x" + bitmap.getHeight() : "null"));
+            PixelCopy.request(
+                surfaceView,
+                bitmap,
+                copyResult -> {
+                    resultRef.set(copyResult);
+                    latch.countDown();
+                },
+                mMainHandler
+            );
+            
+            // 等待最多 300ms
+            boolean completed = latch.await(300, TimeUnit.MILLISECONDS);
+            
+            if (!completed) {
+                Log.w(TAG, "SurfaceView PixelCopy timeout");
+                bitmap.recycle();
+                return null;
+            }
+            
+            int result = resultRef.get();
+            if (result == PixelCopy.SUCCESS) {
+                Log.d(TAG, "SurfaceView PixelCopy success: " + width + "x" + height);
                 return bitmap;
             } else {
-                Log.w(TAG, "Not a TextureView, type=" + mVideoView.getClass().getName());
-                // SurfaceView 不能直接获取 Bitmap
-                // 需要通过 PixelCopy API (Android O+)
-                return captureFromSurfaceView();
+                Log.d(TAG, "SurfaceView PixelCopy failed with result: " + result);
+                bitmap.recycle();
+                return null;
             }
         } catch (Exception e) {
-            Log.e(TAG, "Failed to capture frame", e);
+            Log.e(TAG, "SurfaceView PixelCopy exception", e);
+            bitmap.recycle();
             return null;
         }
+    }
+    
+    /**
+     * 从 Window 截图并裁剪出视频区域
+     * 用于 SurfaceControl.reparent() 模式下的截图
+     */
+    private Bitmap captureFromWindow(SurfaceView surfaceView) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return null;
+        }
+        
+        // 获取 Activity 的 Window
+        android.app.Activity activity = getActivityFromView(surfaceView);
+        if (activity == null || activity.getWindow() == null) {
+            Log.w(TAG, "Cannot get Activity Window");
+            return null;
+        }
+        
+        android.view.Window window = activity.getWindow();
+        
+        // 获取 SurfaceView 在屏幕上的位置
+        int[] location = new int[2];
+        surfaceView.getLocationOnScreen(location);
+        int left = location[0];
+        int top = location[1];
+        int width = surfaceView.getWidth();
+        int height = surfaceView.getHeight();
+        
+        // 获取窗口尺寸
+        android.view.View decorView = window.getDecorView();
+        int windowWidth = decorView.getWidth();
+        int windowHeight = decorView.getHeight();
+        
+        if (windowWidth <= 0 || windowHeight <= 0) {
+            Log.w(TAG, "Window size invalid: " + windowWidth + "x" + windowHeight);
+            return null;
+        }
+        
+        // 创建窗口大小的 Bitmap
+        final Bitmap windowBitmap = Bitmap.createBitmap(windowWidth, windowHeight, Bitmap.Config.ARGB_8888);
+        final AtomicReference<Integer> resultRef = new AtomicReference<>(-1);
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        try {
+            PixelCopy.request(
+                window,
+                windowBitmap,
+                copyResult -> {
+                    resultRef.set(copyResult);
+                    latch.countDown();
+                },
+                mMainHandler
+            );
+            
+            // 等待最多 500ms
+            boolean completed = latch.await(500, TimeUnit.MILLISECONDS);
+            
+            if (!completed) {
+                Log.w(TAG, "Window PixelCopy timeout");
+                windowBitmap.recycle();
+                return null;
+            }
+            
+            int result = resultRef.get();
+            if (result == PixelCopy.SUCCESS) {
+                Log.d(TAG, "Window PixelCopy success, cropping video region: " + left + "," + top + " " + width + "x" + height);
+                
+                // 裁剪出视频区域
+                // 确保裁剪区域在有效范围内
+                int cropLeft = Math.max(0, left);
+                int cropTop = Math.max(0, top);
+                int cropWidth = Math.min(width, windowWidth - cropLeft);
+                int cropHeight = Math.min(height, windowHeight - cropTop);
+                
+                if (cropWidth <= 0 || cropHeight <= 0) {
+                    Log.w(TAG, "Invalid crop region");
+                    windowBitmap.recycle();
+                    return null;
+                }
+                
+                Bitmap croppedBitmap = Bitmap.createBitmap(windowBitmap, cropLeft, cropTop, cropWidth, cropHeight);
+                windowBitmap.recycle();
+                
+                Log.d(TAG, "Cropped video bitmap: " + croppedBitmap.getWidth() + "x" + croppedBitmap.getHeight());
+                return croppedBitmap;
+            } else {
+                Log.w(TAG, "Window PixelCopy failed with result: " + result);
+                windowBitmap.recycle();
+                return null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Window PixelCopy exception", e);
+            windowBitmap.recycle();
+            return null;
+        }
+    }
+    
+    /**
+     * 从 View 获取 Activity
+     */
+    private android.app.Activity getActivityFromView(View view) {
+        android.content.Context context = view.getContext();
+        while (context instanceof android.content.ContextWrapper) {
+            if (context instanceof android.app.Activity) {
+                return (android.app.Activity) context;
+            }
+            context = ((android.content.ContextWrapper) context).getBaseContext();
+        }
+        return null;
     }
     
     /**
@@ -412,7 +696,11 @@ public class OcrSubtitleManager {
             if (!completed) {
                 Log.w(TAG, "taskShotPic timeout, trying fallback to PixelCopy");
                 // 回退到直接使用 PixelCopy
-                return captureFromSurfaceView();
+                SurfaceView sv = findSurfaceView();
+                if (sv != null) {
+                    return captureFromSurfaceViewDirect(sv);
+                }
+                return null;
             }
             
             Bitmap result = bitmapRef.get();
@@ -420,77 +708,6 @@ public class OcrSubtitleManager {
             return result;
         } catch (Exception e) {
             Log.e(TAG, "captureFromRenderProxy exception", e);
-            return null;
-        }
-    }
-    
-    /**
-     * 从 SurfaceView 截取帧 (使用 PixelCopy API, Android O+)
-     */
-    private Bitmap captureFromSurfaceView() {
-        if (!(mVideoView instanceof SurfaceView)) {
-            Log.w(TAG, "captureFromSurfaceView: not a SurfaceView");
-            return null;
-        }
-        
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            Log.w(TAG, "PixelCopy requires Android O (API 26) or higher");
-            return null;
-        }
-        
-        SurfaceView surfaceView = (SurfaceView) mVideoView;
-        
-        // 检查 Surface 是否有效
-        if (surfaceView.getHolder() == null || surfaceView.getHolder().getSurface() == null 
-            || !surfaceView.getHolder().getSurface().isValid()) {
-            Log.w(TAG, "SurfaceView surface not valid");
-            return null;
-        }
-        
-        int width = surfaceView.getWidth();
-        int height = surfaceView.getHeight();
-        
-        if (width <= 0 || height <= 0) {
-            Log.w(TAG, "SurfaceView size invalid: " + width + "x" + height);
-            return null;
-        }
-        
-        final Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        final AtomicReference<Integer> resultRef = new AtomicReference<>(-1);
-        final CountDownLatch latch = new CountDownLatch(1);
-        
-        try {
-            PixelCopy.request(
-                surfaceView,
-                bitmap,
-                copyResult -> {
-                    resultRef.set(copyResult);
-                    latch.countDown();
-                },
-                mMainHandler
-            );
-            
-            // 等待最多 500ms
-            boolean completed = latch.await(500, TimeUnit.MILLISECONDS);
-            
-            if (!completed) {
-                Log.w(TAG, "PixelCopy timeout");
-                bitmap.recycle();
-                return null;
-            }
-            
-            int result = resultRef.get();
-            if (result == PixelCopy.SUCCESS) {
-                Log.d(TAG, "PixelCopy success: " + width + "x" + height);
-                return bitmap;
-            } else {
-                Log.w(TAG, "PixelCopy failed with result: " + result);
-                bitmap.recycle();
-                return null;
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "PixelCopy exception", e);
-            bitmap.recycle();
             return null;
         }
     }
@@ -530,6 +747,26 @@ public class OcrSubtitleManager {
             mMainHandler.post(() -> {
                 mCallback.onSubtitleRecognized(originalText, translatedText);
             });
+        }
+    }
+    
+    /**
+     * 调试：保存 Bitmap 到文件
+     */
+    private void saveDebugBitmap(Bitmap bitmap, String filename) {
+        try {
+            File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "OcrDebug");
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            File file = new File(dir, filename);
+            FileOutputStream fos = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.flush();
+            fos.close();
+            Log.d(TAG, "Debug screenshot saved: " + file.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save debug screenshot", e);
         }
     }
 }
