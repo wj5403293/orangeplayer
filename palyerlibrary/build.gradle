@@ -48,9 +48,9 @@ dependencies {
     // 弹幕库 - 使用 bilibili 官方仓库
     implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
     
-    // DLNA 投屏库 (可选依赖 - 需要在 app 模块中添加)
-    // 如需启用投屏功能，请在 app/build.gradle 中添加:
-    // implementation 'com.github.yanbo469:VideoDlnaScreen:master-SNAPSHOT'
+    // OCR 翻译字幕功能
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
+    implementation 'com.google.mlkit:translate:17.0.2'
     
     // 测试依赖
     testImplementation 'junit:junit:4.13.2'

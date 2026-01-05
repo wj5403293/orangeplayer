@@ -41,6 +41,25 @@ public class OrangeSystemPlayerManager extends BasePlayerManager {
     private Surface videoSurface;
     private long lastTotalRxBytes = 0;
     private long lastTimeStamp = 0;
+    
+    // 是否强制使用 TextureView 模式（禁用 SurfaceControl）
+    private static boolean sForceTextureViewMode = false;
+    
+    /**
+     * 设置是否强制使用 TextureView 模式
+     * 用于 OCR 功能需要截取画面时
+     */
+    public static void setForceTextureViewMode(boolean force) {
+        sForceTextureViewMode = force;
+        android.util.Log.d(TAG, "setForceTextureViewMode: " + force);
+    }
+    
+    /**
+     * 是否强制使用 TextureView 模式
+     */
+    public static boolean isForceTextureViewMode() {
+        return sForceTextureViewMode;
+    }
 
     @Override
     public IMediaPlayer getMediaPlayer() {
@@ -69,8 +88,8 @@ public class OrangeSystemPlayerManager extends BasePlayerManager {
                 }
             }
             
-            // Android Q+ 使用 SurfaceControl 实现无缝切换
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android Q+ 使用 SurfaceControl 实现无缝切换（除非强制 TextureView 模式）
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !sForceTextureViewMode) {
                 surfaceControl = new SurfaceControl.Builder()
                     .setName(SURFACE_CONTROL_NAME)
                     .setBufferSize(0, 0)

@@ -2150,6 +2150,8 @@ public class VideoEventManager {
                     } else {
                         mController.getSubtitleManager().hide();
                         mController.stopSubtitle();
+                        // 同时停止 OCR 翻译
+                        stopOcrTranslate();
                     }
                     // 更新按钮状态
                     if (actualVodControlView != null) {
@@ -2212,6 +2214,37 @@ public class VideoEventManager {
                     statusText.setText("已加载 " + count + " 条字幕");
                 } else {
                     statusText.setText("未加载字幕");
+                }
+            }
+            
+            // OCR 翻译字幕按钮
+            View btnOcrTranslate = dialogView.findViewById(R.id.btn_ocr_translate);
+            android.widget.TextView ocrStatus = dialogView.findViewById(R.id.ocr_status);
+            if (btnOcrTranslate != null) {
+                // 检查 OCR 功能是否可用
+                boolean ocrAvailable = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.isTesseractAvailable();
+                boolean translateAvailable = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.isMlKitTranslateAvailable();
+                
+                if (!ocrAvailable || !translateAvailable) {
+                    // 功能不可用，显示安装提示
+                    if (ocrStatus != null) {
+                        ocrStatus.setText("需要安装额外依赖");
+                        ocrStatus.setTextColor(0xFFFF6B6B);
+                    }
+                    ((android.widget.Button) btnOcrTranslate).setText("查看安装说明");
+                    btnOcrTranslate.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        showOcrInstallGuide();
+                    });
+                } else {
+                    // 功能可用
+                    if (ocrStatus != null) {
+                        ocrStatus.setText("识别视频画面中的硬字幕并翻译");
+                    }
+                    btnOcrTranslate.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        showOcrTranslateSettings();
+                    });
                 }
             }
             
@@ -2282,6 +2315,254 @@ public class VideoEventManager {
                 });
             }
         });
+    }
+    
+    // ===== OCR 翻译字幕功能 =====
+    
+    /**
+     * 显示 OCR 安装指南
+     */
+    private void showOcrInstallGuide() {
+        String message = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.getMissingDependenciesMessage();
+        
+        new AlertDialog.Builder(mActivity)
+            .setTitle("安装 OCR 翻译功能")
+            .setMessage(message)
+            .setPositiveButton("知道了", null)
+            .show();
+    }
+    
+    /**
+     * 显示 OCR 翻译设置弹窗
+     */
+    private void showOcrTranslateSettings() {
+        View dialogView = View.inflate(mActivity, R.layout.dialog_ocr_settings, null);
+        
+        final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
+                DialogUtils.DialogPosition.CENTER, null, null);
+        
+        // 源语言选择
+        android.widget.Spinner spinnerSource = dialogView.findViewById(R.id.spinner_source_lang);
+        android.widget.Spinner spinnerTarget = dialogView.findViewById(R.id.spinner_target_lang);
+        
+        String[] sourceLangs = {"中文", "英文", "日文", "韩文"};
+        String[] sourceLangCodes = {"chi_sim", "eng", "jpn", "kor"};
+        String[] targetLangs = {"中文", "英文", "日文", "韩文"};
+        String[] targetLangCodes = {"zh", "en", "ja", "ko"};
+        
+        if (spinnerSource != null) {
+            android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                mActivity, android.R.layout.simple_spinner_item, sourceLangs);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerSource.setAdapter(adapter);
+        }
+        
+        if (spinnerTarget != null) {
+            android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                mActivity, android.R.layout.simple_spinner_item, targetLangs);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerTarget.setAdapter(adapter);
+            spinnerTarget.setSelection(1); // 默认英文
+        }
+        
+        // 开始按钮
+        View btnStart = dialogView.findViewById(R.id.btn_start_ocr);
+        if (btnStart != null) {
+            btnStart.setOnClickListener(v -> {
+                int sourceIndex = spinnerSource != null ? spinnerSource.getSelectedItemPosition() : 0;
+                int targetIndex = spinnerTarget != null ? spinnerTarget.getSelectedItemPosition() : 1;
+                
+                String sourceLang = sourceLangCodes[sourceIndex];
+                String targetLang = targetLangCodes[targetIndex];
+                
+                dialog.dismiss();
+                startOcrTranslate(sourceLang, targetLang);
+            });
+        }
+        
+        // 取消按钮
+        View btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        if (btnCancel != null) {
+            btnCancel.setOnClickListener(v -> dialog.dismiss());
+        }
+    }
+    
+    /**
+     * 开始 OCR 翻译
+     */
+    private void startOcrTranslate(String sourceLang, String targetLang) {
+        showToast("正在初始化 OCR...");
+        doStartOcrTranslate(sourceLang, targetLang);
+    }
+    
+    /**
+     * 实际启动 OCR 翻译
+     */
+    private void doStartOcrTranslate(String sourceLang, String targetLang) {
+        // 检查当前播放核心，如果是 Exo 或系统核心，需要切换到 TextureView 模式
+        String currentEngine = mSettingsManager.getPlayerEngine();
+        boolean needSwitchRenderer = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
+            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        
+        if (needSwitchRenderer) {
+            // 记录当前播放状态
+            long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+            String currentUrl = mVideoView.getUrl();
+            boolean wasPlaying = mVideoView.isPlaying();
+            
+            // 设置强制 TextureView 模式
+            if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
+                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
+            } else {
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
+            }
+            
+            // 重新加载视频以应用新的渲染模式
+            mVideoView.release();
+            com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+            mVideoView.selectPlayerFactory(currentEngine);
+            
+            if (currentUrl != null && !currentUrl.isEmpty()) {
+                mVideoView.setUp(currentUrl, false, "");
+                if (currentPosition > 0) {
+                    mVideoView.setSeekOnStart(currentPosition);
+                }
+                if (wasPlaying) {
+                    mVideoView.startPlayLogic();
+                }
+            }
+            
+            showToast("已切换到 TextureView 模式");
+            
+            // 延迟启动 OCR，等待视频重新加载
+            mMainHandler.postDelayed(() -> {
+                doStartOcrTranslateInternal(sourceLang, targetLang);
+            }, 1000);
+        } else {
+            // 其他播放核心直接启动 OCR
+            doStartOcrTranslateInternal(sourceLang, targetLang);
+        }
+    }
+    
+    private android.os.Handler mMainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    
+    /**
+     * 实际启动 OCR 翻译（内部方法）
+     */
+    private void doStartOcrTranslateInternal(String sourceLang, String targetLang) {
+        // 获取 OcrSubtitleManager
+        com.orange.playerlibrary.ocr.OcrSubtitleManager ocrManager = 
+            new com.orange.playerlibrary.ocr.OcrSubtitleManager(mActivity);
+        
+        // 初始化 OCR
+        if (!ocrManager.initOcr(sourceLang)) {
+            showToast("OCR 初始化失败，请检查语言包是否已安装");
+            showOcrLanguagePackHint(sourceLang);
+            return;
+        }
+        
+        // 设置视频视图
+        if (mVideoView != null) {
+            android.view.View renderView = mVideoView.getRenderProxy() != null ? 
+                mVideoView.getRenderProxy().getShowView() : null;
+            if (renderView != null) {
+                ocrManager.setVideoView(renderView);
+            }
+            // 设置 GSY 渲染视图引用，用于 taskShotPic 截图（支持 SurfaceView）
+            if (mVideoView.getRenderProxy() != null) {
+                ocrManager.setRenderProxy(mVideoView.getRenderProxy());
+            }
+        }
+        
+        // 设置回调
+        ocrManager.setCallback(new com.orange.playerlibrary.ocr.OcrSubtitleManager.OcrSubtitleCallback() {
+            @Override
+            public void onSubtitleRecognized(String originalText, String translatedText) {
+                // 显示字幕
+                if (mController != null && mController.getSubtitleManager() != null) {
+                    String displayText = translatedText != null ? 
+                        originalText + "\n" + translatedText : originalText;
+                    mController.getSubtitleManager().showText(displayText);
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                mActivity.runOnUiThread(() -> showToast("OCR 错误: " + error));
+            }
+        });
+        
+        // 初始化翻译
+        showToast("正在下载翻译模型...");
+        ocrManager.initTranslation(targetLang, new com.orange.playerlibrary.ocr.TranslationEngine.ModelDownloadCallback() {
+            @Override
+            public void onProgress(int progress) {
+                // 可以显示下载进度
+            }
+            
+            @Override
+            public void onSuccess() {
+                mActivity.runOnUiThread(() -> {
+                    showToast("OCR 翻译已启动");
+                    ocrManager.start();
+                    
+                    // 保存引用以便后续停止
+                    mOcrSubtitleManager = ocrManager;
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                mActivity.runOnUiThread(() -> {
+                    showToast("翻译模型下载失败: " + error);
+                    // 即使翻译失败，也可以只显示 OCR 结果
+                    ocrManager.start();
+                    mOcrSubtitleManager = ocrManager;
+                });
+            }
+        });
+    }
+    
+    /**
+     * 显示语言包安装提示
+     */
+    private void showOcrLanguagePackHint(String language) {
+        String hint = com.orange.playerlibrary.ocr.TesseractOcrEngine.getTrainedDataDownloadHint(language);
+        
+        new AlertDialog.Builder(mActivity)
+            .setTitle("需要下载语言包")
+            .setMessage(hint)
+            .setPositiveButton("知道了", null)
+            .show();
+    }
+    
+    // OCR 字幕管理器引用
+    private com.orange.playerlibrary.ocr.OcrSubtitleManager mOcrSubtitleManager;
+    
+    /**
+     * 停止 OCR 翻译
+     */
+    public void stopOcrTranslate() {
+        if (mOcrSubtitleManager != null) {
+            mOcrSubtitleManager.release();
+            mOcrSubtitleManager = null;
+        }
+        
+        // 注意：不在这里恢复 SurfaceView 模式
+        // 因为播放器已经初始化，切换渲染模式需要重新加载视频
+        // 只是设置标志，下次播放新视频时会使用 SurfaceView 模式
+        try {
+            String currentEngine = mSettingsManager.getPlayerEngine();
+            if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
+                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
+                android.util.Log.d(TAG, "stopOcrTranslate: 已设置 Exo 下次使用 SurfaceView 模式");
+            } else if (PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
+                android.util.Log.d(TAG, "stopOcrTranslate: 已设置系统核心下次使用 SurfaceView 模式");
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "Error setting SurfaceView mode flag", e);
+        }
     }
 }
 

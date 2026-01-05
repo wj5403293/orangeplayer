@@ -43,10 +43,10 @@ public class SubtitleManager {
     private String mCurrentSubtitlePath;
     
     // 字幕样式
-    private float mTextSize = 16f;
+    private float mTextSize = 14f;
     private int mTextColor = Color.WHITE;
     private int mBackgroundColor = 0x80000000; // 半透明黑色
-    private int mBottomMargin = 80; // dp
+    private int mBottomMargin = 10; // dp - 字幕位置
     
     // 进度提供者
     private ProgressProvider mProgressProvider;
@@ -92,6 +92,8 @@ public class SubtitleManager {
                 FrameLayout.LayoutParams.WRAP_CONTENT);
         params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
         params.bottomMargin = dpToPx(mBottomMargin);
+        params.leftMargin = dpToPx(20);
+        params.rightMargin = dpToPx(20);
         
         playerContainer.addView(mSubtitleView, params);
         Log.d(TAG, "SubtitleView attached to player");
@@ -395,6 +397,17 @@ public class SubtitleManager {
         mEnabled = false;
         if (mSubtitleView != null) {
             mSubtitleView.setVisibility(View.GONE);
+        }
+    }
+    
+    /**
+     * 直接显示文字（用于 OCR 翻译字幕）
+     * @param text 要显示的文字
+     */
+    public void showText(String text) {
+        if (mSubtitleView != null) {
+            mSubtitleView.setVisibility(View.VISIBLE);
+            mSubtitleView.setText(text);
         }
     }
     

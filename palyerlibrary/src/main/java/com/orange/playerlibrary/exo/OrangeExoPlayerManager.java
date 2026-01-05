@@ -46,9 +46,28 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
     // SurfaceControl 相关 (Android Q+)
     private SurfaceControl surfaceControl;
     private Surface videoSurface;
+    
+    // 是否强制使用 TextureView 模式（禁用 SurfaceControl）
+    private static boolean sForceTextureViewMode = false;
 
     private long lastTotalRxBytes = 0;
     private long lastTimeStamp = 0;
+    
+    /**
+     * 设置是否强制使用 TextureView 模式
+     * 用于 OCR 功能需要截取画面时
+     */
+    public static void setForceTextureViewMode(boolean force) {
+        sForceTextureViewMode = force;
+        android.util.Log.d(TAG, "setForceTextureViewMode: " + force);
+    }
+    
+    /**
+     * 是否强制使用 TextureView 模式
+     */
+    public static boolean isForceTextureViewMode() {
+        return sForceTextureViewMode;
+    }
 
     @Override
     public IMediaPlayer getMediaPlayer() {
@@ -84,10 +103,10 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
                 mediaPlayer.setSpeed(gsyModel.getSpeed(), 1);
             }
             
-            // Android Q+ 使用 SurfaceControl 实现无缝切换
+            // Android Q+ 使用 SurfaceControl 实现无缝切换（除非强制 TextureView 模式）
             // 关键：在这里创建 SurfaceControl 并设置给 mediaPlayer
             // mediaPlayer 始终使用同一个 videoSurface，通过 reparent 改变显示位置
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !sForceTextureViewMode) {
                 surfaceControl = new SurfaceControl.Builder()
                     .setName(SURFACE_CONTROL_NAME)
                     .setBufferSize(0, 0)
@@ -95,6 +114,8 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
                 videoSurface = new Surface(surfaceControl);
                 mediaPlayer.setSurface(videoSurface);
                 android.util.Log.d(TAG, "initVideoPlayer: 使用 SurfaceControl 模式");
+            } else {
+                android.util.Log.d(TAG, "initVideoPlayer: 使用 TextureView 模式 (forceTextureView=" + sForceTextureViewMode + ")");
             }
         } catch (Exception e) {
             android.util.Log.e(TAG, "initVideoPlayer 异常: " + e.getMessage());
@@ -107,7 +128,7 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
      * 显示 Surface - 核心方法
      * 
      * Android Q+ 使用 SurfaceControl.reparent() 实现无缝切换
-     * 低版本使用传统方式
+     * 低版本或 TextureView 模式使用传统方式
      */
     @Override
     public void showDisplay(final Message msg) {
@@ -120,16 +141,28 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null) {
                 reparent(null);
             }
-            mediaPlayer.setSurface(dummySurface);
+            // 使用 dummySurface 而不是 null，避免 MediaCodec 错误
+            if (dummySurface != null) {
+                mediaPlayer.setSurface(dummySurface);
+            }
         } else {
-            // 检查是否是 SurfaceView (Android Q+ 使用 reparent)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && msg.obj instanceof SurfaceView) {
+            // 检查是否是 SurfaceView (Android Q+ 且有 SurfaceControl 时使用 reparent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null && msg.obj instanceof SurfaceView) {
                 reparent((SurfaceView) msg.obj);
             } else if (msg.obj instanceof Surface) {
-                // 传统方式：直接设置 Surface
+                // TextureView 模式或低版本：直接设置 Surface
                 Surface holder = (Surface) msg.obj;
                 surface = holder;
                 mediaPlayer.setSurface(holder);
+                android.util.Log.d(TAG, "showDisplay: 直接设置 Surface (TextureView 模式)");
+            } else if (msg.obj instanceof SurfaceView) {
+                // TextureView 模式下收到 SurfaceView，获取其 Surface
+                SurfaceView sv = (SurfaceView) msg.obj;
+                if (sv.getHolder() != null && sv.getHolder().getSurface() != null) {
+                    surface = sv.getHolder().getSurface();
+                    mediaPlayer.setSurface(surface);
+                    android.util.Log.d(TAG, "showDisplay: 从 SurfaceView 获取 Surface (TextureView 模式)");
+                }
             }
         }
     }
