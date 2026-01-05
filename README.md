@@ -59,9 +59,40 @@ dependencyResolutionManagement {
 ```gradle
 // app/build.gradle
 dependencies {
-    implementation 'com.github.706412584:orangeplayer:1.0.1'
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:1.0.0'
+    
+    // GSY 基础依赖（必需）
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    
+    // ExoPlayer 模式（推荐）
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    
+    // 阿里云播放器模式（可选，需要 License）
+    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    
+    // IJK 播放器 so 库（根据需要选择 CPU 架构）
+    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'   // arm64-v8a
+    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'  // armeabi-v7a
+    // implementation 'io.github.carguo:gsyvideoplayer-armv5:11.3.0'   // armeabi
+    // implementation 'io.github.carguo:gsyvideoplayer-x86:11.3.0'     // x86
+    // implementation 'io.github.carguo:gsyvideoplayer-x64:11.3.0'     // x86_64
 }
 ```
+
+#### 更多格式支持（可选）
+
+如需支持 MPEG 编码、RTSP、concat、crypto 协议等，添加扩展 so 库：
+
+```gradle
+dependencies {
+    // 扩展编码支持（支持 mpeg 编码和更多协议，支持 16k Page Size）
+    // 注意：会增加包体积
+    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+}
+```
+
+> **说明**：普通版本支持 H.263/H.264/H.265 等常见编码，对于 MPEG 编码可能出现有声音无画面的情况。`ex_so` 扩展库补充了 MPEG 编码和更多协议支持。
 
 ### 3. 基本使用
 
@@ -119,18 +150,19 @@ videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
 
 ### IJK 内核集成
 
-IJK 内核需要额外添加依赖：
+IJK 内核需要额外添加 so 库依赖：
 
 ```gradle
 dependencies {
-    // IJK 播放器（可选，按需添加）
-    implementation 'io.github.carguo:gsyvideoplayer-ijk:11.3.0'
+    // IJK 播放器 so 库（按需添加对应 CPU 架构）
+    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'   // arm64-v8a（推荐）
+    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'  // armeabi-v7a
+    implementation 'io.github.carguo:gsyvideoplayer-armv5:11.3.0'   // armeabi（旧设备）
+    implementation 'io.github.carguo:gsyvideoplayer-x86:11.3.0'     // x86 模拟器
+    implementation 'io.github.carguo:gsyvideoplayer-x64:11.3.0'     // x86_64 模拟器
     
-    // 如需硬解支持，添加对应 CPU 架构的 so 库
-    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-x86:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-x64:11.3.0'
+    // 如需更多编码格式支持（mpeg、rtsp、concat、crypto 协议）
+    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
 }
 ```
 
@@ -174,7 +206,7 @@ public class MyApplication extends Application {
 
 ```gradle
 // 排除默认的阿里云 SDK
-implementation ('com.github.706412584:orangeplayer:1.0.1') {
+implementation ('com.github.706412584:orangeplayer:1.0.0') {
     exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
 }
 
@@ -298,14 +330,28 @@ manager.downloadLanguage("eng", new LanguagePackManager.DownloadCallback() {
 ```gradle
 // app/build.gradle
 dependencies {
-    // OrangePlayer 核心
-    implementation 'com.github.706412584:orangeplayer:1.0.1'
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:1.0.0'
     
-    // === 可选依赖 ===
+    // === GSY 基础依赖（必需）===
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
     
-    // IJK 播放器（如需 IJK 内核）
-    implementation 'io.github.carguo:gsyvideoplayer-ijk:11.3.0'
+    // === 播放内核（按需选择）===
+    
+    // ExoPlayer 模式（推荐）
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    
+    // 阿里云播放器模式（需要 License）
+    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    
+    // IJK 播放器 so 库（根据目标设备选择）
     implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'
+    
+    // 扩展编码支持（mpeg、rtsp、concat、crypto 协议）
+    // implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+    
+    // === 可选功能 ===
     
     // DLNA 投屏
     implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
