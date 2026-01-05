@@ -348,13 +348,16 @@ public class MainActivity extends AppCompatActivity {
 
     // ===== 生命周期 =====
     
+    // 记录切后台前是否在播放
+    private boolean mWasPlayingBeforeBackground = false;
+    
     @Override
     protected void onPause() {
         super.onPause();
         if (mPiPHelper != null && mPiPHelper.handleOnPause()) {
             return;
         }
-        mVideoView.onVideoPause();
+        // 不在 onPause 暂停，改为在 onStop 暂停
     }
 
     @Override
@@ -363,7 +366,11 @@ public class MainActivity extends AppCompatActivity {
         if (mPiPHelper != null && mPiPHelper.handleOnResume()) {
             return;
         }
-        // 不自动恢复播放，让用户手动控制
+        // 如果切后台前在播放，且不是用户主动暂停的，则恢复播放
+        if (mWasPlayingBeforeBackground && !mVideoView.isUserPaused()) {
+            mVideoView.onVideoResume();
+        }
+        mWasPlayingBeforeBackground = false;
     }
     
     @Override
@@ -371,6 +378,11 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
         if (mPiPHelper != null && mPiPHelper.handleOnStop()) {
             return;
+        }
+        // 在 onStop 中暂停播放
+        mWasPlayingBeforeBackground = mVideoView.isPlaying();
+        if (mWasPlayingBeforeBackground) {
+            mVideoView.onVideoPause();
         }
     }
     

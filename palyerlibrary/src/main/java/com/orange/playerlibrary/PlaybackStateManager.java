@@ -77,7 +77,8 @@ public class PlaybackStateManager {
         
         Log.d(TAG, "restoreState: position=" + mSavedPosition 
                 + ", wasPlaying=" + mWasPlaying 
-                + ", speed=" + mSpeed);
+                + ", speed=" + mSpeed
+                + ", userPaused=" + videoView.isUserPaused());
         
         // 恢复播放位置
         if (mSavedPosition > 0) {
@@ -89,13 +90,13 @@ public class PlaybackStateManager {
             videoView.setSpeed(mSpeed);
         }
         
-        // 恢复播放状态
-        if (mWasPlaying) {
-            // 如果之前在播放，继续播放
+        // 恢复播放状态 - 但要检查用户是否主动暂停了
+        if (mWasPlaying && !videoView.isUserPaused()) {
+            // 如果之前在播放且用户没有主动暂停，继续播放
             videoView.startPlayLogic();
         } else {
-            // 如果之前暂停，保持暂停状态
-            // 不需要额外操作，因为默认就是暂停状态
+            // 如果之前暂停或用户主动暂停了，保持暂停状态
+            Log.d(TAG, "restoreState: keeping paused state");
         }
     }
     
@@ -121,13 +122,14 @@ public class PlaybackStateManager {
         }
         
         if (mSurfaceLost && mSavedPosition > 0) {
-            Log.d(TAG, "restoreSurface: restoring surface at position=" + mSavedPosition);
+            Log.d(TAG, "restoreSurface: restoring surface at position=" + mSavedPosition
+                + ", userPaused=" + videoView.isUserPaused());
             
             // 重新渲染最后一帧
             videoView.seekTo(mSavedPosition);
             
-            // 如果之前在播放，继续播放
-            if (mWasPlaying) {
+            // 如果之前在播放且用户没有主动暂停，继续播放
+            if (mWasPlaying && !videoView.isUserPaused()) {
                 videoView.startPlayLogic();
             }
             

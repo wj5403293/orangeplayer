@@ -943,28 +943,46 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void onVideoPause() {
+        long startTime = System.currentTimeMillis();
+        android.util.Log.d(TAG, "onVideoPause: START at " + startTime 
+            + ", enteringPiP=" + mEnteringPiPMode 
+            + ", currentState=" + mCurrentPlayState
+            + ", isPlaying=" + isPlaying());
+        
         if (mEnteringPiPMode) {
+            android.util.Log.d(TAG, "onVideoPause: skipped - entering PiP mode");
             return;
         }
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
+                android.util.Log.d(TAG, "onVideoPause: skipped - in PiP mode");
                 return;
             }
         }
-                
+        
+        // 如果已经是暂停状态，不需要再次暂停
         if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-            super.onVideoResume();
-            mCurrentPlayState = PlayerConstants.STATE_PLAYING;
-            notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
+            android.util.Log.d(TAG, "onVideoPause: skipped - already paused");
             return;
         }
         
         boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERED);
+        
+        // 直接调用 GSYVideoManager 暂停，确保立即生效
+        android.util.Log.d(TAG, "onVideoPause: pausing GSYVideoManager");
+        try {
+            getGSYVideoManager().getPlayer().pause();
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "onVideoPause: direct pause failed", e);
+        }
+        
+        android.util.Log.d(TAG, "onVideoPause: calling super.onVideoPause");
         super.onVideoPause();
+        
         if (shouldUpdateState) {
             mCurrentPlayState = PlayerConstants.STATE_PAUSED;
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PAUSED);
@@ -972,6 +990,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mCurrentState = CURRENT_STATE_PAUSE;
             }
         }
+        
+        long endTime = System.currentTimeMillis();
+        android.util.Log.d(TAG, "onVideoPause: END, took " + (endTime - startTime) + "ms, isPlaying=" + isPlaying());
     }
 
     @Override
