@@ -32,7 +32,8 @@
 | 📺 投屏 | DLNA 投屏支持 |
 | 🖼️ 画中画 | PiP 小窗模式 |
 | 📸 截图 | 视频截图保存 |
-| 📋 播放列表 | 选集/历史/进度记忆 |
+
+---
 
 ## 快速开始
 
@@ -42,7 +43,10 @@
 // settings.gradle
 dependencyResolutionManagement {
     repositories {
+        google()
+        mavenCentral()
         maven { url 'https://jitpack.io' }
+        // 阿里云播放器仓库（如需使用阿里云内核）
         maven { url 'https://maven.aliyun.com/repository/releases' }
     }
 }
@@ -51,14 +55,16 @@ dependencyResolutionManagement {
 ### 2. 添加依赖
 
 ```gradle
+// app/build.gradle
 dependencies {
-    implementation 'com.github.706412584:orangeplayer:1.0.0'
+    implementation 'com.github.706412584:orangeplayer:1.0.1'
 }
 ```
 
-### 3. 使用播放器
+### 3. 基本使用
 
 ```xml
+<!-- 布局文件 -->
 <com.orange.playerlibrary.OrangevideoView
     android:id="@+id/video_player"
     android:layout_width="match_parent"
@@ -66,22 +72,184 @@ dependencies {
 ```
 
 ```java
+// Activity 中
+import com.orange.playerlibrary.OrangevideoView;
+import com.orange.playerlibrary.PlayerConstants;
+
 OrangevideoView videoView = findViewById(R.id.video_player);
 videoView.setUp("https://example.com/video.mp4", true, "视频标题");
 videoView.startPlayLogic();
 ```
 
-## API 文档
+---
 
-详细 API 请查看 [API.md](docs/API.md)
+## 播放内核切换
 
-## 项目结构
+OrangePlayer 支持 4 种播放内核，可在运行时动态切换。
 
-详细结构请查看 [STRUCTURE.md](docs/STRUCTURE.md)
+### 内核对比
 
-## OCR 语言包
+| 内核 | 优点 | 缺点 | 适用场景 |
+|------|------|------|------|
+| 系统 (MediaPlayer) | 无需额外依赖，兼容性好 | 格式支持有限 | 普通 MP4 播放 |
+| ExoPlayer | Google 官方，格式支持全 | 包体积较大 | 推荐默认使用 |
+| IJK | 格式支持最全，软解能力强 | 包体积大 | 特殊格式视频 |
+| 阿里云 | 性能好，支持私有协议 | 需要 License | 商业项目 |
 
-语言包文件位于 `tessdata_packs/` 目录：
+### 切换方法
+
+```java
+import com.orange.playerlibrary.OrangevideoView;
+import com.orange.playerlibrary.PlayerConstants;
+
+// 切换到系统播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_DEFAULT);
+
+// 切换到 ExoPlayer（推荐）
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+
+// 切换到 IJK 播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_IJK);
+
+// 切换到阿里云播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
+```
+
+### IJK 内核集成
+
+IJK 内核需要额外添加依赖：
+
+```gradle
+dependencies {
+    // IJK 播放器（可选，按需添加）
+    implementation 'io.github.carguo:gsyvideoplayer-ijk:11.3.0'
+    
+    // 如需硬解支持，添加对应 CPU 架构的 so 库
+    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-x86:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-x64:11.3.0'
+}
+```
+
+---
+
+## ⚠️ 阿里云内核注意事项
+
+### License 问题
+
+阿里云播放器从 **5.4.0 版本开始需要 License 授权**，否则会出现：
+- 播放黑屏
+- 水印覆盖
+- 功能受限
+
+### 解决方案
+
+**方案一：使用免授权版本（推荐测试使用）**
+
+本库默认使用 5.4.7.1 版本，需要在阿里云控制台申请免费 License。
+
+**方案二：申请 License**
+
+1. 登录 [阿里云视频点播控制台](https://vod.console.aliyun.com/)
+2. 创建应用获取 License
+3. 在 Application 中初始化：
+
+```java
+import com.aliyun.player.AliPlayerFactory;
+
+public class MyApplication extends Application {
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        // 初始化阿里云播放器 License
+        AliPlayerFactory.setLicenseKey("your_license_key");
+    }
+}
+```
+
+**方案三：使用旧版本（5.3.0 免授权）**
+
+```gradle
+// 排除默认的阿里云 SDK
+implementation ('com.github.706412584:orangeplayer:1.0.1') {
+    exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
+}
+
+// 使用 5.3.0 免授权版本
+implementation 'com.aliyun.sdk.android:AliyunPlayer:5.3.0-full'
+```
+
+### 阿里云仓库配置
+
+```gradle
+// settings.gradle
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/releases' }
+    maven { url 'https://maven.aliyun.com/repository/public' }
+}
+```
+
+---
+
+## 投屏功能集成
+
+投屏功能使用 DLNA 协议，需要额外添加依赖。
+
+### 添加依赖
+
+```gradle
+dependencies {
+    // DLNA 投屏库
+    implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
+    
+    // 投屏库依赖
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okio:okio:3.6.0'
+}
+```
+
+### 使用方法
+
+```java
+import com.orange.playerlibrary.cast.DLNACastManager;
+
+// 检查投屏是否可用
+if (DLNACastManager.isDLNAAvailable()) {
+    // 开始投屏（会弹出设备选择界面）
+    DLNACastManager.getInstance().startCast(
+        activity,           // Activity
+        videoUrl,           // 视频地址
+        "视频标题"          // 标题
+    );
+}
+
+// 监听投屏状态
+DLNACastManager.getInstance().setOnCastStateListener(new DLNACastManager.OnCastStateListener() {
+    @Override
+    public void onCastStarted() {
+        // 投屏开始
+    }
+    
+    @Override
+    public void onCastStopped() {
+        // 投屏停止
+    }
+    
+    @Override
+    public void onCastError(String message) {
+        // 投屏错误
+    }
+});
+```
+
+---
+
+## OCR 字幕翻译
+
+### 语言包
+
+语言包文件位于 `tessdata_packs/` 目录，复制到 `assets/tessdata/` 或使用应用内下载。
 
 | 语言 | 文件 | 大小 |
 |------|------|------|
@@ -91,27 +259,92 @@ videoView.startPlayLogic();
 | 日语 | jpn.traineddata | 2.36 MB |
 | 韩语 | kor.traineddata | 1.60 MB |
 
-将语言包复制到 `assets/tessdata/` 或使用应用内下载功能。
+### 使用方法
 
-## 依赖
+```java
+import com.orange.playerlibrary.ocr.LanguagePackManager;
 
-| 库 | 版本 |
-|------|------|
-| GSYVideoPlayer | 11.3.0 |
-| Tesseract4Android | 4.7.0 |
-| ML Kit Translate | 17.0.2 |
-| DanmakuFlameMaster | 0.9.25 |
-| AliyunPlayer | 5.4.7.1 |
+// 检查语言包是否已安装
+LanguagePackManager manager = new LanguagePackManager(context);
+if (manager.isLanguageInstalled("chi_sim")) {
+    // 已安装简体中文
+}
+
+// 下载语言包
+manager.downloadLanguage("eng", new LanguagePackManager.DownloadCallback() {
+    @Override
+    public void onProgress(int progress, long downloaded, long total) {
+        // 下载进度
+    }
+    
+    @Override
+    public void onSuccess() {
+        // 下载成功
+    }
+    
+    @Override
+    public void onError(String error) {
+        // 下载失败
+    }
+});
+```
+
+---
+
+## 完整依赖配置示例
+
+```gradle
+// app/build.gradle
+dependencies {
+    // OrangePlayer 核心
+    implementation 'com.github.706412584:orangeplayer:1.0.1'
+    
+    // === 可选依赖 ===
+    
+    // IJK 播放器（如需 IJK 内核）
+    implementation 'io.github.carguo:gsyvideoplayer-ijk:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
+    
+    // DLNA 投屏
+    implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
+```
+
+---
+
+## API 文档
+
+详细 API 请查看 [docs/API.md](docs/API.md)
+
+## 项目结构
+
+详细结构请查看 [docs/STRUCTURE.md](docs/STRUCTURE.md)
+
+---
 
 ## 混淆配置
 
 ```proguard
+# GSYVideoPlayer
 -keep class com.shuyu.gsyvideoplayer.** { *; }
 -keep class tv.danmaku.ijk.** { *; }
+
+# OrangePlayer
 -keep class com.orange.playerlibrary.** { *; }
+
+# Tesseract OCR
 -keep class com.googlecode.tesseract.android.** { *; }
+
+# 阿里云播放器
 -keep class com.aliyun.player.** { *; }
+-keep class com.cicada.player.** { *; }
+
+# DLNA 投屏
+-keep class com.uaoanlao.tv.** { *; }
 ```
+
+---
 
 ## License
 
@@ -122,3 +355,4 @@ Apache License 2.0
 - [GSYVideoPlayer](https://github.com/CarGuo/GSYVideoPlayer)
 - [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
 - [DanmakuFlameMaster](https://github.com/bilibili/DanmakuFlameMaster)
+- [UaoanDLNA](https://github.com/AnyListen/UaoanDLNA)
