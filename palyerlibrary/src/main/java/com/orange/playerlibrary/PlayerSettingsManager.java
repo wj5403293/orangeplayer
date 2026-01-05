@@ -22,6 +22,12 @@ public class PlayerSettingsManager {
     private static final String KEY_DANMAKU_SPEED = "danmaku_speed";
     private static final String KEY_DANMAKU_ALPHA = "danmaku_alpha";
     
+    // 字幕设置
+    private static final String KEY_SUBTITLE_SIZE = "subtitle_size";
+    private static final String KEY_SUBTITLE_ENABLED = "subtitle_enabled";
+    private static final String KEY_SUBTITLE_URL_PREFIX = "subtitle_url_";      // 按视频URL存储
+    private static final String KEY_SUBTITLE_LOCAL_PREFIX = "subtitle_local_";  // 按视频URL存储本地字幕Uri
+    
     private static PlayerSettingsManager sInstance;
     private final SharedPreferences mPreferences;
     
@@ -141,5 +147,78 @@ public class PlayerSettingsManager {
     
     public float getDanmakuAlpha() {
         return mPreferences.getFloat(KEY_DANMAKU_ALPHA, 1.0f);
+    }
+    
+    // ===== 字幕设置 =====
+    
+    public void setSubtitleSize(float size) {
+        mPreferences.edit().putFloat(KEY_SUBTITLE_SIZE, size).apply();
+    }
+    
+    public float getSubtitleSize() {
+        return mPreferences.getFloat(KEY_SUBTITLE_SIZE, 18.0f); // 默认18sp
+    }
+    
+    public void setSubtitleEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_SUBTITLE_ENABLED, enabled).apply();
+    }
+    
+    public boolean isSubtitleEnabled() {
+        return mPreferences.getBoolean(KEY_SUBTITLE_ENABLED, false);
+    }
+    
+    /**
+     * 保存视频对应的字幕URL
+     * @param videoUrl 视频URL
+     * @param subtitleUrl 字幕URL
+     */
+    public void setSubtitleUrlForVideo(String videoUrl, String subtitleUrl) {
+        String key = KEY_SUBTITLE_URL_PREFIX + hashVideoUrl(videoUrl);
+        mPreferences.edit().putString(key, subtitleUrl).apply();
+    }
+    
+    /**
+     * 获取视频对应的字幕URL
+     */
+    public String getSubtitleUrlForVideo(String videoUrl) {
+        String key = KEY_SUBTITLE_URL_PREFIX + hashVideoUrl(videoUrl);
+        return mPreferences.getString(key, null);
+    }
+    
+    /**
+     * 保存视频对应的本地字幕Uri
+     * @param videoUrl 视频URL
+     * @param subtitleUri 本地字幕Uri字符串
+     */
+    public void setSubtitleLocalForVideo(String videoUrl, String subtitleUri) {
+        String key = KEY_SUBTITLE_LOCAL_PREFIX + hashVideoUrl(videoUrl);
+        mPreferences.edit().putString(key, subtitleUri).apply();
+    }
+    
+    /**
+     * 获取视频对应的本地字幕Uri
+     */
+    public String getSubtitleLocalForVideo(String videoUrl) {
+        String key = KEY_SUBTITLE_LOCAL_PREFIX + hashVideoUrl(videoUrl);
+        return mPreferences.getString(key, null);
+    }
+    
+    /**
+     * 清除视频的字幕记忆
+     */
+    public void clearSubtitleForVideo(String videoUrl) {
+        String hash = hashVideoUrl(videoUrl);
+        mPreferences.edit()
+            .remove(KEY_SUBTITLE_URL_PREFIX + hash)
+            .remove(KEY_SUBTITLE_LOCAL_PREFIX + hash)
+            .apply();
+    }
+    
+    /**
+     * 对视频URL进行哈希，避免key过长
+     */
+    private String hashVideoUrl(String url) {
+        if (url == null) return "null";
+        return String.valueOf(url.hashCode());
     }
 }

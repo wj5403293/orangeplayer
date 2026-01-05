@@ -34,7 +34,7 @@ public class OcrSubtitleManager {
     
     // 默认配置
     private static final int DEFAULT_FRAME_INTERVAL = 1000; // 1秒截取一帧
-    private static final float DEFAULT_SUBTITLE_REGION_TOP = 0.75f; // 字幕区域从75%开始
+    private static final float DEFAULT_SUBTITLE_REGION_TOP = 0.82f; // 字幕区域从82%开始
     private static final float DEFAULT_SUBTITLE_REGION_BOTTOM = 0.95f; // 字幕区域到95%结束
     
     private Context mContext;
@@ -726,6 +726,12 @@ public class OcrSubtitleManager {
         int top = (int) (height * mSubtitleRegionTop);
         int bottom = (int) (height * mSubtitleRegionBottom);
         int cropHeight = bottom - top;
+        
+        // 打印字幕识别区域信息
+        Log.d(TAG, "=== 字幕识别区域 ===");
+        Log.d(TAG, "视频尺寸: " + width + "x" + height);
+        Log.d(TAG, "区域比例: " + (mSubtitleRegionTop * 100) + "% - " + (mSubtitleRegionBottom * 100) + "%");
+        Log.d(TAG, "区域像素: y=" + top + " 到 y=" + bottom + ", 高度=" + cropHeight + "px");
         
         if (cropHeight <= 0) {
             return null;

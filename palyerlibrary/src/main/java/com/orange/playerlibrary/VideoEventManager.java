@@ -3,7 +3,10 @@ package com.orange.playerlibrary;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -25,6 +28,9 @@ public class VideoEventManager {
     private static final String TAG = "VideoEventManager";
     private static final int COLOR_HIGHLIGHT = Color.parseColor("#FFDDC333");
     private static final int COLOR_NORMAL = Color.parseColor("#FFACABAA");
+    
+    // 字幕文件选择请求码
+    public static final int REQUEST_CODE_SUBTITLE_FILE = 10086;
     
     private final Context mContext;
     private final OrangevideoView mVideoView;
@@ -96,9 +102,6 @@ public class VideoEventManager {
      * 2. 全屏切换后：切换回 TextureView 模式，恢复 OCR（由本方法处理）
      */
     private void handlePlayerStateChangedForOcr(int playerState) {
-        android.util.Log.d(TAG, "handlePlayerStateChangedForOcr: playerState=" + playerState 
-            + ", ocrPaused=" + mOcrPausedForFullscreen);
-        
         // 只有在 OCR 被暂停等待恢复时才处理
         if (!mOcrPausedForFullscreen) {
             return;
@@ -108,7 +111,6 @@ public class VideoEventManager {
         // PLAYER_FULL_SCREEN = 11, PLAYER_NORMAL = 10
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN 
             || playerState == PlayerConstants.PLAYER_NORMAL) {
-            android.util.Log.d(TAG, "handlePlayerStateChangedForOcr: 全屏切换完成，准备恢复 OCR");
             // 延迟恢复 OCR，等待全屏切换动画和视频重新加载完成
             mMainHandler.postDelayed(() -> {
                 resumeOcrAfterFullscreenSwitch();
@@ -125,7 +127,6 @@ public class VideoEventManager {
     public boolean shouldInterceptFullscreenForOcr() {
         // 检查 OCR 是否正在运行
         if (mOcrSubtitleManager == null || !mOcrSubtitleManager.isRunning()) {
-            android.util.Log.d(TAG, "shouldInterceptFullscreenForOcr: OCR 未运行，不需要拦截");
             return false;
         }
         
@@ -136,10 +137,6 @@ public class VideoEventManager {
         
         // 检查是否 Android Q+（只有 Q+ 才使用 SurfaceControl.reparent）
         boolean isAndroidQ = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q;
-        
-        android.util.Log.d(TAG, "shouldInterceptFullscreenForOcr: engine=" + currentEngine 
-            + ", isExoOrSystem=" + isExoOrSystem + ", isAndroidQ=" + isAndroidQ);
-        
         return isExoOrSystem && isAndroidQ;
     }
     
@@ -148,10 +145,7 @@ public class VideoEventManager {
      * 调用方应该先调用 shouldInterceptFullscreenForOcr 检查是否需要拦截
      */
     public void pauseOcrForFullscreenSwitch() {
-        android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 开始暂停 OCR");
-        
         if (mOcrSubtitleManager == null || !mOcrSubtitleManager.isRunning()) {
-            android.util.Log.w(TAG, "pauseOcrForFullscreenSwitch: OCR 未运行");
             return;
         }
         
@@ -169,13 +163,11 @@ public class VideoEventManager {
             url = mVideoView.getUrl();
             
             if (wasPlaying) {
-                android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 暂停视频播放");
                 mVideoView.pause();
             }
         }
         
         // 2. 停止 OCR
-        android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 停止 OCR");
         if (mOcrSubtitleManager != null) {
             mOcrSubtitleManager.release();
             mOcrSubtitleManager = null;
@@ -184,8 +176,6 @@ public class VideoEventManager {
         // 3. 切换到 SurfaceView 模式并重新加载视频
         try {
             String currentEngine = mSettingsManager.getPlayerEngine();
-            android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 当前引擎=" + currentEngine);
-            
             // 设置回 SurfaceView 模式
             if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
                 com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
@@ -196,9 +186,6 @@ public class VideoEventManager {
             // 设置 GSYVideoType 为 SurfaceView
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                 com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-            
-            android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 已设置 SurfaceView 模式，准备重新加载视频");
-            
             // 重新加载视频以应用新的渲染模式
             if (mVideoView != null && url != null && !url.isEmpty()) {
                 final long seekPosition = currentPosition;
@@ -218,13 +205,8 @@ public class VideoEventManager {
                 // 暂停状态启动，让全屏切换更平滑
                 // 全屏切换完成后会自动恢复 OCR 并继续播放
                 mVideoView.startPlayLogic();
-                
-                android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 视频重新加载完成，position=" + seekPosition);
             }
-            
-            android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 完成");
         } catch (Exception e) {
-            android.util.Log.e(TAG, "Error in pauseOcrForFullscreenSwitch", e);
         }
     }
     
@@ -233,12 +215,8 @@ public class VideoEventManager {
      */
     private void resumeOcrAfterFullscreenSwitch() {
         if (!mOcrPausedForFullscreen) {
-            android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: OCR 未被暂停，跳过");
             return;
         }
-        
-        android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: 恢复 OCR，语言=" 
-            + mOcrSourceLang + " -> " + mOcrTargetLang);
         mOcrPausedForFullscreen = false;
         
         // 重新启动 OCR
@@ -251,11 +229,9 @@ public class VideoEventManager {
         if (needSwitchToTexture && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             // 对于 EXO/系统内核，需要先切换到 TextureView 模式
             // doStartOcrTranslate 会处理这个
-            android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: 调用 doStartOcrTranslate 切换到 TextureView");
             doStartOcrTranslate(mOcrSourceLang, mOcrTargetLang);
         } else {
             // 其他内核直接启动 OCR
-            android.util.Log.d(TAG, "resumeOcrAfterFullscreenSwitch: 直接启动 OCR");
             doStartOcrTranslateInternal(mOcrSourceLang, mOcrTargetLang);
         }
     }
@@ -2397,7 +2373,14 @@ public class VideoEventManager {
             android.widget.SeekBar sizeBar = dialogView.findViewById(R.id.subtitle_size_bar);
             android.widget.TextView sizeText = dialogView.findViewById(R.id.subtitle_size_text);
             if (sizeBar != null) {
-                sizeBar.setProgress(50); // 默认中等大小
+                // 从设置中读取已保存的字幕大小
+                float savedSize = mSettingsManager.getSubtitleSize();
+                int savedProgress = (int) ((savedSize - 12) / 24 * 100);
+                sizeBar.setProgress(Math.max(0, Math.min(100, savedProgress)));
+                if (sizeText != null) {
+                    sizeText.setText("字幕大小: " + (int) savedSize + "sp");
+                }
+                
                 sizeBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
@@ -2416,6 +2399,8 @@ public class VideoEventManager {
                     public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
                         float size = 12 + (seekBar.getProgress() / 100f) * 24;
                         mController.getSubtitleManager().setTextSize(size);
+                        // 保存字幕大小设置
+                        mSettingsManager.setSubtitleSize(size);
                         showToast("字幕大小: " + (int) size + "sp");
                     }
                 });
@@ -2471,8 +2456,96 @@ public class VideoEventManager {
      * 显示字幕文件选择器
      */
     private void showSubtitleFilePicker() {
-        showToast("请从文件管理器选择字幕文件 (.srt/.vtt)");
-        // TODO: 实现文件选择器，需要 Activity 配合
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            // 支持 .srt, .vtt, .ass, .ssa 字幕格式
+            String[] mimeTypes = {
+                "application/x-subrip",           // .srt
+                "text/vtt",                        // .vtt
+                "text/x-ssa",                      // .ssa/.ass
+                "application/octet-stream",        // 通用二进制
+                "text/plain"                       // 纯文本
+            };
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+            
+            mActivity.startActivityForResult(intent, REQUEST_CODE_SUBTITLE_FILE);
+            Log.d(TAG, "启动字幕文件选择器");
+        } catch (Exception e) {
+            Log.e(TAG, "启动文件选择器失败", e);
+            showToast("无法打开文件选择器");
+        }
+    }
+    
+    /**
+     * 处理字幕文件选择结果
+     * 需要在 Activity 的 onActivityResult 中调用此方法
+     * 
+     * @param requestCode 请求码
+     * @param resultCode 结果码
+     * @param data Intent 数据
+     * @return 是否处理了该结果
+     */
+    public boolean handleActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_SUBTITLE_FILE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                Uri uri = data.getData();
+                if (uri != null) {
+                    Log.d(TAG, "选择的字幕文件: " + uri);
+                    loadSubtitleFromUri(uri);
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * 从 Uri 加载字幕
+     */
+    private void loadSubtitleFromUri(Uri uri) {
+        try {
+            // 获取持久化读取权限
+            mActivity.getContentResolver().takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception e) {
+            // 某些 Uri 可能不支持持久化权限，忽略
+            Log.w(TAG, "无法获取持久化权限: " + e.getMessage());
+        }
+        
+        if (mController == null || mController.getSubtitleManager() == null) {
+            showToast("字幕管理器未初始化");
+            return;
+        }
+        
+        showToast("正在加载字幕...");
+        
+        final String uriString = uri.toString();
+        mController.getSubtitleManager().loadSubtitle(uri, new com.orange.playerlibrary.subtitle.SubtitleManager.OnSubtitleLoadListener() {
+            @Override
+            public void onLoadSuccess(int count) {
+                mActivity.runOnUiThread(() -> {
+                    showToast("字幕加载成功，共 " + count + " 条");
+                    mController.startSubtitle();
+                    // 保存本地字幕记忆
+                    String videoUrl = mVideoView.getUrl();
+                    if (videoUrl != null) {
+                        mSettingsManager.setSubtitleLocalForVideo(videoUrl, uriString);
+                        // 清除网络字幕记忆（本地优先）
+                        mSettingsManager.setSubtitleUrlForVideo(videoUrl, null);
+                        Log.d(TAG, "已保存本地字幕记忆: " + uriString);
+                    }
+                });
+            }
+            
+            @Override
+            public void onLoadFailed(String error) {
+                mActivity.runOnUiThread(() -> {
+                    showToast("字幕加载失败: " + error);
+                });
+            }
+        });
     }
     
     /**
@@ -2520,6 +2593,14 @@ public class VideoEventManager {
                 mActivity.runOnUiThread(() -> {
                     showToast("字幕加载成功，共 " + count + " 条");
                     mController.startSubtitle();
+                    // 保存网络字幕记忆
+                    String videoUrl = mVideoView.getUrl();
+                    if (videoUrl != null) {
+                        mSettingsManager.setSubtitleUrlForVideo(videoUrl, url);
+                        // 清除本地字幕记忆（网络优先）
+                        mSettingsManager.setSubtitleLocalForVideo(videoUrl, null);
+                        Log.d(TAG, "已保存网络字幕记忆: " + url);
+                    }
                 });
             }
             
@@ -2530,6 +2611,73 @@ public class VideoEventManager {
                 });
             }
         });
+    }
+    
+    /**
+     * 尝试自动加载已记忆的字幕
+     * 应在视频开始播放时调用
+     */
+    public void tryLoadRememberedSubtitle() {
+        String videoUrl = mVideoView.getUrl();
+        if (videoUrl == null || mController == null || mController.getSubtitleManager() == null) {
+            return;
+        }
+        
+        // 应用已保存的字幕大小
+        float savedSize = mSettingsManager.getSubtitleSize();
+        mController.getSubtitleManager().setTextSize(savedSize);
+        
+        // 优先加载本地字幕
+        String localUri = mSettingsManager.getSubtitleLocalForVideo(videoUrl);
+        if (localUri != null && !localUri.isEmpty()) {
+            Log.d(TAG, "自动加载本地字幕: " + localUri);
+            try {
+                Uri uri = Uri.parse(localUri);
+                mController.getSubtitleManager().loadSubtitle(uri, new com.orange.playerlibrary.subtitle.SubtitleManager.OnSubtitleLoadListener() {
+                    @Override
+                    public void onLoadSuccess(int count) {
+                        mActivity.runOnUiThread(() -> {
+                            Log.d(TAG, "自动加载本地字幕成功，共 " + count + " 条");
+                            mController.startSubtitle();
+                        });
+                    }
+                    
+                    @Override
+                    public void onLoadFailed(String error) {
+                        Log.w(TAG, "自动加载本地字幕失败: " + error);
+                        // 本地字幕失败，尝试网络字幕
+                        tryLoadRememberedUrlSubtitle(videoUrl);
+                    }
+                });
+                return;
+            } catch (Exception e) {
+                Log.w(TAG, "解析本地字幕Uri失败", e);
+            }
+        }
+        
+        // 加载网络字幕
+        tryLoadRememberedUrlSubtitle(videoUrl);
+    }
+    
+    private void tryLoadRememberedUrlSubtitle(String videoUrl) {
+        String subtitleUrl = mSettingsManager.getSubtitleUrlForVideo(videoUrl);
+        if (subtitleUrl != null && !subtitleUrl.isEmpty()) {
+            Log.d(TAG, "自动加载网络字幕: " + subtitleUrl);
+            mController.loadSubtitle(subtitleUrl, new com.orange.playerlibrary.subtitle.SubtitleManager.OnSubtitleLoadListener() {
+                @Override
+                public void onLoadSuccess(int count) {
+                    mActivity.runOnUiThread(() -> {
+                        Log.d(TAG, "自动加载网络字幕成功，共 " + count + " 条");
+                        mController.startSubtitle();
+                    });
+                }
+                
+                @Override
+                public void onLoadFailed(String error) {
+                    Log.w(TAG, "自动加载网络字幕失败: " + error);
+                }
+            });
+        }
     }
     
     // ===== OCR 翻译字幕功能 =====
@@ -2632,9 +2780,6 @@ public class VideoEventManager {
             long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
             String currentUrl = mVideoView.getUrl();
             boolean wasPlaying = mVideoView.isPlaying();
-            
-            android.util.Log.d(TAG, "doStartOcrTranslate: 切换到 TextureView 模式, engine=" + currentEngine);
-            
             // 设置强制 TextureView 模式
             if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
                 com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
@@ -2645,8 +2790,6 @@ public class VideoEventManager {
             // 先设置 GSYVideoType 为 TextureView
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                 com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-            android.util.Log.d(TAG, "doStartOcrTranslate: 已设置 GSYVideoType.TEXTURE");
-            
             // 重新加载视频以应用新的渲染模式
             mVideoView.release();
             com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
@@ -2681,8 +2824,6 @@ public class VideoEventManager {
      * 注意：调用此方法前，调用方应该已经确保切换到了 TextureView 模式（如果需要的话）
      */
     private void doStartOcrTranslateInternal(String sourceLang, String targetLang) {
-        android.util.Log.d(TAG, "doStartOcrTranslateInternal: 开始启动 OCR, sourceLang=" + sourceLang + ", targetLang=" + targetLang);
-        
         // 获取 OcrSubtitleManager
         com.orange.playerlibrary.ocr.OcrSubtitleManager ocrManager = 
             new com.orange.playerlibrary.ocr.OcrSubtitleManager(mActivity);
@@ -2711,6 +2852,13 @@ public class VideoEventManager {
         ocrManager.setCallback(new com.orange.playerlibrary.ocr.OcrSubtitleManager.OcrSubtitleCallback() {
             @Override
             public void onSubtitleRecognized(String originalText, String translatedText) {
+                // 打印OCR识别结果到日志
+                Log.d(TAG, "=== OCR识别结果 ===");
+                Log.d(TAG, "原文: " + originalText);
+                if (translatedText != null) {
+                    Log.d(TAG, "译文: " + translatedText);
+                }
+                
                 // 显示字幕
                 if (mController != null && mController.getSubtitleManager() != null) {
                     String displayText = translatedText != null ? 
@@ -2790,8 +2938,6 @@ public class VideoEventManager {
                 && com.orange.playerlibrary.player.OrangeSystemPlayerManager.isForceTextureViewMode());
             
             if (needSwitchBack && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                android.util.Log.d(TAG, "stopOcrTranslate: 切换回 SurfaceView 模式");
-                
                 // 记录当前播放状态
                 long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
                 String currentUrl = mVideoView.getUrl();
@@ -2833,7 +2979,6 @@ public class VideoEventManager {
                 }
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "Error switching back to SurfaceView mode", e);
         }
     }
 }

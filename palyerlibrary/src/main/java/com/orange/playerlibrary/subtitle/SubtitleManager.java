@@ -2,6 +2,7 @@ package com.orange.playerlibrary.subtitle;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -43,7 +44,7 @@ public class SubtitleManager {
     private String mCurrentSubtitlePath;
     
     // 字幕样式
-    private float mTextSize = 14f;
+    private float mTextSize = 18f; // 默认18sp
     private int mTextColor = Color.WHITE;
     private int mBackgroundColor = 0x80000000; // 半透明黑色
     private int mBottomMargin = 10; // dp - 字幕位置
@@ -160,6 +161,84 @@ public class SubtitleManager {
             return;
         }
         loadSubtitle(file.getAbsolutePath(), listener);
+    }
+    
+    /**
+     * 从 Uri 加载字幕（支持 SAF 文件选择器返回的 Uri）
+     */
+    public void loadSubtitle(Uri uri, OnSubtitleLoadListener listener) {
+        if (uri == null) {
+            if (listener != null) {
+                listener.onLoadFailed("Uri is null");
+            }
+            return;
+        }
+        
+        mCurrentSubtitlePath = uri.toString();
+        mExecutor.execute(() -> {
+            try {
+                String content = readFromUri(uri);
+                // 从 Uri 获取文件名来判断格式
+                String fileName = getFileNameFromUri(uri);
+                List<SubtitleEntry> subtitles = parseSubtitle(content, fileName != null ? fileName : ".srt");
+                
+                mHandler.post(() -> {
+                    mSubtitles.clear();
+                    mSubtitles.addAll(subtitles);
+                    mLoaded = true;
+                    Log.d(TAG, "Loaded " + subtitles.size() + " subtitle entries from Uri");
+                    if (listener != null) {
+                        listener.onLoadSuccess(subtitles.size());
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Load subtitle from Uri failed", e);
+                mHandler.post(() -> {
+                    if (listener != null) {
+                        listener.onLoadFailed(e.getMessage());
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * 从 Uri 读取内容
+     */
+    private String readFromUri(Uri uri) throws Exception {
+        try (InputStream is = mContext.getContentResolver().openInputStream(uri);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            return sb.toString();
+        }
+    }
+    
+    /**
+     * 从 Uri 获取文件名
+     */
+    private String getFileNameFromUri(Uri uri) {
+        String fileName = null;
+        if ("content".equals(uri.getScheme())) {
+            try (android.database.Cursor cursor = mContext.getContentResolver().query(
+                    uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex >= 0) {
+                        fileName = cursor.getString(nameIndex);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to get file name from Uri", e);
+            }
+        }
+        if (fileName == null) {
+            fileName = uri.getLastPathSegment();
+        }
+        return fileName;
     }
     
     /**

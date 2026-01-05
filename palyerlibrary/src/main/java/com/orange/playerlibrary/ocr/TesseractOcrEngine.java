@@ -107,6 +107,7 @@ public class TesseractOcrEngine implements OcrEngine {
     
     /**
      * 过滤 OCR 识别结果，只保留中英文、数字和常用标点
+     * 并去掉中文字符之间的多余空格
      */
     private String filterOcrResult(String text) {
         if (text == null || text.isEmpty()) {
@@ -116,7 +117,7 @@ public class TesseractOcrEngine implements OcrEngine {
         
         Log.d(TAG, "filterOcrResult: input length=" + text.length() + ", text=[" + text.replace("\n", "\\n") + "]");
         
-        // 只保留：中文、英文字母、数字、常用标点（，。！？、；：""''（）—…·,.:;!?'"()-）和空格
+        // 第一步：只保留有效字符
         StringBuilder filtered = new StringBuilder();
         for (char c : text.toCharArray()) {
             if (isValidChar(c)) {
@@ -125,6 +126,12 @@ public class TesseractOcrEngine implements OcrEngine {
         }
         
         String result = filtered.toString().trim();
+        
+        // 第二步：去掉中文字符之间的空格
+        result = removeSpacesBetweenChinese(result);
+        
+        // 第三步：合并多个连续空格为一个
+        result = result.replaceAll("\\s+", " ").trim();
         
         Log.d(TAG, "filterOcrResult: filtered length=" + result.length() + ", text=[" + result.replace("\n", "\\n") + "]");
         
@@ -135,6 +142,61 @@ public class TesseractOcrEngine implements OcrEngine {
         }
         
         return result;
+    }
+    
+    /**
+     * 去掉中文字符之间的空格
+     * 例如："为 了 满 足" -> "为了满足"
+     * 但保留中英文之间的空格："Hello 世界" -> "Hello 世界"
+     */
+    private String removeSpacesBetweenChinese(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        
+        StringBuilder result = new StringBuilder();
+        char[] chars = text.toCharArray();
+        
+        for (int i = 0; i < chars.length; i++) {
+            char current = chars[i];
+            
+            // 如果当前是空格，检查前后字符
+            if (current == ' ') {
+                // 获取前一个非空格字符
+                char prev = '\0';
+                for (int j = i - 1; j >= 0; j--) {
+                    if (chars[j] != ' ') {
+                        prev = chars[j];
+                        break;
+                    }
+                }
+                
+                // 获取后一个非空格字符
+                char next = '\0';
+                for (int j = i + 1; j < chars.length; j++) {
+                    if (chars[j] != ' ') {
+                        next = chars[j];
+                        break;
+                    }
+                }
+                
+                // 如果前后都是中文，跳过这个空格
+                if (isChinese(prev) && isChinese(next)) {
+                    continue;
+                }
+            }
+            
+            result.append(current);
+        }
+        
+        return result.toString();
+    }
+    
+    /**
+     * 判断字符是否是中文
+     */
+    private boolean isChinese(char c) {
+        return c >= '\u4e00' && c <= '\u9fff';
     }
     
     /**

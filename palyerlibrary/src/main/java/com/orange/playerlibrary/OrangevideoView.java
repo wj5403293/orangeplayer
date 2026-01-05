@@ -207,6 +207,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 
                 // 启动播放历史自动保存
                 startPlayHistoryAutoSave();
+                
+                // 尝试自动加载已记忆的字幕
+                if (mOrangeController != null) {
+                    VideoEventManager eventManager = mOrangeController.getVideoEventManager();
+                    if (eventManager != null) {
+                        eventManager.tryLoadRememberedSubtitle();
+                    }
+                }
             }
 
             @Override
@@ -768,7 +776,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             && com.orange.playerlibrary.player.OrangeSystemPlayerManager.isForceTextureViewMode();
         
         if (isExoTextureMode || isSystemTextureMode) {
-            android.util.Log.d("OrangevideoView", "onSurfaceDestroyed: TextureView 模式，先切换到 PlaceholderSurface");
             // 通过 setDisplay(null) 触发切换到 PlaceholderSurface
             setDisplay(null);
             // 返回 true 表示我们已经处理了 Surface 销毁
@@ -1205,18 +1212,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         // OCR 模式：使用 TextureView
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                             com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                        android.util.Log.d(TAG, "selectPlayerFactory: ExoPlayer 使用 TextureView 模式 (OCR)");
                     } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                         // Android Q+：使用 SurfaceView + SurfaceControl
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                             com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                        android.util.Log.d(TAG, "selectPlayerFactory: ExoPlayer 使用 SurfaceView 模式");
                     } else {
                         // 低版本 Android 使用 TextureView
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                             com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                         com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
-                        android.util.Log.d(TAG, "selectPlayerFactory: ExoPlayer 使用 TextureView 模式 (低版本)");
                     }
                 } catch (Exception e) {
                     // 回退到 GSY 原生 Exo2PlayerManager
@@ -1247,18 +1251,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     // OCR 模式：使用 TextureView
                     com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                    android.util.Log.d(TAG, "selectPlayerFactory: 系统播放器使用 TextureView 模式 (OCR)");
                 } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                     // Android Q+：使用 SurfaceView + SurfaceControl
                     com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                    android.util.Log.d(TAG, "selectPlayerFactory: 系统播放器使用 SurfaceView 模式");
                 } else {
                     // 低版本 Android 使用 TextureView
                     com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                     com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
-                    android.util.Log.d(TAG, "selectPlayerFactory: 系统播放器使用 TextureView 模式 (低版本)");
                 }
                 break;
         }
@@ -1429,29 +1430,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 用于避免 TextureView 模式下屏幕旋转导致 MediaCodec 崩溃
      */
     private void pauseOcrForFullscreenSwitch() {
-        android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: called");
-        
         if (mOrangeController == null) {
-            android.util.Log.w(TAG, "pauseOcrForFullscreenSwitch: mOrangeController is null");
             return;
         }
         
         try {
             VideoEventManager eventManager = mOrangeController.getVideoEventManager();
             if (eventManager == null) {
-                android.util.Log.w(TAG, "pauseOcrForFullscreenSwitch: eventManager is null");
                 return;
             }
             
             // 检查是否需要拦截（OCR 运行中 + EXO/系统内核 + Android Q+）
             if (eventManager.shouldInterceptFullscreenForOcr()) {
-                android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 需要拦截，暂停 OCR 并切换到 SurfaceView");
                 eventManager.pauseOcrForFullscreenSwitch();
             } else {
-                android.util.Log.d(TAG, "pauseOcrForFullscreenSwitch: 不需要拦截");
             }
         } catch (Exception e) {
-            android.util.Log.e(TAG, "Error pausing OCR for fullscreen switch", e);
         }
     }
 
@@ -2192,8 +2186,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     @SuppressWarnings({"ResourceType", "unchecked"})
     public GSYBaseVideoPlayer startWindowFullscreen(Context context, boolean actionBar, boolean statusBar) {
-        android.util.Log.d(TAG, "startWindowFullscreen: called");
-        
         // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
         pauseOcrForFullscreenSwitch();
         
@@ -2339,8 +2331,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @SuppressWarnings("ResourceType")
     protected void orangeBackToNormal() {
-        android.util.Log.d(TAG, "orangeBackToNormal: called");
-        
         // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
         pauseOcrForFullscreenSwitch();
         
