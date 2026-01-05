@@ -5,6 +5,8 @@
 [![](https://jitpack.io/v/706412584/orangeplayer.svg)](https://jitpack.io/#706412584/orangeplayer)
 [![Android CI](https://github.com/706412584/orangeplayer/actions/workflows/android.yml/badge.svg)](https://github.com/706412584/orangeplayer/actions/workflows/android.yml)
 
+📱 [下载 Demo APK](https://github.com/706412584/orangeplayer/releases/tag/demo)
+
 ## 截图预览
 
 <p align="center">
@@ -349,6 +351,14 @@ dependencies {
 ## License
 
 Apache License 2.0
+
+---
+
+## 作者
+
+**QQ: 706412584**
+
+如有问题或建议，欢迎联系交流。
 
 ## 致谢
 
