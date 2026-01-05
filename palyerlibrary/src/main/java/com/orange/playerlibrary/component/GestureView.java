@@ -170,6 +170,22 @@ public class GestureView extends FrameLayout implements IControlComponent {
         mProgressPercent.setProgress(percent);
     }
     
+    /**
+     * 显示倍速提示
+     * @param speed 当前速度
+     * @param isLongPress true=长按加速中，false=恢复正常
+     */
+    public void showSpeedHint(float speed, boolean isLongPress) {
+        mProgressPercent.setVisibility(GONE);
+        mIcon.setImageResource(R.drawable.dkplayer_ic_action_fast_forward);
+        
+        if (isLongPress) {
+            mTextPercent.setText(speed + "x 加速中");
+        } else {
+            mTextPercent.setText(speed + "x");
+        }
+    }
+    
     // ===== 辅助方法 =====
     
     /**

@@ -962,27 +962,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public void onVideoPause() {
         long startTime = System.currentTimeMillis();
-        android.util.Log.d(TAG, "onVideoPause: START at " + startTime 
-            + ", enteringPiP=" + mEnteringPiPMode 
-            + ", currentState=" + mCurrentPlayState
-            + ", isPlaying=" + isPlaying());
-        
         if (mEnteringPiPMode) {
-            android.util.Log.d(TAG, "onVideoPause: skipped - entering PiP mode");
             return;
         }
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
-                android.util.Log.d(TAG, "onVideoPause: skipped - in PiP mode");
                 return;
             }
         }
         
         // 如果已经是暂停状态，不需要再次暂停
         if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-            android.util.Log.d(TAG, "onVideoPause: skipped - already paused");
             return;
         }
         
@@ -991,14 +983,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                                      mCurrentPlayState == PlayerConstants.STATE_BUFFERED);
         
         // 直接调用 GSYVideoManager 暂停，确保立即生效
-        android.util.Log.d(TAG, "onVideoPause: pausing GSYVideoManager");
         try {
             getGSYVideoManager().getPlayer().pause();
         } catch (Exception e) {
-            android.util.Log.e(TAG, "onVideoPause: direct pause failed", e);
         }
-        
-        android.util.Log.d(TAG, "onVideoPause: calling super.onVideoPause");
         super.onVideoPause();
         
         if (shouldUpdateState) {
@@ -1010,14 +998,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         
         long endTime = System.currentTimeMillis();
-        android.util.Log.d(TAG, "onVideoPause: END, took " + (endTime - startTime) + "ms, isPlaying=" + isPlaying());
     }
 
     @Override
     public void onVideoResume() {
         // 如果用户主动暂停了，不自动恢复播放
         if (mUserPaused) {
-            android.util.Log.d(TAG, "onVideoResume: skipped because user paused");
             return;
         }
         
@@ -1497,9 +1483,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 启动播放历史自动保存
      */
     private void startPlayHistoryAutoSave() {
-        android.util.Log.d(TAG, "startPlayHistoryAutoSave: mVideoUrl=" + mVideoUrl);
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
-            android.util.Log.d(TAG, "startPlayHistoryAutoSave: url is empty, skip");
             return;
         }
         
@@ -1507,8 +1491,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null) {
             title = mOrangeController.getVideoTitle();
         }
-        android.util.Log.d(TAG, "startPlayHistoryAutoSave: title=" + title);
-        
         final OrangevideoView self = this;
         PlayHistoryManager.getInstance(getContext()).startAutoSave(
             mVideoUrl, 
@@ -1882,6 +1864,68 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         super.touchSurfaceMove(deltaX, deltaY, y);
     }
 
+    /**
+     * 重写手势判断逻辑，修复全屏模式下音量手势不工作的问题
+     * 
+     * 问题原因：GSY 基类使用 CommonUtil.getCurrentScreenLand() 判断屏幕方向，
+     * 但在自定义全屏模式下（CustomFullscreenHelper）这个判断可能不准确，
+     * 导致 curWidth 计算错误，进而导致左右区域判断错误。
+     * 
+     * 解决方案：
+     * - 全屏模式：使用 View 的实际宽度
+     * - 竖屏模式：使用屏幕宽度（与基类保持一致）
+     */
+    @Override
+    protected void touchSurfaceMoveFullLogic(float absDeltaX, float absDeltaY) {
+        int curWidth;
+        
+        // 判断是否全屏
+        boolean isFullscreen = mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
+        
+        if (isFullscreen) {
+            // 全屏模式：直接使用 View 的实际宽度
+            curWidth = getWidth();
+            if (curWidth <= 0) {
+                curWidth = mScreenHeight; // 横屏时屏幕高度就是视觉宽度
+            }
+        } else {
+            // 竖屏模式：使用屏幕宽度（与基类保持一致）
+            curWidth = mScreenWidth;
+        }
+        
+        if (absDeltaX > mThreshold || absDeltaY > mThreshold) {
+            cancelProgressTimer();
+            if (absDeltaX >= mThreshold) {
+                // 水平滑动 - 进度调节
+                // 防止全屏虚拟按键区域误触
+                int screenWidth = com.shuyu.gsyvideoplayer.utils.CommonUtil.getScreenWidth(getContext());
+                if (Math.abs(screenWidth - mDownX) > mSeekEndOffset) {
+                    mChangePosition = true;
+                    mDownPosition = getCurrentPositionWhenPlaying();
+                } else {
+                    mShowVKey = true;
+                }
+            } else {
+                // 垂直滑动 - 亮度/音量调节
+                int screenHeight = com.shuyu.gsyvideoplayer.utils.CommonUtil.getScreenHeight(getContext());
+                boolean noEnd = Math.abs(screenHeight - mDownY) > mSeekEndOffset;
+                if (mFirstTouch) {
+                    // 左半边 = 亮度，右半边 = 音量
+                    mBrightness = (mDownX < curWidth * 0.5f) && noEnd;
+                    mFirstTouch = false;
+                }
+                if (!mBrightness) {
+                    mChangeVolume = noEnd;
+                    android.media.AudioManager audioManager = getAudioManager();
+                    if (audioManager != null) {
+                        mGestureDownVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                    }
+                }
+                mShowVKey = !noEnd;
+            }
+        }
+    }
+
     @Override
     protected void showBrightnessDialog(float percent) {
         ensureGestureView();
@@ -1938,6 +1982,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     android.widget.RelativeLayout.LayoutParams.MATCH_PARENT);
             addView(mGestureView, lp);
         }
+        // 确保 GestureView 在最上层
+        mGestureView.bringToFront();
     }
 
     public com.orange.playerlibrary.component.GestureView getGestureView() {
@@ -2556,6 +2602,64 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         } else {
         }
     }
+    
+    // ===== 长按倍速功能 =====
+    private boolean mIsLongPressing = false;
+    private float mNormalSpeedBeforeLongPress = 1.0f;
+    
+    @Override
+    protected void touchLongPress(android.view.MotionEvent e) {
+        // 只在播放状态下响应长按
+        if (!isPlaying()) {
+            return;
+        }
+        
+        mIsLongPressing = true;
+        mNormalSpeedBeforeLongPress = getSpeed();
+        // 从设置中获取长按倍速
+        float longPressSpeed = PlayerSettingsManager.getInstance(getContext()).getLongPressSpeed();
+        setSpeed(longPressSpeed);
+        
+        // 使用 GestureView 显示提示
+        showLongPressSpeedHint(longPressSpeed, true);
+    }
+    
+    @Override
+    public boolean onTouch(android.view.View v, android.view.MotionEvent event) {
+        // 处理长按结束
+        if (event.getAction() == android.view.MotionEvent.ACTION_UP ||
+            event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+            if (mIsLongPressing) {
+                mIsLongPressing = false;
+                setSpeed(mNormalSpeedBeforeLongPress);
+                // 使用 GestureView 显示提示
+                showLongPressSpeedHint(mNormalSpeedBeforeLongPress, false);
+            }
+        }
+        return super.onTouch(v, event);
+    }
+    
+    /**
+     * 显示长按倍速提示
+     * @param speed 当前速度
+     * @param isLongPress true=长按加速中，false=恢复正常
+     */
+    private void showLongPressSpeedHint(float speed, boolean isLongPress) {
+        ensureGestureView();
+        if (mGestureView != null) {
+            mGestureView.onStartSlide();
+            mGestureView.showSpeedHint(speed, isLongPress);
+            // 延迟隐藏
+            mGestureView.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (mGestureView != null) {
+                        mGestureView.onStopSlide();
+                    }
+                }
+            }, isLongPress ? 800 : 500);
+        }
+    }
 
     @Override
     public void startPlayLogic() {
@@ -2632,7 +2736,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     retriever.release();
                     return bitmap;
                 } catch (Exception e) {
-                    android.util.Log.e(TAG, "获取视频首帧失败: " + e.getMessage());
                     try {
                         retriever.release();
                     } catch (Exception ignored) {}
@@ -2645,7 +2748,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mIsLoadingThumbnail = false;
                 if (bitmap != null && mOrangeController != null) {
                     mOrangeController.setThumbnail(bitmap);
-                    android.util.Log.d(TAG, "视频首帧获取成功");
                 } else if (mDefaultThumbnail != null && mOrangeController != null) {
                     // 首帧获取失败，使用默认缩略图
                     mOrangeController.setThumbnail(mDefaultThumbnail);

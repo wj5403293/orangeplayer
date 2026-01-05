@@ -97,6 +97,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     private TextView mEpisodeSelect;
     private TextView mSkipButton;
     private TextView mSourceSelect;
+    
+    // 字幕按钮
+    private ImageView mSubtitleToggle;
+    private View.OnClickListener mOnSubtitleToggleClickListener;
 
     // 全屏时弹幕区的播放和全屏按钮
     private ImageView mPlayButtonFullscreen;
@@ -214,6 +218,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         mEpisodeSelect = findViewById(R.id.episode_select);
         mSkipButton = findViewById(R.id.film_header_footer);
         mSourceSelect = findViewById(R.id.source_select);
+        
+        // 字幕按钮
+        mSubtitleToggle = findViewById(R.id.subtitle_toggle);
+        if (mSubtitleToggle != null) {
+            mSubtitleToggle.setOnClickListener(this);
+        }
         
         // 设置跳过片头片尾按钮点击事件
         if (mSkipButton != null) {
@@ -364,14 +374,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        android.util.Log.d(TAG, "onAttachedToWindow: this=" + this.hashCode());
         startProgressUpdate();
     }
     
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        android.util.Log.d(TAG, "onDetachedFromWindow: this=" + this.hashCode());
         stopProgressUpdate();
     }
     
@@ -382,7 +390,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (!mIsProgressUpdating && mProgressHandler != null && mProgressRunnable != null) {
             mIsProgressUpdating = true;
             mProgressHandler.post(mProgressRunnable);
-            android.util.Log.d(TAG, "startProgressUpdate: started");
         }
     }
     
@@ -393,7 +400,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         mIsProgressUpdating = false;
         if (mProgressHandler != null && mProgressRunnable != null) {
             mProgressHandler.removeCallbacks(mProgressRunnable);
-            android.util.Log.d(TAG, "stopProgressUpdate: stopped");
         }
     }
     
@@ -479,6 +485,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         } else if (id == R.id.playnext) {
             if (mOnPlayNextClickListener != null) {
                 mOnPlayNextClickListener.onClick(v);
+            }
+        } else if (id == R.id.subtitle_toggle) {
+            if (mOnSubtitleToggleClickListener != null) {
+                mOnSubtitleToggleClickListener.onClick(v);
             }
         }
     }
@@ -602,13 +612,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onPlayerStateChanged(int playerState) {
-        android.util.Log.d(TAG, "onPlayerStateChanged: playerState=" + playerState 
-            + ", isAttachedToWindow=" + isAttachedToWindow() 
-            + ", this=" + this.hashCode());
-        
         // 如果当前实例没有附加到窗口，跳过UI更新
         if (!isAttachedToWindow()) {
-            android.util.Log.d(TAG, "onPlayerStateChanged: skipped - not attached to window");
             return;
         }
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN) {
@@ -646,11 +651,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void setProgress(int duration, int position) {
-        android.util.Log.d(TAG, "setProgress: duration=" + duration + ", position=" + position 
-            + ", mIsDragging=" + mIsDragging 
-            + ", isAttachedToWindow=" + isAttachedToWindow()
-            + ", this=" + this.hashCode());
-        
         if (mIsDragging) return;
         
         // 如果不在窗口中，跳过更新
@@ -666,19 +666,9 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 // 获取 SeekBar 在屏幕上的位置
                 int[] location = new int[2];
                 mVideoProgress.getLocationOnScreen(location);
-                android.util.Log.d(TAG, "setProgress: setting seekbar progress=" + progress 
-                    + ", oldProgress=" + oldProgress
-                    + ", max=" + mVideoProgress.getMax()
-                    + ", seekbar.isAttachedToWindow=" + mVideoProgress.isAttachedToWindow()
-                    + ", seekbar.getVisibility=" + mVideoProgress.getVisibility()
-                    + ", seekbar.getWidth=" + mVideoProgress.getWidth()
-                    + ", seekbar.getHeight=" + mVideoProgress.getHeight()
-                    + ", screenX=" + location[0] + ", screenY=" + location[1]
-                    + ", seekbarId=" + mVideoProgress.hashCode());
                 mVideoProgress.setProgress(progress);
                 // 验证设置后的值
                 int afterProgress = mVideoProgress.getProgress();
-                android.util.Log.d(TAG, "setProgress: after setProgress, value=" + afterProgress);
                 // 强制刷新 - 使用 post 确保在主线程执行
                 mVideoProgress.postInvalidate();
                 mVideoProgress.requestLayout();
@@ -709,11 +699,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (mCurrTime != null) {
             String newTime = stringForTime(position);
             String oldTime = mCurrTime.getText().toString();
-            android.util.Log.d(TAG, "setProgress: setting currTime=" + newTime
-                + ", oldTime=" + oldTime
-                + ", currTime.isAttachedToWindow=" + mCurrTime.isAttachedToWindow()
-                + ", currTime.getVisibility=" + mCurrTime.getVisibility()
-                + ", currTime.getWidth=" + mCurrTime.getWidth());
             mCurrTime.setText(newTime);
             // 强制刷新
             mCurrTime.postInvalidate();
@@ -877,6 +862,18 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     public void setOnSkipOpeningClickListener(View.OnClickListener listener) { mOnSkipOpeningClickListener = listener; }
     public void setOnSkipEndingClickListener(View.OnClickListener listener) { mOnSkipEndingClickListener = listener; }
     public void setOnPlayNextClickListener(View.OnClickListener listener) { mOnPlayNextClickListener = listener; }
+    public void setOnSubtitleToggleClickListener(View.OnClickListener listener) { mOnSubtitleToggleClickListener = listener; }
+    
+    /**
+     * 更新字幕按钮状态
+     */
+    public void updateSubtitleToggleState(boolean enabled) {
+        if (mSubtitleToggle != null) {
+            mSubtitleToggle.setAlpha(enabled ? 1.0f : 0.5f);
+        }
+    }
+    
+    public ImageView getSubtitleToggle() { return mSubtitleToggle; }
     
     /**
      * 更新弹幕开关按钮状态 - 使用两个ImageView切换visibility
@@ -918,7 +915,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      */
     public static void setVideoUrl(String url) {
         sVideoUrl = url;
-        android.util.Log.d(TAG, "setVideoUrl: " + url);
     }
     
     /**
@@ -1021,11 +1017,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * 加载预览图
      */
     private void loadPreviewImage(long timeMs) {
-        android.util.Log.d(TAG, "loadPreviewImage: timeMs=" + timeMs + ", sVideoUrl=" + sVideoUrl);
-        
         if (TextUtils.isEmpty(sVideoUrl)) {
             showPreviewError("无法加载预览");
-            android.util.Log.e(TAG, "loadPreviewImage: sVideoUrl is empty!");
             return;
         }
         
@@ -1051,7 +1044,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 @Override
                 public void onResourceReady(@NonNull Bitmap resource,
                         @Nullable Transition<? super Bitmap> transition) {
-                    android.util.Log.d(TAG, "Preview loaded successfully");
                     if (mPreviewImage != null && mCurrentPreviewPosition == timeMs) {
                         mPreviewImage.setImageBitmap(resource);
                         hidePreviewLoading();
@@ -1067,7 +1059,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 @Override
                 public void onLoadFailed(@Nullable Drawable errorDrawable) {
                     // 加载失败时静默处理，不显示错误
-                    android.util.Log.e(TAG, "Preview load failed for url: " + sVideoUrl);
                     hidePreviewLoading();
                 }
             };
@@ -1079,7 +1070,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                     .into(mCurrentPreviewTarget);
                     
         } catch (Exception e) {
-            android.util.Log.e(TAG, "loadPreviewImage exception: " + e.getMessage());
             showPreviewError("预览加载失败");
         }
     }

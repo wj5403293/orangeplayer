@@ -255,6 +255,18 @@
                 android:textColorHint="@color/orange_danmu_hint_color"
                 android:textSize="@dimen/orange_danmu_input_text_size" />
 
+            <!-- 字幕按钮 -->
+            <ImageView
+                android:id="@+id/subtitle_toggle"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="4dp"
+                android:src="@mipmap/cc"
+                android:scaleType="fitCenter"
+                android:alpha="0.7"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/orange_subtitle_desc" />
+
             <!-- 片头/尾按钮 -->
             <TextView
                 android:id="@+id/film_header_footer"

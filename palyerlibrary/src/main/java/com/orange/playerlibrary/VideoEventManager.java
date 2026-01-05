@@ -150,6 +150,11 @@ public class VideoEventManager {
             playNextEpisode();
         });
         
+        // 绑定字幕按钮点击事件
+        mVodControlView.setOnSubtitleToggleClickListener(v -> {
+            showSubtitleDialog(v);
+        });
+        
         // 绑定播放按钮长按事件（用于长按倍速）
         ImageView playButton = mVodControlView.getPlayButton();
         if (playButton != null) {
@@ -335,7 +340,6 @@ public class VideoEventManager {
             // 启动投屏
             com.orange.playerlibrary.cast.DLNACastManager.getInstance().startCast(mActivity, videoUrl, title);
         } catch (Exception e) {
-            android.util.Log.e(TAG, "投屏失败", e);
             showToast("投屏失败: " + e.getMessage());
         }
     }
@@ -468,10 +472,6 @@ public class VideoEventManager {
                                        isClassPresent("com.google.android.exoplayer2.ExoPlayer") ||
                                        isClassPresent("com.google.android.exoplayer2.Player") ||
                                        isClassPresent("androidx.media3.exoplayer.ExoPlayer");
-        
-        android.util.Log.d("VideoEventManager", "setupEngineButtons: ALI=" + isAliPlayerAvailable 
-            + ", IJK=" + isIjkPlayerAvailable + ", EXO=" + isExoPlayerAvailable);
-        
         // 设置可见性
         if (aliBtn != null) aliBtn.setVisibility(isAliPlayerAvailable ? View.VISIBLE : View.GONE);
         if (ijkBtn != null) ijkBtn.setVisibility(isIjkPlayerAvailable ? View.VISIBLE : View.GONE);
@@ -505,8 +505,6 @@ public class VideoEventManager {
      */
     private void selectEngine(String engine) {
         String oldEngine = mSettingsManager.getPlayerEngine();
-        android.util.Log.d(TAG, "selectEngine: 切换播放核心 from " + oldEngine + " to " + engine);
-        
         // 保存播放核心设置
         mSettingsManager.setPlayerEngine(engine);
         
@@ -521,18 +519,12 @@ public class VideoEventManager {
             long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
             String currentUrl = mVideoView.getUrl();
             boolean wasPlaying = mVideoView.isPlaying();
-            
-            android.util.Log.d(TAG, "selectEngine: currentUrl=" + currentUrl 
-                + ", position=" + currentPosition + ", wasPlaying=" + wasPlaying);
-            
             // 1. 先完全释放旧播放器（关键！）
             mVideoView.release();
             com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
             
             // 2. 切换播放器工厂
             mVideoView.selectPlayerFactory(engine);
-            android.util.Log.d(TAG, "selectEngine: PlayerFactory 已切换为 " + engine);
-            
             // 3. 如果有正在播放的视频，重新加载
             if (currentUrl != null && !currentUrl.isEmpty()) {
                 mVideoView.setUp(currentUrl, false, "");
@@ -840,13 +832,11 @@ public class VideoEventManager {
             @Override
             public void onSuccess(String filePath) {
                 showToast("截图已保存");
-                android.util.Log.d(TAG, "截图保存成功: " + filePath);
             }
             
             @Override
             public void onError(String message) {
                 showToast(message);
-                android.util.Log.e(TAG, "截图失败: " + message);
             }
         });
     }
@@ -2123,6 +2113,175 @@ public class VideoEventManager {
      */
     public interface OnDanmakuSendListener {
         void onDanmakuSend(String text, int color);
+    }
+    
+    // ===== 字幕功能 =====
+    
+    /**
+     * 显示字幕对话框
+     * 按照 steering rules，从点击的 View 向上遍历找到正确的父组件
+     */
+    private void showSubtitleDialog(View clickedView) {
+        mController.hide();
+        
+        // 从点击的 View 找到实际的 VodControlView（全屏模式下需要）
+        VodControlView actualVodControlView = findParentVodControlView(clickedView);
+        
+        try {
+            View dialogView = View.inflate(mActivity, R.layout.subtitle_dialog, null);
+            
+            final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
+                    DialogUtils.DialogPosition.RIGHT, null, null);
+            
+            // 点击外部关闭
+            View layout = dialogView.findViewById(R.id.layout);
+            if (layout != null) {
+                layout.setOnClickListener(v -> dialog.dismiss());
+            }
+            
+            // 字幕开关
+            android.widget.Switch subtitleSwitch = dialogView.findViewById(R.id.subtitle_switch);
+            if (subtitleSwitch != null) {
+                subtitleSwitch.setChecked(mController.isSubtitleEnabled());
+                subtitleSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    if (isChecked) {
+                        mController.getSubtitleManager().show();
+                        mController.startSubtitle();
+                    } else {
+                        mController.getSubtitleManager().hide();
+                        mController.stopSubtitle();
+                    }
+                    // 更新按钮状态
+                    if (actualVodControlView != null) {
+                        actualVodControlView.updateSubtitleToggleState(isChecked);
+                    }
+                });
+            }
+            
+            // 加载本地字幕按钮
+            View btnLoadLocal = dialogView.findViewById(R.id.btn_load_local);
+            if (btnLoadLocal != null) {
+                btnLoadLocal.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showSubtitleFilePicker();
+                });
+            }
+            
+            // 加载网络字幕按钮
+            View btnLoadUrl = dialogView.findViewById(R.id.btn_load_url);
+            if (btnLoadUrl != null) {
+                btnLoadUrl.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showSubtitleUrlInput();
+                });
+            }
+            
+            // 字幕大小调节
+            android.widget.SeekBar sizeBar = dialogView.findViewById(R.id.subtitle_size_bar);
+            android.widget.TextView sizeText = dialogView.findViewById(R.id.subtitle_size_text);
+            if (sizeBar != null) {
+                sizeBar.setProgress(50); // 默认中等大小
+                sizeBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                        if (fromUser) {
+                            float size = 12 + (progress / 100f) * 24; // 12-36sp
+                            if (sizeText != null) {
+                                sizeText.setText("字幕大小: " + (int) size + "sp");
+                            }
+                        }
+                    }
+                    
+                    @Override
+                    public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                    
+                    @Override
+                    public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                        float size = 12 + (seekBar.getProgress() / 100f) * 24;
+                        mController.getSubtitleManager().setTextSize(size);
+                        showToast("字幕大小: " + (int) size + "sp");
+                    }
+                });
+            }
+            
+            // 显示当前字幕状态
+            android.widget.TextView statusText = dialogView.findViewById(R.id.subtitle_status);
+            if (statusText != null) {
+                if (mController.isSubtitleLoaded()) {
+                    int count = mController.getSubtitleManager().getSubtitleCount();
+                    statusText.setText("已加载 " + count + " 条字幕");
+                } else {
+                    statusText.setText("未加载字幕");
+                }
+            }
+            
+        } catch (Exception e) {
+        }
+    }
+    
+    /**
+     * 显示字幕文件选择器
+     */
+    private void showSubtitleFilePicker() {
+        showToast("请从文件管理器选择字幕文件 (.srt/.vtt)");
+        // TODO: 实现文件选择器，需要 Activity 配合
+    }
+    
+    /**
+     * 显示字幕 URL 输入对话框（自定义风格）
+     */
+    private void showSubtitleUrlInput() {
+        View dialogView = View.inflate(mActivity, R.layout.dialog_subtitle_url_input, null);
+        
+        android.widget.EditText etUrl = dialogView.findViewById(R.id.et_subtitle_url);
+        View btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        View btnLoad = dialogView.findViewById(R.id.btn_load);
+        
+        final AlertDialog dialog = new AlertDialog.Builder(mActivity)
+                .setView(dialogView)
+                .create();
+        
+        // 设置对话框背景透明
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        
+        btnLoad.setOnClickListener(v -> {
+            String url = etUrl.getText().toString().trim();
+            if (!url.isEmpty()) {
+                dialog.dismiss();
+                loadSubtitleFromUrl(url);
+            } else {
+                showToast("请输入字幕 URL");
+            }
+        });
+        
+        dialog.show();
+    }
+    
+    /**
+     * 从 URL 加载字幕
+     */
+    private void loadSubtitleFromUrl(String url) {
+        showToast("正在加载字幕...");
+        mController.loadSubtitle(url, new com.orange.playerlibrary.subtitle.SubtitleManager.OnSubtitleLoadListener() {
+            @Override
+            public void onLoadSuccess(int count) {
+                mActivity.runOnUiThread(() -> {
+                    showToast("字幕加载成功，共 " + count + " 条");
+                    mController.startSubtitle();
+                });
+            }
+            
+            @Override
+            public void onLoadFailed(String error) {
+                mActivity.runOnUiThread(() -> {
+                    showToast("字幕加载失败: " + error);
+                });
+            }
+        });
     }
 }
 

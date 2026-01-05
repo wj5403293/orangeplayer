@@ -51,6 +51,9 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     private boolean mIsAddDanmu = false;
     private com.orange.playerlibrary.interfaces.IDanmakuController mDanmakuController;
     
+    // ===== 字幕相关 =====
+    private com.orange.playerlibrary.subtitle.SubtitleManager mSubtitleManager;
+    
     // ===== 预览功能 =====
     private boolean mPreViewEnabled = false;
     
@@ -867,6 +870,100 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     public static void setDebugLogger(DebugLogger logger) {
         if (logger != null) {
             sDebugLogger = logger;
+        }
+    }
+    
+    // ===== 字幕功能 =====
+    
+    /**
+     * 获取字幕管理器
+     */
+    public com.orange.playerlibrary.subtitle.SubtitleManager getSubtitleManager() {
+        if (mSubtitleManager == null) {
+            mSubtitleManager = new com.orange.playerlibrary.subtitle.SubtitleManager(getContext());
+            // 绑定到播放器容器
+            if (mVideoView != null) {
+                mSubtitleManager.attachToPlayer(mVideoView);
+                // 设置进度提供者
+                mSubtitleManager.setProgressProvider(new com.orange.playerlibrary.subtitle.SubtitleManager.ProgressProvider() {
+                    @Override
+                    public long getCurrentPosition() {
+                        return mVideoView != null ? mVideoView.getCurrentPositionWhenPlaying() : 0;
+                    }
+                    
+                    @Override
+                    public boolean isPlaying() {
+                        return mVideoView != null && mVideoView.isPlaying();
+                    }
+                });
+            }
+        }
+        return mSubtitleManager;
+    }
+    
+    /**
+     * 加载字幕文件
+     * @param url 字幕文件 URL 或本地路径
+     */
+    public void loadSubtitle(String url) {
+        loadSubtitle(url, null);
+    }
+    
+    /**
+     * 加载字幕文件
+     * @param url 字幕文件 URL 或本地路径
+     * @param listener 加载监听器
+     */
+    public void loadSubtitle(String url, com.orange.playerlibrary.subtitle.SubtitleManager.OnSubtitleLoadListener listener) {
+        getSubtitleManager().loadSubtitle(url, listener);
+    }
+    
+    /**
+     * 显示/隐藏字幕
+     */
+    public void toggleSubtitle() {
+        getSubtitleManager().toggle();
+    }
+    
+    /**
+     * 字幕是否启用
+     */
+    public boolean isSubtitleEnabled() {
+        return mSubtitleManager != null && mSubtitleManager.isEnabled();
+    }
+    
+    /**
+     * 字幕是否已加载
+     */
+    public boolean isSubtitleLoaded() {
+        return mSubtitleManager != null && mSubtitleManager.isLoaded();
+    }
+    
+    /**
+     * 开始字幕更新
+     */
+    public void startSubtitle() {
+        if (mSubtitleManager != null) {
+            mSubtitleManager.start();
+        }
+    }
+    
+    /**
+     * 停止字幕更新
+     */
+    public void stopSubtitle() {
+        if (mSubtitleManager != null) {
+            mSubtitleManager.stop();
+        }
+    }
+    
+    /**
+     * 释放字幕资源
+     */
+    public void releaseSubtitle() {
+        if (mSubtitleManager != null) {
+            mSubtitleManager.release();
+            mSubtitleManager = null;
         }
     }
 }

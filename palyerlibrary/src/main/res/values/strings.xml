@@ -38,6 +38,7 @@
     <string name="orange_play_desc">播放</string>
     <string name="orange_fullscreen_desc">全屏</string>
     <string name="orange_next_episode_desc">下一集</string>
+    <string name="orange_subtitle_desc">字幕</string>
     
     <!-- VodControlView Toast 消息 -->
     <string name="orange_long_press_speed">长按加速 %1$.1fx</string>
