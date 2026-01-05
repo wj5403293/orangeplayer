@@ -2,18 +2,18 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 背景轨道 -->
     <item android:id="@android:id/background">
-        <shape>
-            <corners android:radius="4dp" />
-            <solid android:color="#4DFFFFFF" />
+        <shape android:shape="rectangle">
+            <corners android:radius="4dp"/>
+            <solid android:color="#40FFFFFF"/>
         </shape>
     </item>
 
     <!-- 缓冲进度 -->
     <item android:id="@android:id/secondaryProgress">
         <clip>
-            <shape>
-                <corners android:radius="4dp" />
-                <solid android:color="#80FFE082" />
+            <shape android:shape="rectangle">
+                <corners android:radius="4dp"/>
+                <solid android:color="#80FFFFFF"/>
             </shape>
         </clip>
     </item>
@@ -21,9 +21,9 @@
     <!-- 播放进度 -->
     <item android:id="@android:id/progress">
         <clip>
-            <shape>
-                <corners android:radius="4dp" />
-                <solid android:color="#FFB300" />
+            <shape android:shape="rectangle">
+                <corners android:radius="4dp"/>
+                <solid android:color="#FFFFFF"/>
             </shape>
         </clip>
     </item>

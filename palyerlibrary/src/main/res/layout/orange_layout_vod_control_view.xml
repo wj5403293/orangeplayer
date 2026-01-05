@@ -196,45 +196,50 @@
             <!-- 下一集按钮 -->
             <ImageView
                 android:id="@+id/playnext"
-                android:layout_width="@dimen/orange_controller_height"
-                android:layout_height="@dimen/orange_controller_height"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="@string/orange_next_episode_desc"
-                android:padding="@dimen/orange_controller_icon_padding"
-                android:src="@mipmap/playdown" />
+                android:padding="6dp"
+                android:src="@drawable/ic_skip_next"
+                android:background="?android:attr/selectableItemBackgroundBorderless" />
 
             <!-- 弹幕开关按钮 - 使用两个ImageView切换 -->
             <FrameLayout
-                android:layout_width="38dp"
-                android:layout_height="38dp">
+                android:layout_width="36dp"
+                android:layout_height="36dp">
                 
                 <ImageView
                     android:id="@+id/danmu_toggle_on"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:padding="8dp"
-                    android:src="@mipmap/danmu_open"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_danmu_on"
                     android:scaleType="fitCenter"
                     android:visibility="gone"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/orange_play_desc" />
                 
                 <ImageView
                     android:id="@+id/danmu_toggle_off"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:padding="8dp"
-                    android:src="@mipmap/danmu_off"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_danmu_off"
                     android:scaleType="fitCenter"
                     android:visibility="visible"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/orange_play_desc" />
             </FrameLayout>
 
-            <!-- 弹幕设置按钮 -->
+            <!-- 弹幕设置按钮 - 使用原图标 -->
             <ImageView
                 android:id="@+id/danmu_set"
-                android:layout_width="@dimen/orange_danmu_button_size"
-                android:layout_height="@dimen/orange_danmu_button_size"
-                android:paddingHorizontal="@dimen/orange_danmu_button_padding"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="6dp"
                 android:src="@mipmap/danmu_set"
+                android:scaleType="fitCenter"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/orange_play_desc" />
 
             <!-- 弹幕输入框 -->
@@ -258,12 +263,11 @@
             <!-- 字幕按钮 -->
             <ImageView
                 android:id="@+id/subtitle_toggle"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:padding="4dp"
-                android:src="@mipmap/cc"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="6dp"
+                android:src="@drawable/ic_subtitle"
                 android:scaleType="fitCenter"
-                android:alpha="0.7"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/orange_subtitle_desc" />
 
@@ -331,6 +335,7 @@
         android:layout_height="@dimen/orange_bottom_progress_height"
         android:layout_gravity="bottom"
         android:max="@integer/orange_seekbar_max"
+        android:progressDrawable="@drawable/bottom_progress_drawable"
         android:visibility="gone" />
 
 </FrameLayout>
