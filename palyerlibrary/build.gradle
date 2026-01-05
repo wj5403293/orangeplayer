@@ -39,14 +39,14 @@ afterEvaluate {
             release(MavenPublication) {
                 from components.release
                 
-                groupId = 'com.github.user'  // 替换为你的 GitHub 用户名
+                groupId = 'com.github.706412584'
                 artifactId = 'orangeplayer'
                 version = '1.0.0'
                 
                 pom {
                     name = 'OrangePlayer'
                     description = '基于 GSYVideoPlayer 的增强视频播放器库'
-                    url = 'https://github.com/user/orangeplayer'  // 替换为你的仓库地址
+                    url = 'https://github.com/706412584/orangeplayer'
                     
                     licenses {
                         license {

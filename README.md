@@ -2,7 +2,7 @@
 
 基于 [GSYVideoPlayer](https://github.com/CarGuo/GSYVideoPlayer) 的增强视频播放器库，提供丰富的播放功能和自定义控制组件。
 
-[![](https://jitpack.io/v/user/orangeplayer.svg)](https://jitpack.io/#user/orangeplayer)
+[![](https://jitpack.io/v/706412584/orangeplayer.svg)](https://jitpack.io/#706412584/orangeplayer)
 
 ## 功能特性
 
@@ -39,7 +39,7 @@ dependencyResolutionManagement {
 
 ```gradle
 dependencies {
-    implementation 'com.github.user:orangeplayer:1.0.0'
+    implementation 'com.github.706412584:orangeplayer:1.0.0'
 }
 ```
 
