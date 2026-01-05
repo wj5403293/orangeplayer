@@ -2373,12 +2373,12 @@ public class VideoEventManager {
             android.widget.SeekBar sizeBar = dialogView.findViewById(R.id.subtitle_size_bar);
             android.widget.TextView sizeText = dialogView.findViewById(R.id.subtitle_size_text);
             if (sizeBar != null) {
-                // 从设置中读取已保存的字幕大小
-                float savedSize = mSettingsManager.getSubtitleSize();
-                int savedProgress = (int) ((savedSize - 12) / 24 * 100);
-                sizeBar.setProgress(Math.max(0, Math.min(100, savedProgress)));
+                // 使用默认字幕大小（不保存记忆）
+                float defaultSize = 12.0f;
+                int defaultProgress = (int) ((defaultSize - 12) / 24 * 100);
+                sizeBar.setProgress(Math.max(0, Math.min(100, defaultProgress)));
                 if (sizeText != null) {
-                    sizeText.setText("字幕大小: " + (int) savedSize + "sp");
+                    sizeText.setText("字幕大小: " + (int) defaultSize + "sp");
                 }
                 
                 sizeBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
@@ -2399,8 +2399,7 @@ public class VideoEventManager {
                     public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
                         float size = 12 + (seekBar.getProgress() / 100f) * 24;
                         mController.getSubtitleManager().setTextSize(size);
-                        // 保存字幕大小设置
-                        mSettingsManager.setSubtitleSize(size);
+                        // 不保存字幕大小设置（取消记忆功能）
                         showToast("字幕大小: " + (int) size + "sp");
                     }
                 });
@@ -2623,9 +2622,8 @@ public class VideoEventManager {
             return;
         }
         
-        // 应用已保存的字幕大小
-        float savedSize = mSettingsManager.getSubtitleSize();
-        mController.getSubtitleManager().setTextSize(savedSize);
+        // 使用默认字幕大小（不使用保存的设置）
+        mController.getSubtitleManager().setTextSize(12.0f);
         
         // 优先加载本地字幕
         String localUri = mSettingsManager.getSubtitleLocalForVideo(videoUrl);
@@ -2704,28 +2702,152 @@ public class VideoEventManager {
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.CENTER, null, null);
         
+        // 语言包管理器
+        final com.orange.playerlibrary.ocr.LanguagePackManager manager = 
+            new com.orange.playerlibrary.ocr.LanguagePackManager(mActivity);
+        
+        // 语言包管理入口
+        View btnManageLanguagePack = dialogView.findViewById(R.id.btn_manage_language_pack);
+        TextView tvLanguagePackStatus = dialogView.findViewById(R.id.tv_language_pack_status);
+        
         // 源语言选择
         android.widget.Spinner spinnerSource = dialogView.findViewById(R.id.spinner_source_lang);
         android.widget.Spinner spinnerTarget = dialogView.findViewById(R.id.spinner_target_lang);
         
-        String[] sourceLangs = {"中文", "英文", "日文", "韩文"};
-        String[] sourceLangCodes = {"chi_sim", "eng", "jpn", "kor"};
-        String[] targetLangs = {"中文", "英文", "日文", "韩文"};
-        String[] targetLangCodes = {"zh", "en", "ja", "ko"};
+        // 动态加载已安装的语言包
+        java.util.List<String> installedLangs = manager.getInstalledLanguages();
+        final java.util.List<String> sourceLangNames = new java.util.ArrayList<>();
+        final java.util.List<String> sourceLangCodes = new java.util.ArrayList<>();
+        final java.util.List<String> targetLangNames = new java.util.ArrayList<>();
+        final java.util.List<String> targetLangCodes = new java.util.ArrayList<>();
         
+        // 使用 LanguagePackManager 的语言名称映射
+        java.util.Map<String, String> langNameMap = com.orange.playerlibrary.ocr.LanguagePackManager.getLanguageNameMap();
+        
+        // OCR 语言代码到翻译语言代码的映射
+        java.util.Map<String, String> ocrToTranslateCode = new java.util.HashMap<>();
+        ocrToTranslateCode.put("chi_sim", "zh");
+        ocrToTranslateCode.put("chi_tra", "zh");
+        ocrToTranslateCode.put("eng", "en");
+        ocrToTranslateCode.put("jpn", "ja");
+        ocrToTranslateCode.put("kor", "ko");
+        ocrToTranslateCode.put("fra", "fr");
+        ocrToTranslateCode.put("deu", "de");
+        ocrToTranslateCode.put("spa", "es");
+        ocrToTranslateCode.put("rus", "ru");
+        ocrToTranslateCode.put("ara", "ar");
+        ocrToTranslateCode.put("tha", "th");
+        ocrToTranslateCode.put("vie", "vi");
+        ocrToTranslateCode.put("por", "pt");
+        ocrToTranslateCode.put("ita", "it");
+        ocrToTranslateCode.put("nld", "nl");
+        ocrToTranslateCode.put("pol", "pl");
+        ocrToTranslateCode.put("tur", "tr");
+        ocrToTranslateCode.put("hin", "hi");
+        ocrToTranslateCode.put("ind", "id");
+        ocrToTranslateCode.put("msa", "ms");
+        
+        // 填充已安装的语言（源语言和目标语言）
+        for (String langCode : installedLangs) {
+            String displayName = langNameMap.get(langCode);
+            if (displayName == null) {
+                displayName = langCode; // 未知语言显示代码
+            }
+            // 源语言
+            sourceLangNames.add(displayName);
+            sourceLangCodes.add(langCode);
+            // 目标语言（使用翻译代码）
+            String translateCode = ocrToTranslateCode.get(langCode);
+            if (translateCode != null) {
+                targetLangNames.add(displayName);
+                targetLangCodes.add(translateCode);
+            }
+        }
+        
+        // 更新语言包状态
+        if (tvLanguagePackStatus != null) {
+            tvLanguagePackStatus.setText("已安装 " + installedLangs.size() + " 个");
+        }
+        
+        // 点击打开语言包管理，关闭后刷新下拉框
+        if (btnManageLanguagePack != null) {
+            btnManageLanguagePack.setOnClickListener(v -> {
+                com.orange.playerlibrary.ocr.LanguagePackDialog packDialog = 
+                    new com.orange.playerlibrary.ocr.LanguagePackDialog(mActivity);
+                packDialog.setOnDismissListener(() -> {
+                    // 刷新已安装语言列表
+                    java.util.List<String> newInstalledLangs = manager.getInstalledLanguages();
+                    sourceLangNames.clear();
+                    sourceLangCodes.clear();
+                    targetLangNames.clear();
+                    targetLangCodes.clear();
+                    for (String langCode : newInstalledLangs) {
+                        String displayName = langNameMap.get(langCode);
+                        if (displayName == null) {
+                            displayName = langCode;
+                        }
+                        sourceLangNames.add(displayName);
+                        sourceLangCodes.add(langCode);
+                        String translateCode = ocrToTranslateCode.get(langCode);
+                        if (translateCode != null) {
+                            targetLangNames.add(displayName);
+                            targetLangCodes.add(translateCode);
+                        }
+                    }
+                    // 更新源语言下拉框
+                    if (spinnerSource != null) {
+                        java.util.List<String> sourceList = sourceLangNames.isEmpty() ? 
+                            java.util.Arrays.asList("请先下载语言包") : sourceLangNames;
+                        android.widget.ArrayAdapter<String> newAdapter = new android.widget.ArrayAdapter<>(
+                            mActivity, R.layout.spinner_item, sourceList);
+                        newAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+                        spinnerSource.setAdapter(newAdapter);
+                    }
+                    // 更新目标语言下拉框
+                    if (spinnerTarget != null) {
+                        java.util.List<String> targetList = targetLangNames.isEmpty() ? 
+                            java.util.Arrays.asList("请先下载语言包") : targetLangNames;
+                        android.widget.ArrayAdapter<String> newAdapter = new android.widget.ArrayAdapter<>(
+                            mActivity, R.layout.spinner_item, targetList);
+                        newAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+                        spinnerTarget.setAdapter(newAdapter);
+                    }
+                    // 更新状态文本
+                    if (tvLanguagePackStatus != null) {
+                        tvLanguagePackStatus.setText("已安装 " + newInstalledLangs.size() + " 个");
+                    }
+                });
+                packDialog.show();
+            });
+        }
+        
+        // 设置源语言下拉框
         if (spinnerSource != null) {
+            if (sourceLangNames.isEmpty()) {
+                sourceLangNames.add("请先下载语言包");
+                sourceLangCodes.add("");
+            }
             android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-                mActivity, android.R.layout.simple_spinner_item, sourceLangs);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                mActivity, R.layout.spinner_item, sourceLangNames);
+            adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
             spinnerSource.setAdapter(adapter);
         }
         
+        // 设置目标语言下拉框
         if (spinnerTarget != null) {
+            if (targetLangNames.isEmpty()) {
+                targetLangNames.add("请先下载语言包");
+                targetLangCodes.add("");
+            }
             android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-                mActivity, android.R.layout.simple_spinner_item, targetLangs);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                mActivity, R.layout.spinner_item, targetLangNames);
+            adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
             spinnerTarget.setAdapter(adapter);
-            spinnerTarget.setSelection(1); // 默认英文
+            // 默认选择英语（如果有）
+            int engIndex = targetLangCodes.indexOf("en");
+            if (engIndex >= 0) {
+                spinnerTarget.setSelection(engIndex);
+            }
         }
         
         // 开始按钮
@@ -2733,10 +2855,24 @@ public class VideoEventManager {
         if (btnStart != null) {
             btnStart.setOnClickListener(v -> {
                 int sourceIndex = spinnerSource != null ? spinnerSource.getSelectedItemPosition() : 0;
-                int targetIndex = spinnerTarget != null ? spinnerTarget.getSelectedItemPosition() : 1;
+                int targetIndex = spinnerTarget != null ? spinnerTarget.getSelectedItemPosition() : 0;
                 
-                String sourceLang = sourceLangCodes[sourceIndex];
-                String targetLang = targetLangCodes[targetIndex];
+                // 检查是否选择了有效的源语言
+                if (sourceIndex < 0 || sourceIndex >= sourceLangCodes.size() || 
+                    sourceLangCodes.get(sourceIndex).isEmpty()) {
+                    showToast("请先下载语言包");
+                    return;
+                }
+                
+                // 检查是否选择了有效的目标语言
+                if (targetIndex < 0 || targetIndex >= targetLangCodes.size() || 
+                    targetLangCodes.get(targetIndex).isEmpty()) {
+                    showToast("请先下载语言包");
+                    return;
+                }
+                
+                String sourceLang = sourceLangCodes.get(sourceIndex);
+                String targetLang = targetLangCodes.get(targetIndex);
                 
                 dialog.dismiss();
                 startOcrTranslate(sourceLang, targetLang);

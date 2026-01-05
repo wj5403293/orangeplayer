@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
 }
 
 android {
@@ -22,6 +23,40 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
+    }
+    
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
+    }
+}
+
+// JitPack 发布配置
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                
+                groupId = 'com.github.user'  // 替换为你的 GitHub 用户名
+                artifactId = 'orangeplayer'
+                version = '1.0.0'
+                
+                pom {
+                    name = 'OrangePlayer'
+                    description = '基于 GSYVideoPlayer 的增强视频播放器库'
+                    url = 'https://github.com/user/orangeplayer'  // 替换为你的仓库地址
+                    
+                    licenses {
+                        license {
+                            name = 'The Apache License, Version 2.0'
+                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

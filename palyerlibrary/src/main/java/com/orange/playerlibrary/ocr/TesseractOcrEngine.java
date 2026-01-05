@@ -253,7 +253,7 @@ public class TesseractOcrEngine implements OcrEngine {
     
     /**
      * 准备训练数据文件
-     * 从 assets 复制到内部存储
+     * 优先从下载目录加载，如果没有则从 assets 复制
      */
     private String prepareTrainedData(String language) {
         File tessDataDir = new File(mContext.getFilesDir(), TESSDATA_DIR);
@@ -264,12 +264,13 @@ public class TesseractOcrEngine implements OcrEngine {
         String trainedDataFileName = language + ".traineddata";
         File trainedDataFile = new File(tessDataDir, trainedDataFileName);
         
-        // 如果文件已存在，直接返回
-        if (trainedDataFile.exists()) {
+        // 如果文件已存在（可能是下载的），直接返回
+        if (trainedDataFile.exists() && trainedDataFile.length() > 0) {
+            Log.d(TAG, "Using existing trained data: " + trainedDataFile.getAbsolutePath());
             return mContext.getFilesDir().getAbsolutePath();
         }
         
-        // 从 assets 复制
+        // 尝试从 assets 复制
         try {
             InputStream is = mContext.getAssets().open(TESSDATA_DIR + "/" + trainedDataFileName);
             FileOutputStream fos = new FileOutputStream(trainedDataFile);
@@ -283,12 +284,11 @@ public class TesseractOcrEngine implements OcrEngine {
             fos.close();
             is.close();
             
-            Log.d(TAG, "Copied trained data: " + trainedDataFileName);
+            Log.d(TAG, "Copied trained data from assets: " + trainedDataFileName);
             return mContext.getFilesDir().getAbsolutePath();
         } catch (IOException e) {
             Log.e(TAG, "Failed to copy trained data: " + trainedDataFileName, e);
-            Log.w(TAG, "请下载语言包并放置到 assets/tessdata/ 目录");
-            Log.w(TAG, "下载地址: https://github.com/tesseract-ocr/tessdata/raw/main/" + trainedDataFileName);
+            Log.w(TAG, "语言包未安装，请在 OCR 设置中下载对应的语言包");
             return null;
         }
     }
