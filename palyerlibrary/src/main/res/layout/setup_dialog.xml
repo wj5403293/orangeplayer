@@ -352,37 +352,41 @@
                             android:focusable="false" />
                     </LinearLayout>
 
-                    <!-- 占位，保持对齐 -->
+                    <!-- 截图按钮 -->
                     <LinearLayout
-                        android:id="@+id/xxbj4"
+                        android:id="@+id/line_screenshot"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical"
                         android:gravity="center"
                         android:padding="8dp"
-                        android:visibility="invisible">
+                        android:clickable="true"
+                        android:focusable="true">
 
                         <FrameLayout
                             android:layout_width="44dp"
                             android:layout_height="44dp"
                             android:background="@drawable/setup_icon_bg">
                             <ImageView
-                                android:id="@+id/tx3"
+                                android:id="@+id/screenshot_icon"
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:layout_gravity="center"
-                                android:src="@mipmap/window" />
+                                android:src="@drawable/ic_screenshot"
+                                android:clickable="false"
+                                android:focusable="false" />
                         </FrameLayout>
 
                         <TextView
-                            android:id="@+id/wb3"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="小窗播放"
+                            android:text="截图"
                             android:textColor="#FFFFFF"
                             android:textSize="11sp"
-                            android:layout_marginTop="6dp" />
+                            android:layout_marginTop="6dp"
+                            android:clickable="false"
+                            android:focusable="false" />
                     </LinearLayout>
                 </LinearLayout>
 

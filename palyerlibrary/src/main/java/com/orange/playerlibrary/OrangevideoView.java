@@ -8,10 +8,12 @@ import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.SurfaceView;
+import android.view.View;
 
 import com.orange.playerlibrary.interfaces.OnPlayCompleteListener;
 import com.orange.playerlibrary.interfaces.OnProgressListener;
 import com.orange.playerlibrary.interfaces.OnStateChangeListener;
+import com.orange.playerlibrary.history.PlayHistoryManager;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
 import com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack;
 import com.shuyu.gsyvideoplayer.listener.GSYVideoProgressListener;
@@ -202,12 +204,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     mSkipManager.performSkipIntro();
                 }
                 setOrangePlayState(PlayerConstants.STATE_PLAYING);
+                
+                // 启动播放历史自动保存
+                startPlayHistoryAutoSave();
             }
 
             @Override
             public void onAutoComplete(String url, Object... objects) {
                 super.onAutoComplete(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PLAYBACK_COMPLETED);
+                
+                // 停止播放历史自动保存
+                stopPlayHistoryAutoSave();
+                
+                // 播放完成，删除历史进度记录
+                PlayHistoryManager.getInstance(getContext()).deleteHistory(url);
+                
                 if (mKeepVideoPlaying) {
                     clearSavedProgress();
                 }
@@ -609,6 +621,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
+        // 保存视频URL
+        this.mVideoUrl = url;
         // 设置视频URL给VodControlView用于预览功能
         com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
         // 异步获取视频首帧作为封面
@@ -618,12 +632,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
+        // 保存视频URL
+        this.mVideoUrl = url;
         com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
         return super.setUp(url, cacheWithPlay, cachePath, title);
     }
     
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
+        // 保存视频URL
+        this.mVideoUrl = url;
         com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
         return super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
     }
@@ -1030,6 +1048,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void release() {
+        // 停止播放历史自动保存
+        stopPlayHistoryAutoSave();
+        
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
@@ -1468,6 +1489,74 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return;
         }
         PlaybackProgressManager.getInstance(getContext()).removeProgress(mVideoUrl);
+    }
+    
+    // ==================== 播放历史功能 ====================
+    
+    /**
+     * 启动播放历史自动保存
+     */
+    private void startPlayHistoryAutoSave() {
+        android.util.Log.d(TAG, "startPlayHistoryAutoSave: mVideoUrl=" + mVideoUrl);
+        if (mVideoUrl == null || mVideoUrl.isEmpty()) {
+            android.util.Log.d(TAG, "startPlayHistoryAutoSave: url is empty, skip");
+            return;
+        }
+        
+        String title = "";
+        if (mOrangeController != null) {
+            title = mOrangeController.getVideoTitle();
+        }
+        android.util.Log.d(TAG, "startPlayHistoryAutoSave: title=" + title);
+        
+        final OrangevideoView self = this;
+        PlayHistoryManager.getInstance(getContext()).startAutoSave(
+            mVideoUrl, 
+            title,
+            new PlayHistoryManager.ProgressProvider() {
+                @Override
+                public long getCurrentPosition() {
+                    return self.getCurrentPositionWhenPlaying();
+                }
+                
+                @Override
+                public long getDuration() {
+                    return self.getDuration();
+                }
+                
+                @Override
+                public View getVideoView() {
+                    return self;
+                }
+            }
+        );
+    }
+    
+    /**
+     * 停止播放历史自动保存
+     */
+    private void stopPlayHistoryAutoSave() {
+        PlayHistoryManager.getInstance(getContext()).stopAutoSave();
+    }
+    
+    /**
+     * 获取播放历史中保存的进度
+     */
+    public long getHistoryProgress() {
+        if (mVideoUrl == null || mVideoUrl.isEmpty()) {
+            return 0;
+        }
+        return PlayHistoryManager.getInstance(getContext()).getProgress(mVideoUrl);
+    }
+    
+    /**
+     * 检查是否有播放历史
+     */
+    public boolean hasPlayHistory() {
+        if (mVideoUrl == null || mVideoUrl.isEmpty()) {
+            return false;
+        }
+        return PlayHistoryManager.getInstance(getContext()).getProgress(mVideoUrl) > 0;
     }
 
     public void setSkipIntroTime(long timeMs) {

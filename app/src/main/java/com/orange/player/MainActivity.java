@@ -4,19 +4,29 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.orange.playerlibrary.DanmakuControllerImpl;
 import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.OrangevideoView;
 import com.orange.playerlibrary.PiPHelper;
 import com.orange.playerlibrary.VideoSniffing;
+import com.orange.playerlibrary.history.PlayHistory;
+import com.orange.playerlibrary.history.PlayHistoryManager;
 import com.orange.playerlibrary.interfaces.IDanmakuController;
 import com.orange.playerlibrary.interfaces.OnStateChangeListener;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
@@ -114,6 +124,10 @@ public class MainActivity extends AppCompatActivity {
         btnBatchDanmaku.setOnClickListener(v -> loadBatchDanmaku());
         btnSendDanmaku.setOnClickListener(v -> sendDanmaku());
         btnToggleDanmaku.setOnClickListener(v -> toggleDanmaku(btnToggleDanmaku));
+        
+        // 播放历史按钮
+        Button btnHistory = findViewById(R.id.btn_history);
+        btnHistory.setOnClickListener(v -> showPlayHistoryDialog());
 
         log("🍊 橘子播放器 SDK Demo 启动");
         log("基于 GSYVideoPlayer 开源框架");
@@ -424,6 +438,223 @@ public class MainActivity extends AppCompatActivity {
             // 自动滚动到底部
             if (mScrollLog != null) {
                 mScrollLog.post(() -> mScrollLog.fullScroll(ScrollView.FOCUS_DOWN));
+            }
+        }
+    }
+    
+    // ===== 播放历史功能 =====
+    
+    private void showPlayHistoryDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_play_history, null);
+        
+        RecyclerView rvHistory = dialogView.findViewById(R.id.rv_history);
+        TextView tvEmpty = dialogView.findViewById(R.id.tv_empty);
+        Button btnClear = dialogView.findViewById(R.id.btn_clear_history);
+        
+        // 获取历史列表
+        List<PlayHistory> historyList = PlayHistoryManager.getInstance(this).getHistoryList(50);
+        
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .create();
+        
+        if (historyList.isEmpty()) {
+            tvEmpty.setVisibility(View.VISIBLE);
+            rvHistory.setVisibility(View.GONE);
+        } else {
+            tvEmpty.setVisibility(View.GONE);
+            rvHistory.setVisibility(View.VISIBLE);
+            
+            rvHistory.setLayoutManager(new LinearLayoutManager(this));
+            PlayHistoryAdapter adapter = new PlayHistoryAdapter(historyList, new PlayHistoryAdapter.OnItemClickListener() {
+                @Override
+                public void onItemClick(PlayHistory history) {
+                    // 播放选中的视频
+                    dialog.dismiss();
+                    playFromHistory(history);
+                }
+                
+                @Override
+                public void onDeleteClick(PlayHistory history, int position) {
+                    // 删除历史记录
+                    PlayHistoryManager.getInstance(MainActivity.this).deleteHistory(history.getVideoUrl());
+                    historyList.remove(position);
+                    rvHistory.getAdapter().notifyItemRemoved(position);
+                    log("🗑 删除历史: " + (history.getVideoTitle().isEmpty() ? "未命名" : history.getVideoTitle()));
+                    
+                    if (historyList.isEmpty()) {
+                        tvEmpty.setVisibility(View.VISIBLE);
+                        rvHistory.setVisibility(View.GONE);
+                    }
+                }
+            });
+            rvHistory.setAdapter(adapter);
+        }
+        
+        // 清空按钮
+        btnClear.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("确认清空")
+                    .setMessage("确定要清空所有播放历史吗？")
+                    .setPositiveButton("清空", (d, w) -> {
+                        PlayHistoryManager.getInstance(this).clearAll();
+                        historyList.clear();
+                        tvEmpty.setVisibility(View.VISIBLE);
+                        rvHistory.setVisibility(View.GONE);
+                        log("🗑 已清空所有播放历史");
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        });
+        
+        dialog.show();
+        log("📋 打开播放历史，共 " + historyList.size() + " 条记录");
+    }
+    
+    private void playFromHistory(PlayHistory history) {
+        String url = history.getVideoUrl();
+        String title = history.getVideoTitle();
+        long position = history.getPosition();
+        
+        mCurrentUrl = url;
+        mCurrentTitle = title.isEmpty() ? "历史视频" : title;
+        
+        mEtVideoUrl.setText(url);
+        mVideoView.setUp(url, false, mCurrentTitle);
+        
+        // 设置从历史位置开始播放
+        if (position > 0) {
+            mVideoView.setSeekOnStart(position);
+        }
+        
+        mVideoView.startPlayLogic();
+        
+        if (mVideoView.getTitleView() != null) {
+            mVideoView.getTitleView().setTitle(mCurrentTitle);
+        }
+        
+        log("▶ 从历史播放: " + getShortUrl(url));
+        if (position > 0) {
+            log("   续播位置: " + formatTime(position));
+        }
+    }
+    
+    private String formatTime(long millis) {
+        long totalSeconds = millis / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        if (hours > 0) {
+            return String.format("%d:%02d:%02d", hours, minutes, seconds);
+        }
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+    
+    // ===== 播放历史适配器 =====
+    
+    private static class PlayHistoryAdapter extends RecyclerView.Adapter<PlayHistoryAdapter.ViewHolder> {
+        
+        private final List<PlayHistory> mList;
+        private final OnItemClickListener mListener;
+        
+        interface OnItemClickListener {
+            void onItemClick(PlayHistory history);
+            void onDeleteClick(PlayHistory history, int position);
+        }
+        
+        PlayHistoryAdapter(List<PlayHistory> list, OnItemClickListener listener) {
+            mList = list;
+            mListener = listener;
+        }
+        
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_play_history, parent, false);
+            return new ViewHolder(view);
+        }
+        
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            PlayHistory history = mList.get(position);
+            holder.bind(history, mListener, position);
+        }
+        
+        @Override
+        public int getItemCount() {
+            return mList.size();
+        }
+        
+        static class ViewHolder extends RecyclerView.ViewHolder {
+            TextView tvTitle, tvPosition, tvTime;
+            ImageView ivThumbnail, btnDelete;
+            
+            ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                tvTitle = itemView.findViewById(R.id.tv_title);
+                tvPosition = itemView.findViewById(R.id.tv_position);
+                tvTime = itemView.findViewById(R.id.tv_time);
+                ivThumbnail = itemView.findViewById(R.id.iv_thumbnail);
+                btnDelete = itemView.findViewById(R.id.btn_delete);
+            }
+            
+            void bind(PlayHistory history, OnItemClickListener listener, int position) {
+                // 标题
+                String title = history.getVideoTitle();
+                tvTitle.setText(title.isEmpty() ? "未命名视频" : title);
+                
+                // 缩略图
+                String thumbnailBase64 = history.getThumbnailBase64();
+                if (thumbnailBase64 != null && !thumbnailBase64.isEmpty()) {
+                    try {
+                        byte[] bytes = android.util.Base64.decode(thumbnailBase64, android.util.Base64.NO_WRAP);
+                        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                        ivThumbnail.setImageBitmap(bitmap);
+                    } catch (Exception e) {
+                        ivThumbnail.setImageResource(android.R.drawable.ic_menu_gallery);
+                    }
+                } else {
+                    ivThumbnail.setImageResource(android.R.drawable.ic_menu_gallery);
+                }
+                
+                // 播放位置和进度
+                tvPosition.setText(history.getFormattedPosition() + " / " + history.getFormattedDuration() + " (" + history.getProgressPercent() + "%)");
+                
+                // 时间
+                tvTime.setText(getRelativeTime(history.getLastPlayTime()));
+                
+                // 点击播放
+                itemView.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onItemClick(history);
+                    }
+                });
+                
+                // 删除按钮
+                btnDelete.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onDeleteClick(history, position);
+                    }
+                });
+            }
+            
+            private String getRelativeTime(long timestamp) {
+                long now = System.currentTimeMillis();
+                long diff = now - timestamp;
+                
+                if (diff < 60 * 1000) {
+                    return "刚刚";
+                } else if (diff < 60 * 60 * 1000) {
+                    return (diff / (60 * 1000)) + "分钟前";
+                } else if (diff < 24 * 60 * 60 * 1000) {
+                    return (diff / (60 * 60 * 1000)) + "小时前";
+                } else if (diff < 7 * 24 * 60 * 60 * 1000) {
+                    return (diff / (24 * 60 * 60 * 1000)) + "天前";
+                } else {
+                    return new java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault())
+                            .format(new java.util.Date(timestamp));
+                }
             }
         }
     }

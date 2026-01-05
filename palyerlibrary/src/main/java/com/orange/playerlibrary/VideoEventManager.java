@@ -447,6 +447,12 @@ public class VideoEventManager {
         if (downloadButton != null) {
             downloadButton.setOnClickListener(v -> onDownloadVideoClick());
         }
+        
+        // 绑定截图按钮点击事件
+        android.widget.LinearLayout screenshotButton = dialogView.findViewById(R.id.line_screenshot);
+        if (screenshotButton != null) {
+            screenshotButton.setOnClickListener(v -> onScreenshotClick());
+        }
     }
     
     /**
@@ -813,6 +819,36 @@ public class VideoEventManager {
      */
     public interface OnDownloadClickListener {
         void onDownloadClick(String url, String title);
+    }
+    
+    // ==================== 截图功能 ====================
+    
+    /**
+     * 截图按钮点击事件
+     */
+    private void onScreenshotClick() {
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        
+        // 使用 ScreenshotManager 进行截图
+        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
+            new com.orange.playerlibrary.screenshot.ScreenshotManager(mContext, mVideoView);
+        
+        // 截图并保存到相册
+        screenshotManager.takeAndSave(true, new com.orange.playerlibrary.screenshot.ScreenshotManager.SaveCallback() {
+            @Override
+            public void onSuccess(String filePath) {
+                showToast("截图已保存");
+                android.util.Log.d(TAG, "截图保存成功: " + filePath);
+            }
+            
+            @Override
+            public void onError(String message) {
+                showToast(message);
+                android.util.Log.e(TAG, "截图失败: " + message);
+            }
+        });
     }
     
     /**

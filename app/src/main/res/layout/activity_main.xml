@@ -127,6 +127,15 @@
             android:text="弹幕开关"
             android:textSize="11sp" />
 
+        <Button
+            android:id="@+id/btn_history"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="播放历史"
+            android:textSize="11sp" />
+
     </LinearLayout>
 
     <!-- 调试日志（可滚动） -->
