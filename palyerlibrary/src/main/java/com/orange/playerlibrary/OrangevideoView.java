@@ -1861,7 +1861,53 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void touchSurfaceMove(float deltaX, float deltaY, float y) {
-        super.touchSurfaceMove(deltaX, deltaY, y);
+        // 判断是否全屏
+        boolean isFullscreen = mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
+        
+        int curWidth;
+        int curHeight;
+        
+        if (isFullscreen) {
+            // 全屏横屏模式：使用 View 的实际尺寸
+            curWidth = getWidth();
+            curHeight = getHeight();
+        } else {
+            // 竖屏模式：使用屏幕尺寸（与基类保持一致）
+            curWidth = mScreenWidth;
+            curHeight = mScreenHeight;
+        }
+        
+        if (mChangePosition) {
+            long totalTimeDuration = getDuration();
+            mSeekTimePosition = (int) (mDownPosition + (deltaX * totalTimeDuration / curWidth) / mSeekRatio);
+            if (mSeekTimePosition < 0) {
+                mSeekTimePosition = 0;
+            }
+            if (mSeekTimePosition > totalTimeDuration)
+                mSeekTimePosition = totalTimeDuration;
+            String seekTime = com.shuyu.gsyvideoplayer.utils.CommonUtil.stringForTime(mSeekTimePosition);
+            String totalTime = com.shuyu.gsyvideoplayer.utils.CommonUtil.stringForTime(totalTimeDuration);
+            showProgressDialog(deltaX, seekTime, mSeekTimePosition, totalTime, totalTimeDuration);
+        } else if (mChangeVolume) {
+            deltaY = -deltaY;
+            // 直接获取 AudioManager，不依赖 GSY 的 mAudioFocusManager
+            android.media.AudioManager audioManager = (android.media.AudioManager) 
+                getContext().getSystemService(android.content.Context.AUDIO_SERVICE);
+            if (audioManager != null) {
+                int max = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                int deltaV = (int) (max * deltaY * 3 / curHeight);
+                int newVolume = Math.max(0, Math.min(max, mGestureDownVolume + deltaV));
+                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVolume, 0);
+                int volumePercent = (int) (mGestureDownVolume * 100 / max + deltaY * 3 * 100 / curHeight);
+                showVolumeDialog(-deltaY, volumePercent);
+            }
+        } else if (mBrightness) {
+            if (Math.abs(deltaY) > mThreshold) {
+                float percent = (-deltaY / curHeight);
+                onBrightnessSlide(percent);
+                mDownY = y;
+            }
+        }
     }
 
     /**
@@ -1883,11 +1929,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         boolean isFullscreen = mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
         
         if (isFullscreen) {
-            // 全屏模式：直接使用 View 的实际宽度
+            // 全屏横屏模式：使用 View 的实际宽度
             curWidth = getWidth();
-            if (curWidth <= 0) {
-                curWidth = mScreenHeight; // 横屏时屏幕高度就是视觉宽度
-            }
         } else {
             // 竖屏模式：使用屏幕宽度（与基类保持一致）
             curWidth = mScreenWidth;
@@ -1916,7 +1959,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
                 if (!mBrightness) {
                     mChangeVolume = noEnd;
-                    android.media.AudioManager audioManager = getAudioManager();
+                    // 直接获取 AudioManager，不依赖 GSY 的 mAudioFocusManager
+                    android.media.AudioManager audioManager = (android.media.AudioManager) 
+                        getContext().getSystemService(android.content.Context.AUDIO_SERVICE);
                     if (audioManager != null) {
                         mGestureDownVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
                     }
