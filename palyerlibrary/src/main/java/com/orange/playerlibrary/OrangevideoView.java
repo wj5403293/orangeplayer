@@ -2817,8 +2817,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * @param locked 是否锁定
      */
     public void onLockStateChanged(boolean locked) {
-        android.util.Log.d(TAG, "onLockStateChanged: locked=" + locked);
-        
         // 更新 OrangeController 的锁定状态
         if (mOrangeController != null) {
             mOrangeController.setLockedInternal(locked);
@@ -2834,6 +2832,35 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 解锁时显示标题栏（如果在全屏模式）
             if (mTitleView != null && isIfCurrentIsFullscreen()) {
                 mTitleView.setVisibility(android.view.View.VISIBLE);
+            }
+        }
+    }
+    
+    /**
+     * 设置手势和自动旋转的锁定状态
+     * 锁定时禁用手势和自动旋转，解锁时恢复设置中的自动旋转状态
+     * @param locked 是否锁定
+     */
+    public void setGestureAndRotationLocked(boolean locked) {
+        if (locked) {
+            // 锁定时禁用手势
+            setIsTouchWiget(false);
+            setIsTouchWigetFull(false);
+            
+            // 锁定时禁用自动旋转（通过 CustomFullscreenHelper）
+            if (mFullscreenHelper != null) {
+                mFullscreenHelper.setAutoRotateEnabled(false);
+            }
+        } else {
+            // 解锁时恢复手势
+            setIsTouchWiget(true);
+            setIsTouchWigetFull(true);
+            
+            // 解锁时恢复设置中的自动旋转状态
+            PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+            boolean autoRotateEnabled = settingsManager.isAutoRotateEnabled();
+            if (mFullscreenHelper != null) {
+                mFullscreenHelper.setAutoRotateEnabled(autoRotateEnabled);
             }
         }
     }

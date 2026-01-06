@@ -581,8 +581,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * 设置锁定状态
      */
     public void setLocked(boolean locked) {
-        android.util.Log.d(TAG, "setLocked: locked=" + locked + ", this=" + this + ", isAttachedToWindow=" + isAttachedToWindow());
-        
         mIsLocked = locked;
         updateLockButtonState();
         
@@ -603,9 +601,51 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         // 找到同级的 TitleView 并通知它（避免使用可能是旧实例的引用）
         notifySiblingTitleView(locked);
         
+        // 找到同级的 GestureView 并禁用/恢复手势
+        notifySiblingGestureView(locked);
+        
+        // 找到父级的 OrangevideoView 并禁用/恢复手势和自动旋转
+        notifyParentVideoView(locked);
+        
         // 通知 Controller 更新锁定状态（只更新状态，不操作 UI）
         if (mControlWrapper != null) {
             mControlWrapper.onLockStateChanged(locked);
+        }
+    }
+    
+    /**
+     * 通知同级的 GestureView 锁定状态变化
+     */
+    private void notifySiblingGestureView(boolean locked) {
+        android.view.ViewParent parent = getParent();
+        if (parent instanceof android.view.ViewGroup) {
+            android.view.ViewGroup container = (android.view.ViewGroup) parent;
+            for (int i = 0; i < container.getChildCount(); i++) {
+                android.view.View child = container.getChildAt(i);
+                if (child instanceof GestureView) {
+                    // GestureView 锁定时禁用
+                    child.setEnabled(!locked);
+                    break;
+                }
+            }
+        }
+    }
+    
+    /**
+     * 通知父级的 OrangevideoView 锁定状态变化
+     * 锁定时禁用手势和自动旋转，解锁时恢复
+     */
+    private void notifyParentVideoView(boolean locked) {
+        // 向上遍历找到 OrangevideoView
+        android.view.ViewParent parent = getParent();
+        while (parent != null) {
+            if (parent instanceof com.orange.playerlibrary.OrangevideoView) {
+                com.orange.playerlibrary.OrangevideoView videoView = 
+                    (com.orange.playerlibrary.OrangevideoView) parent;
+                videoView.setGestureAndRotationLocked(locked);
+                break;
+            }
+            parent = parent.getParent();
         }
     }
     
@@ -623,7 +663,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                     com.orange.playerlibrary.component.TitleView titleView = 
                         (com.orange.playerlibrary.component.TitleView) child;
                     titleView.onLockStateChanged(locked);
-                    android.util.Log.d(TAG, "notifySiblingTitleView: found and notified TitleView");
                     break;
                 }
             }

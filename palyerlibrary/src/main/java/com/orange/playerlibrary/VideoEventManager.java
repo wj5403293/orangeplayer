@@ -539,6 +539,7 @@ public class VideoEventManager {
      * 显示设置对话框
      */
     public void showSetupDialog() {
+        Log.d(TAG, "showSetupDialog() called");
         hideController(); // 隐藏播放器UI
         
         // 创建设置对话框视图
@@ -863,8 +864,6 @@ public class VideoEventManager {
             // 软件解码
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.disableMediaCodec();
         }
-        
-        android.util.Log.d(TAG, "applyDecodeMode: " + mode + ", useHardware=" + useHardware);
     }
     
     /**
@@ -2205,35 +2204,95 @@ public class VideoEventManager {
      * 如果是全屏模式，返回全屏播放器的 Controller
      */
     private OrangeVideoController getActualController() {
-        android.util.Log.d("VideoEventManager", "getActualController called");
         if (mActivity != null) {
             android.view.ViewGroup vp = (android.view.ViewGroup) mActivity.findViewById(android.view.Window.ID_ANDROID_CONTENT);
             if (vp != null) {
                 android.view.View fullView = vp.findViewById(com.shuyu.gsyvideoplayer.GSYVideoManager.FULLSCREEN_ID);
-                android.util.Log.d("VideoEventManager", "fullView=" + fullView);
                 if (fullView instanceof OrangevideoView) {
                     OrangevideoView fullPlayer = (OrangevideoView) fullView;
                     OrangeVideoController fullController = fullPlayer.getVideoController();
-                    android.util.Log.d("VideoEventManager", "fullController=" + fullController);
                     if (fullController != null) {
                         return fullController;
                     }
                 }
             }
         }
-        android.util.Log.d("VideoEventManager", "returning mController=" + mController);
         return mController;
     }
     
     /**
      * 隐藏当前活动的控制器
+     * 通过 Controller 的 hide() 方法隐藏，确保状态同步
      */
     private void hideController() {
-        OrangeVideoController controller = getActualController();
-        android.util.Log.d("VideoEventManager", "hideController: controller=" + controller);
+        Log.d(TAG, "hideController() called");
+        
+        // 方法1：尝试通过全屏播放器获取 Controller
+        OrangeStandardVideoController controller = findActualStandardController();
+        Log.d(TAG, "hideController: findActualStandardController returned " + controller);
+        
         if (controller != null) {
+            Log.d(TAG, "hideController: calling controller.hide() on fullscreen controller");
             controller.hide();
+            controller.stopFadeOut();
+            return;
         }
+        
+        // 方法2：如果找不到，使用原始 Controller
+        Log.d(TAG, "hideController: using mController=" + mController);
+        if (mController != null) {
+            mController.hide();
+            mController.stopFadeOut();
+        }
+    }
+    
+    /**
+     * 查找当前实际显示的 OrangeStandardVideoController
+     * 全屏模式下会遍历全屏播放器的子 View 找到 Controller
+     */
+    private OrangeStandardVideoController findActualStandardController() {
+        if (mActivity == null) {
+            Log.d(TAG, "findActualStandardController: mActivity is null");
+            return null;
+        }
+        
+        android.view.ViewGroup vp = (android.view.ViewGroup) mActivity.findViewById(android.view.Window.ID_ANDROID_CONTENT);
+        if (vp == null) {
+            Log.d(TAG, "findActualStandardController: content view is null");
+            return null;
+        }
+        
+        android.view.View fullView = vp.findViewById(com.shuyu.gsyvideoplayer.GSYVideoManager.FULLSCREEN_ID);
+        Log.d(TAG, "findActualStandardController: fullView=" + fullView);
+        
+        if (fullView instanceof android.view.ViewGroup) {
+            // 遍历全屏播放器的子 View 找到 OrangeStandardVideoController
+            OrangeStandardVideoController found = findControllerInViewGroup((android.view.ViewGroup) fullView);
+            Log.d(TAG, "findActualStandardController: found controller=" + found);
+            return found;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 在 ViewGroup 中递归查找 OrangeStandardVideoController
+     */
+    private OrangeStandardVideoController findControllerInViewGroup(android.view.ViewGroup viewGroup) {
+        for (int i = 0; i < viewGroup.getChildCount(); i++) {
+            android.view.View child = viewGroup.getChildAt(i);
+            Log.d(TAG, "findControllerInViewGroup: checking child " + i + ": " + child.getClass().getSimpleName());
+            if (child instanceof OrangeStandardVideoController) {
+                return (OrangeStandardVideoController) child;
+            }
+            if (child instanceof android.view.ViewGroup) {
+                OrangeStandardVideoController found = findControllerInViewGroup((android.view.ViewGroup) child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
     
     /**
