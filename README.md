@@ -57,27 +57,86 @@ dependencyResolutionManagement {
 
 ### 2. 添加依赖
 
+⚠️ **重要**：OrangePlayer 基于 GSYVideoPlayer，必须同时添加 GSY 的基础依赖，否则会报 `NoClassDefFoundError`！
+
+#### 最小依赖配置（仅系统播放器）
+
+**方案一：支持传递依赖的构建工具（推荐）**
+
+如果你的构建工具支持自动解析传递依赖（如 Gradle、Maven），只需添加：
+
 ```gradle
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
-    // GSY 基础依赖（必需）
+    // GSY 基础依赖（会自动引入子依赖）
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+}
+```
+
+**方案二：不支持传递依赖的构建工具**
+
+如果你的构建工具不自动解析传递依赖，需要手动添加所有子依赖：
+
+```gradle
+// app/build.gradle
+dependencies {
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:v1.0.3'
+    
+    // GSY 基础依赖
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
     
-    // ExoPlayer 模式（推荐）
+    // GSY 子依赖（手动添加）
+    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+}
+```
+
+> **依赖说明：**
+> - `gsyvideoplayer-java` - GSY 主模块
+> - `gsyvideoplayer-base` - 包含 `BasePlayerManager` 等核心类
+> - `gsyvideoplayer-androidvideocache` - 视频缓存功能（gsyvideoplayer-java 依赖它）
+> - `gsyijkjava` - IJK 接口层（约 50KB，不含 so 库，所有播放器都需要）
+
+#### 推荐配置（ExoPlayer）
+
+如果使用 ExoPlayer（推荐，格式支持更全）：
+
+```gradle
+// app/build.gradle
+dependencies {
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:v1.0.3'
+    
+    // GSY 基础依赖
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    
+    // ExoPlayer 播放内核
     implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
     
-    // 阿里云播放器模式（可选，需要 License）
+    // 如果构建工具不支持传递依赖，还需要手动添加：
+    // implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
+    // implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    // implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    // implementation 'androidx.media3:media3-exoplayer:1.8.0'
+    // implementation 'androidx.media3:media3-ui:1.8.0'
+}
+```
+
+#### 其他播放内核（可选）
+
+```gradle
+dependencies {
+    // 阿里云播放器模式（需要 License）
     implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
     
     // IJK 播放器 so 库（根据需要选择 CPU 架构）
     implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'   // arm64-v8a
     implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'  // armeabi-v7a
-    // implementation 'io.github.carguo:gsyvideoplayer-armv5:11.3.0'   // armeabi
-    // implementation 'io.github.carguo:gsyvideoplayer-x86:11.3.0'     // x86
-    // implementation 'io.github.carguo:gsyvideoplayer-x64:11.3.0'     // x86_64
 }
 ```
 
@@ -139,6 +198,10 @@ dependencies {
 
 ### 4. 基本使用
 
+#### 方式一：自动初始化（推荐）
+
+OrangePlayer 会自动创建和配置控制器，无需手动设置：
+
 ```xml
 <!-- 布局文件 -->
 <com.orange.playerlibrary.OrangevideoView
@@ -150,12 +213,35 @@ dependencies {
 ```java
 // Activity 中
 import com.orange.playerlibrary.OrangevideoView;
-import com.orange.playerlibrary.PlayerConstants;
 
 OrangevideoView videoView = findViewById(R.id.video_player);
 videoView.setUp("https://example.com/video.mp4", true, "视频标题");
 videoView.startPlayLogic();
 ```
+
+#### 方式二：自定义控制器（高级）
+
+如果需要自定义控制器，可以手动创建并设置：
+
+```java
+import com.orange.playerlibrary.OrangevideoView;
+import com.orange.playerlibrary.OrangeVideoController;
+
+OrangevideoView videoView = findViewById(R.id.video_player);
+
+// 创建自定义控制器
+OrangeVideoController controller = new OrangeVideoController(this);
+// 自定义控制器配置...
+
+// 设置控制器（可选）
+videoView.setVideoController(controller);
+
+// 设置视频
+videoView.setUp("https://example.com/video.mp4", true, "视频标题");
+videoView.startPlayLogic();
+```
+
+> **注意**：大多数情况下不需要手动设置控制器，OrangePlayer 会自动创建并配置好所有组件。
 
 ---
 
@@ -208,6 +294,8 @@ dependencies {
     implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
 }
 ```
+
+> **注意**：`gsyijkjava` 是 IJK 的 Java 接口层（约 50KB），所有播放器都需要。上面的 so 库才是真正的 IJK 播放器（每个约 10-15MB），只有使用 IJK 内核时才需要添加。
 
 ---
 
@@ -544,6 +632,10 @@ if (OcrAvailabilityChecker.isOcrTranslateAvailable()) {
 
 ## 完整依赖配置示例
 
+### 标准配置（推荐）
+
+适用于支持传递依赖解析的构建工具（Gradle、Maven）：
+
 ```gradle
 // app/build.gradle
 dependencies {
@@ -582,6 +674,166 @@ dependencies {
     implementation 'com.alphacephei:vosk-android:0.3.47'
 }
 ```
+
+### 完整配置（手动传递依赖）
+
+适用于不支持传递依赖解析的构建工具，需要手动添加所有子依赖：
+
+```gradle
+// app/build.gradle
+dependencies {
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:1.0.3'
+    
+    // === GSY 基础依赖（必需）===
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    
+    // GSY 子依赖（手动添加）
+    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
+    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    
+    // === 播放内核（按需选择）===
+    
+    // ExoPlayer 模式（推荐）
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'androidx.media3:media3-exoplayer:1.8.0'
+    implementation 'androidx.media3:media3-ui:1.8.0'
+    implementation 'androidx.media3:media3-common:1.8.0'
+    
+    // 阿里云播放器模式（需要 License）
+    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    
+    // IJK 播放器 so 库（根据目标设备选择）
+    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'
+    
+    // 扩展编码支持（mpeg、rtsp、concat、crypto 协议）
+    // implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+    
+    // === AndroidX 基础库（通常已包含）===
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.annotation:annotation:1.6.0'
+    implementation 'androidx.core:core:1.13.0'
+    
+    // === 可选功能 ===
+    
+    // DLNA 投屏
+    implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okio:okio:3.6.0'
+    
+    // OCR 字幕识别与翻译
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
+    implementation 'com.google.mlkit:translate:17.0.2'
+    
+    // 语音识别（需要 Android 10+）
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+}
+```
+
+---
+
+## 常见问题
+
+### 1. NoClassDefFoundError: BasePlayerManager
+
+**错误信息：**
+```
+java.lang.NoClassDefFoundError: Failed resolution of: Lcom/shuyu/gsyvideoplayer/player/BasePlayerManager
+```
+
+**原因：** 缺少 GSYVideoPlayer 基础依赖或子依赖
+
+**解决方案：** 在 `app/build.gradle` 中添加完整依赖：
+
+**方案一：仅使用系统播放器（最小依赖）**
+
+```gradle
+dependencies {
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:v1.0.1'
+    
+    // GSY 最小依赖（系统播放器必需）
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+}
+```
+
+**方案二：使用 ExoPlayer（推荐）**
+
+```gradle
+dependencies {
+    // OrangePlayer 核心库
+    implementation 'com.github.706412584:orangeplayer:v1.0.1'
+    
+    // GSY 基础依赖（必需！）
+    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    
+    // GSY 子依赖（如果构建工具不自动解析传递依赖）
+    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
+    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    
+    // ExoPlayer 播放内核
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    
+    // ExoPlayer 依赖（Media3）
+    implementation 'androidx.media3:media3-exoplayer:1.8.0'
+    implementation 'androidx.media3:media3-ui:1.8.0'
+}
+```
+
+### 2. 播放黑屏或无声音
+
+**可能原因：**
+- 视频编码格式不支持
+- 播放内核不兼容
+
+**解决方案：**
+1. 尝试切换播放内核（系统/ExoPlayer/IJK）
+2. 如果是 MPEG 编码，添加扩展 so 库：
+   ```gradle
+   implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+   ```
+
+### 3. 阿里云播放器黑屏/水印
+
+**原因：** 阿里云播放器 5.4.0+ 需要 License
+
+**解决方案：** 参考 [阿里云内核注意事项](#️-阿里云内核注意事项) 章节
+
+### 4. 投屏功能不可用
+
+**原因：** 缺少 DLNA 投屏库
+
+**解决方案：**
+```gradle
+implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
+implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+```
+
+### 5. OCR/语音识别按钮显示"查看安装说明"
+
+**原因：** 缺少对应的 SDK 依赖
+
+**解决方案：**
+- OCR 功能：参考 [OCR 字幕翻译](#ocr-字幕翻译) 章节
+- 语音识别：参考 [语音识别字幕](#语音识别字幕) 章节
+
+### 6. 语音识别无法启动
+
+**可能原因：**
+- Android 版本低于 10
+- 缺少 Vosk SDK
+- 模型文件未正确放置
+
+**解决方案：**
+1. 检查 Android 版本：`Build.VERSION.SDK_INT >= 29`
+2. 添加依赖：`implementation 'com.alphacephei:vosk-android:0.3.47'`
+3. 下载并放置模型文件到 `assets/vosk-model-small-cn/`
 
 ---
 
