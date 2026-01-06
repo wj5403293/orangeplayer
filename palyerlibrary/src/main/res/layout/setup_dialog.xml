@@ -623,6 +623,62 @@
                                     android:focusable="true" />
                             </LinearLayout>
                         </LinearLayout>
+                        
+                        <!-- 自动旋转 -->
+                        <LinearLayout
+                            android:id="@+id/auto_rotate_layout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_below="@id/xxbj3"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/setup_card_bg"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="全屏自动旋转"
+                                android:textColor="#FFFFFF"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="12dp"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:id="@+id/auto_rotate_on"
+                                    android:layout_width="0dp"
+                                    android:layout_height="32dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="4dp"
+                                    android:text="开启"
+                                    android:textSize="11sp"
+                                    android:textColor="#E6FFFFFF"
+                                    android:gravity="center"
+                                    android:background="@drawable/setup_option_bg"
+                                    android:clickable="true"
+                                    android:focusable="true" />
+
+                                <TextView
+                                    android:id="@+id/auto_rotate_off"
+                                    android:layout_width="0dp"
+                                    android:layout_height="32dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="4dp"
+                                    android:text="关闭"
+                                    android:textSize="11sp"
+                                    android:textColor="#E6FFFFFF"
+                                    android:gravity="center"
+                                    android:background="@drawable/setup_option_bg"
+                                    android:clickable="true"
+                                    android:focusable="true" />
+                            </LinearLayout>
+                        </LinearLayout>
                     </RelativeLayout>
                 </LinearLayout>
 

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.os.Build;
+import android.view.OrientationEventListener;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,15 +16,12 @@ import com.orange.playerlibrary.player.OrangeSystemPlayerManager;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
 
 /**
- * 自定义全屏辅助类 - 无旋转方案
+ * 自定义全屏辅助类 - 支持重力感应旋转
  * 
  * 核心思路：
- * 1. 不调用 setRequestedOrientation，避免触发配置变化
- * 2. 将 OrangevideoView 移动到 DecorView，实现全屏效果
- * 3. 通过隐藏系统 UI 实现沉浸式全屏
- * 
- * 注意：这种方案下视频不会自动旋转，需要用户手动旋转设备
- * 或者使用 OrientationEventListener 监听设备方向
+ * 1. 将 OrangevideoView 移动到 DecorView，实现全屏效果
+ * 2. 通过隐藏系统 UI 实现沉浸式全屏
+ * 3. 使用 OrientationEventListener 监听设备方向，实现重力感应旋转
  */
 public class CustomFullscreenHelper {
     
@@ -48,8 +46,127 @@ public class CustomFullscreenHelper {
     // 全屏切换中标志
     private boolean mFullscreenTransitioning = false;
     
+    // 自动旋转设置（基于重力感应）
+    private boolean mAutoRotateEnabled = true;
+    private OrientationEventListener mOrientationListener;
+    private int mCurrentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+    private boolean mIsLandscape = true;  // 当前是否横屏
+    
     public CustomFullscreenHelper(OrangevideoView videoView) {
         this.mVideoView = videoView;
+        initOrientationListener();
+    }
+    
+    /**
+     * 初始化方向监听器
+     */
+    private void initOrientationListener() {
+        if (mVideoView == null || mVideoView.getContext() == null) {
+            return;
+        }
+        
+        mOrientationListener = new OrientationEventListener(mVideoView.getContext()) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                if (!mAutoRotateEnabled || !mIsFullscreen || mFullscreenTransitioning) {
+                    return;
+                }
+                
+                if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) {
+                    return;
+                }
+                
+                Activity activity = mVideoView.getActivity();
+                if (activity == null || activity.isFinishing()) {
+                    return;
+                }
+                
+                // 根据设备方向判断应该是横屏还是竖屏
+                // 0度和180度附近是竖屏，90度和270度附近是横屏
+                int newOrientation;
+                if (orientation > 315 || orientation <= 45) {
+                    // 正竖屏 (0度)
+                    newOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+                } else if (orientation > 45 && orientation <= 135) {
+                    // 反横屏 (90度) - 设备顺时针旋转90度
+                    newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+                } else if (orientation > 135 && orientation <= 225) {
+                    // 反竖屏 (180度)
+                    newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+                } else {
+                    // 正横屏 (270度) - 设备逆时针旋转90度
+                    newOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+                }
+                
+                // 只有方向真正改变时才更新
+                if (newOrientation != mCurrentOrientation) {
+                    mCurrentOrientation = newOrientation;
+                    activity.setRequestedOrientation(newOrientation);
+                    android.util.Log.d(TAG, "onOrientationChanged: orientation=" + orientation + 
+                        ", newOrientation=" + getOrientationName(newOrientation));
+                }
+            }
+        };
+    }
+    
+    /**
+     * 获取方向名称（用于日志）
+     */
+    private String getOrientationName(int orientation) {
+        switch (orientation) {
+            case ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:
+                return "PORTRAIT";
+            case ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE:
+                return "LANDSCAPE";
+            case ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT:
+                return "REVERSE_PORTRAIT";
+            case ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE:
+                return "REVERSE_LANDSCAPE";
+            default:
+                return "UNKNOWN";
+        }
+    }
+    
+    /**
+     * 启动方向监听
+     */
+    private void startOrientationListener() {
+        if (mOrientationListener != null && mOrientationListener.canDetectOrientation()) {
+            mOrientationListener.enable();
+            android.util.Log.d(TAG, "startOrientationListener: enabled");
+        }
+    }
+    
+    /**
+     * 停止方向监听
+     */
+    private void stopOrientationListener() {
+        if (mOrientationListener != null) {
+            mOrientationListener.disable();
+            android.util.Log.d(TAG, "stopOrientationListener: disabled");
+        }
+    }
+    
+    /**
+     * 设置是否启用自动旋转（基于重力感应）
+     * @param enabled true 启用自动旋转
+     */
+    public void setAutoRotateEnabled(boolean enabled) {
+        mAutoRotateEnabled = enabled;
+        if (mIsFullscreen) {
+            if (enabled) {
+                startOrientationListener();
+            } else {
+                stopOrientationListener();
+            }
+        }
+    }
+    
+    /**
+     * 是否启用自动旋转
+     */
+    public boolean isAutoRotateEnabled() {
+        return mAutoRotateEnabled;
     }
     
     // 兼容旧接口的方法
@@ -147,8 +264,10 @@ public class CustomFullscreenHelper {
                 // 4. 隐藏系统 UI
                 hideSysBar(decorView, activity);
                 
-                // 5. 最后设置横屏 - View 已经在 DecorView 中，旋转不会影响它
-                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                // 5. 最后设置屏幕方向 - View 已经在 DecorView 中，旋转不会影响它
+                // 默认先设置横屏，如果启用了自动旋转，后续会根据重力感应调整
+                mCurrentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+                activity.setRequestedOrientation(mCurrentOrientation);
                 
                 // 6. 通知状态变化
                 mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
@@ -195,6 +314,11 @@ public class CustomFullscreenHelper {
                         
                         // ExoPlayer 特殊处理：再次更新 SurfaceControl 尺寸
                         updateExoSurfaceControlSize();
+                        
+                        // 启动重力感应旋转监听（如果启用）
+                        if (mAutoRotateEnabled) {
+                            startOrientationListener();
+                        }
                         
                         // SystemPlayerManager: 恢复播放
                         if (isSystemPlayer && mPendingResume) {
@@ -274,6 +398,9 @@ public class CustomFullscreenHelper {
         
         mIsFullscreen = false;
         mFullscreenTransitioning = true;
+        
+        // 停止重力感应旋转监听
+        stopOrientationListener();
         
         // 延迟执行退出全屏，等待暂停完成
         final int delay = (isSystemPlayer && wasPlaying) ? 200 : 0;

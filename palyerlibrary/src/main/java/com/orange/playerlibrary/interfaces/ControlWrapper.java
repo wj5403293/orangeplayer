@@ -56,6 +56,18 @@ public interface ControlWrapper {
     void toggleLockState();
     
     /**
+     * 设置锁屏状态
+     * @param locked 是否锁屏
+     */
+    void setLocked(boolean locked);
+    
+    /**
+     * 锁定状态变化回调（用于立即更新 UI）
+     * @param locked 是否锁定
+     */
+    void onLockStateChanged(boolean locked);
+    
+    /**
      * 是否全屏
      * @return true 全屏
      */

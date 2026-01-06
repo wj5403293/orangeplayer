@@ -588,6 +588,10 @@ public class VideoEventManager {
         android.widget.TextView decodeHardwareBtn = dialogView.findViewById(R.id.decode_hardware);
         android.widget.TextView decodeSoftwareBtn = dialogView.findViewById(R.id.decode_software);
         
+        // 自动旋转按钮
+        android.widget.TextView autoRotateOnBtn = dialogView.findViewById(R.id.auto_rotate_on);
+        android.widget.TextView autoRotateOffBtn = dialogView.findViewById(R.id.auto_rotate_off);
+        
         // 获取音量控制组件
         android.widget.SeekBar volumeSeekBar = dialogView.findViewById(R.id.volumeSeek_bar);
         android.widget.TextView volumeText = dialogView.findViewById(R.id.volumeText);
@@ -597,6 +601,9 @@ public class VideoEventManager {
         
         // 设置解码方式按钮
         setupDecodeModeButtons(decodeHardwareBtn, decodeSoftwareBtn);
+        
+        // 设置自动旋转按钮
+        setupAutoRotateButtons(autoRotateOnBtn, autoRotateOffBtn);
         
         // 设置播放模式按钮
         setupPlayModeButtons(sequentialPlayBtn, singleLoopBtn, playPauseBtn);
@@ -858,6 +865,53 @@ public class VideoEventManager {
         }
         
         android.util.Log.d(TAG, "applyDecodeMode: " + mode + ", useHardware=" + useHardware);
+    }
+    
+    /**
+     * 设置自动旋转按钮
+     */
+    private void setupAutoRotateButtons(android.widget.TextView onBtn, android.widget.TextView offBtn) {
+        // 获取当前自动旋转设置
+        boolean isEnabled = mSettingsManager.isAutoRotateEnabled();
+        
+        // 高亮当前设置
+        if (onBtn != null) {
+            onBtn.setTextColor(isEnabled ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            onBtn.setOnClickListener(v -> selectAutoRotate(true));
+        }
+        if (offBtn != null) {
+            offBtn.setTextColor(!isEnabled ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            offBtn.setOnClickListener(v -> selectAutoRotate(false));
+        }
+    }
+    
+    /**
+     * 选择自动旋转设置
+     */
+    private void selectAutoRotate(boolean enabled) {
+        boolean oldValue = mSettingsManager.isAutoRotateEnabled();
+        if (oldValue == enabled) {
+            return; // 没有变化
+        }
+        
+        // 保存设置
+        mSettingsManager.setAutoRotateEnabled(enabled);
+        
+        // 应用到 CustomFullscreenHelper
+        if (mVideoView != null) {
+            CustomFullscreenHelper helper = mVideoView.getFullscreenHelper();
+            if (helper != null) {
+                helper.setAutoRotateEnabled(enabled);
+            }
+        }
+        
+        // 关闭设置对话框
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        
+        // 提示用户
+        showToast(enabled ? "已开启全屏自动旋转" : "已关闭全屏自动旋转");
     }
     
     /**

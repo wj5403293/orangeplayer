@@ -133,9 +133,11 @@ public class OrangeStandardVideoController extends FrameLayout {
      * @param locked 是否锁屏
      */
     public void setLocked(boolean locked) {
+        android.util.Log.d("OrangeStandard", "setLocked: locked=" + locked + ", old mIsLocked=" + mIsLocked);
         mIsLocked = locked;
         updateLockButtonState();
         onLockStateChanged(locked);
+        android.util.Log.d("OrangeStandard", "setLocked done: mIsLocked=" + mIsLocked);
     }
 
     /**
@@ -193,10 +195,18 @@ public class OrangeStandardVideoController extends FrameLayout {
      * Requirements: 2.3
      */
     public void show() {
+        android.util.Log.d("OrangeStandard", "show() called, mIsLocked=" + mIsLocked + ", mIsShowing=" + mIsShowing);
         if (!mIsShowing) {
             mIsShowing = true;
             startShowAnimation();
-            onVisibilityChanged(true, mShowAnim);
+            // 锁定状态下只通知锁定按钮显示，其他组件保持隐藏
+            if (mIsLocked) {
+                android.util.Log.d("OrangeStandard", "show() - locked, calling onLockVisibilityChanged(true)");
+                onLockVisibilityChanged(true);
+            } else {
+                android.util.Log.d("OrangeStandard", "show() - not locked, calling onVisibilityChanged(true)");
+                onVisibilityChanged(true, mShowAnim);
+            }
         }
         // 重置隐藏计时器
         removeCallbacks(mFadeOut);
@@ -208,12 +218,34 @@ public class OrangeStandardVideoController extends FrameLayout {
      * Requirements: 2.3
      */
     public void hide() {
+        android.util.Log.d("OrangeStandard", "hide() called, mIsLocked=" + mIsLocked + ", mIsShowing=" + mIsShowing);
         if (mIsShowing) {
             mIsShowing = false;
             startHideAnimation();
-            onVisibilityChanged(false, mHideAnim);
+            // 锁定状态下只通知锁定按钮隐藏
+            if (mIsLocked) {
+                android.util.Log.d("OrangeStandard", "hide() - locked, calling onLockVisibilityChanged(false)");
+                onLockVisibilityChanged(false);
+            } else {
+                android.util.Log.d("OrangeStandard", "hide() - not locked, calling onVisibilityChanged(false)");
+                onVisibilityChanged(false, mHideAnim);
+            }
         }
         removeCallbacks(mFadeOut);
+    }
+    
+    /**
+     * 锁定状态下的可见性变化（只影响 VodControlView 的锁定按钮）
+     */
+    protected void onLockVisibilityChanged(boolean isVisible) {
+        android.util.Log.d("OrangeStandard", "onLockVisibilityChanged: isVisible=" + isVisible + ", components=" + mControlComponents.size());
+        for (IControlComponent component : mControlComponents) {
+            if (component instanceof com.orange.playerlibrary.component.VodControlView) {
+                com.orange.playerlibrary.component.VodControlView vodView = 
+                    (com.orange.playerlibrary.component.VodControlView) component;
+                vodView.onLockVisibilityChanged(isVisible);
+            }
+        }
     }
 
     /**
@@ -224,6 +256,14 @@ public class OrangeStandardVideoController extends FrameLayout {
      */
     public boolean isShowing() {
         return mIsShowing;
+    }
+    
+    /**
+     * 设置显示状态（用于同步状态）
+     * @param showing 是否显示
+     */
+    public void setShowing(boolean showing) {
+        mIsShowing = showing;
     }
 
     /**

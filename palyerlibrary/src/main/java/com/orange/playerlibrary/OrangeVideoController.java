@@ -966,4 +966,25 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             mSubtitleManager = null;
         }
     }
+    
+    // ===== 锁定功能 =====
+    
+    /**
+     * 设置锁定状态
+     * @param locked 是否锁定
+     */
+    @Override
+    public void setLocked(boolean locked) {
+        // 调用父类方法设置 mIsLocked 并通知组件
+        super.setLocked(locked);
+        debug("setLocked: " + locked);
+    }
+    
+    /**
+     * 切换锁定状态
+     */
+    @Override
+    public void toggleLockState() {
+        setLocked(!isLocked());
+    }
 }

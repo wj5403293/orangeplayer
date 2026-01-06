@@ -147,6 +147,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mErrorRecoveryManager.attachVideoView(this);
         
         mFullscreenHelper = new CustomFullscreenHelper(this);
+        // 应用自动旋转设置
+        mFullscreenHelper.setAutoRotateEnabled(
+            PlayerSettingsManager.getInstance(getContext()).isAutoRotateEnabled());
         
         // 初始化网速更新 Handler
         mSpeedHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -363,8 +366,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 软件解码
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.disableMediaCodec();
         }
-        
-        android.util.Log.d(TAG, "applyDecodeMode: useHardware=" + useHardware);
     }
 
     public void setDebugLogCallback(DebugLogCallback callback) {
@@ -497,7 +498,25 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
 
             @Override
-            public void toggleLockState() {}
+            public void toggleLockState() {
+                if (mOrangeController != null) {
+                    mOrangeController.toggleLockState();
+                }
+            }
+
+            @Override
+            public void setLocked(boolean locked) {
+                if (mOrangeController != null) {
+                    mOrangeController.setLocked(locked);
+                }
+                // 立即更新 UI
+                videoView.onLockStateChanged(locked);
+            }
+
+            @Override
+            public void onLockStateChanged(boolean locked) {
+                videoView.onLockStateChanged(locked);
+            }
 
             @Override
             public boolean isFullScreen() {
@@ -506,7 +525,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public boolean isLocked() {
-                return false;
+                return mOrangeController != null && mOrangeController.isLocked();
             }
 
             @Override
@@ -1061,6 +1080,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void onVideoResume() {
+        onVideoResume(true);
+    }
+    
+    @Override
+    public void onVideoResume(boolean seek) {
         // 如果用户主动暂停了，不自动恢复播放
         if (mUserPaused) {
             return;
@@ -1072,13 +1096,49 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 return;
             }
         }
-        boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PAUSED);
-        super.onVideoResume();
-        if (shouldUpdateState) {
-            mCurrentPlayState = PlayerConstants.STATE_PLAYING;
-            notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
-            if (mCurrentState != CURRENT_STATE_PLAYING) {
-                mCurrentState = CURRENT_STATE_PLAYING;
+        
+        // 检查是否是 ExoPlayer 或系统播放器内核
+        String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+        boolean isExoOrSystem = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
+            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        
+        if (isExoOrSystem && mCurrentState == CURRENT_STATE_PAUSE) {
+            // ExoPlayer 和系统播放器的 seekTo 是异步的
+            // 需要特殊处理：先获取暂停时保存的位置，然后 seek + start
+            // GSY 基类的 mCurrentPosition 在 onVideoPause 时保存了当前位置
+            long savedPosition = mCurrentPosition;
+            android.util.Log.d(TAG, "onVideoResume: ExoPlayer/System, savedPosition=" + savedPosition + ", seek=" + seek);
+            
+            try {
+                if (savedPosition >= 0 && getGSYVideoManager() != null) {
+                    // 先 start，再 seek（ExoPlayer 在播放状态下 seek 更可靠）
+                    getGSYVideoManager().start();
+                    if (seek && savedPosition > 0) {
+                        getGSYVideoManager().seekTo(savedPosition);
+                    }
+                    setStateAndUi(CURRENT_STATE_PLAYING);
+                    
+                    // 更新 Orange 状态
+                    mCurrentPlayState = PlayerConstants.STATE_PLAYING;
+                    notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
+                    
+                    // 清零位置（与 GSY 基类行为一致）
+                    mCurrentPosition = 0;
+                }
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "onVideoResume error: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            // IJK 播放器或其他情况，使用 GSY 基类的默认实现
+            boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PAUSED);
+            super.onVideoResume(seek);
+            if (shouldUpdateState) {
+                mCurrentPlayState = PlayerConstants.STATE_PLAYING;
+                notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
+                if (mCurrentState != CURRENT_STATE_PLAYING) {
+                    mCurrentState = CURRENT_STATE_PLAYING;
+                }
             }
         }
     }
@@ -1444,6 +1504,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public OrangeVideoController getVideoController() {
         return mOrangeController;
+    }
+    
+    /**
+     * 获取全屏辅助类
+     */
+    public CustomFullscreenHelper getFullscreenHelper() {
+        return mFullscreenHelper;
     }
     
     /**
@@ -1911,7 +1978,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                         mOrangeController.addVideo(name, info.url, info.headers);
                     }
-                    android.util.Log.d(TAG, "嗅探完成，已添加 " + videoList.size() + " 个视频到选集");
                 }
                 
                 for (OnStateChangeListener listener : mStateChangeListeners) {
@@ -2689,14 +2755,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void onClickUiToggle(android.view.MotionEvent e) {
+        android.util.Log.d("OrangevideoView", "onClickUiToggle called, mCurrentPlayState=" + mCurrentPlayState);
+        
         if (mCurrentPlayState != PlayerConstants.STATE_PLAYING && 
             mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERED) {
+            android.util.Log.d("OrangevideoView", "onClickUiToggle: invalid state, returning");
             return;
         }
         
-        if (isControllerShowing()) {
+        boolean isShowing = isControllerShowing();
+        android.util.Log.d("OrangevideoView", "onClickUiToggle: isControllerShowing=" + isShowing);
+        
+        if (isShowing) {
             hideController();
         } else {
             showController();
@@ -2704,26 +2776,81 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     public void showController() {
+        // 检查锁定状态
+        boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
+        android.util.Log.d("OrangevideoView", "showController: isLocked=" + isLocked);
+        
         if (mVodControlView != null) {
-            mVodControlView.setVisibility(android.view.View.VISIBLE);
+            if (isLocked) {
+                // 锁定状态下只显示锁定按钮
+                mVodControlView.onLockVisibilityChanged(true);
+            } else {
+                mVodControlView.setVisibility(android.view.View.VISIBLE);
+            }
         }
-        if (mTitleView != null && (mIfCurrentIsFullscreen || mCurrentPlayerState == PlayerConstants.PLAYER_FULL_SCREEN)) {
+        // 锁定状态下不显示标题栏
+        if (mTitleView != null && !isLocked && (mIfCurrentIsFullscreen || mCurrentPlayerState == PlayerConstants.PLAYER_FULL_SCREEN)) {
             mTitleView.setVisibility(android.view.View.VISIBLE);
         }
         startAutoHideTimer();
+        
+        // 同步 Controller 的显示状态
+        if (mOrangeController != null) {
+            mOrangeController.setShowing(true);
+        }
     }
     
     public void hideController() {
+        // 检查锁定状态
+        boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
+        android.util.Log.d("OrangevideoView", "hideController: isLocked=" + isLocked);
+        
         if (mVodControlView != null) {
-            mVodControlView.setVisibility(android.view.View.GONE);
+            if (isLocked) {
+                // 锁定状态下只隐藏锁定按钮
+                mVodControlView.onLockVisibilityChanged(false);
+            } else {
+                mVodControlView.setVisibility(android.view.View.GONE);
+            }
         }
         if (mTitleView != null) {
             mTitleView.setVisibility(android.view.View.GONE);
         }
         cancelAutoHideTimer();
+        
+        // 同步 Controller 的显示状态
+        if (mOrangeController != null) {
+            mOrangeController.setShowing(false);
+        }
+    }
+    
+    /**
+     * 锁定状态变化时调用，立即更新 UI
+     * @param locked 是否锁定
+     */
+    public void onLockStateChanged(boolean locked) {
+        if (locked) {
+            // 锁定时立即隐藏标题栏和控制器（除了锁定按钮）
+            if (mTitleView != null) {
+                mTitleView.setVisibility(android.view.View.GONE);
+            }
+            if (mVodControlView != null) {
+                mVodControlView.setVisibility(android.view.View.GONE);
+                // 但保持锁定按钮可见
+                mVodControlView.onLockVisibilityChanged(true);
+            }
+        } else {
+            // 解锁时显示控制器
+            showController();
+        }
     }
     
     public boolean isControllerShowing() {
+        // 锁定状态下，检查锁定按钮是否可见
+        boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
+        if (isLocked && mVodControlView != null) {
+            return mVodControlView.isLockButtonVisible();
+        }
         return mVodControlView != null && mVodControlView.getVisibility() == android.view.View.VISIBLE;
     }
     
@@ -2766,14 +2893,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     protected void touchDoubleUp(android.view.MotionEvent e) {
+        android.util.Log.d("OrangevideoView", "touchDoubleUp called, mCurrentPlayState=" + mCurrentPlayState);
         sLastDoubleClickTime = System.currentTimeMillis();
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
             mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
             mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
+            android.util.Log.d("OrangevideoView", "touchDoubleUp: calling pause()");
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
+            android.util.Log.d("OrangevideoView", "touchDoubleUp: calling resume()");
             resume();
-        } else {
         }
     }
     

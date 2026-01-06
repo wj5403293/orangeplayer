@@ -130,7 +130,10 @@ public class ErrorView extends LinearLayout implements IControlComponent {
 
     @Override
     public void onLockStateChanged(boolean isLocked) {
-        // 不需要处理
+        // 锁定时隐藏错误视图
+        if (isLocked && getVisibility() == VISIBLE) {
+            setVisibility(GONE);
+        }
     }
 
     @Override
@@ -160,16 +163,8 @@ public class ErrorView extends LinearLayout implements IControlComponent {
             return;
         }
         
-        Context context = getContext();
-        if (context instanceof Activity) {
-            Activity activity = (Activity) context;
-            if (!activity.isFinishing()) {
-                activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-                if (mOrangeController != null) {
-                    mOrangeController.stopFullScreen();
-                }
-            }
-        }
+        // 使用 ControlWrapper 退出全屏，它会正确处理全屏切换
+        mControlWrapper.toggleFullScreen();
     }
 
     public void setDebug(boolean debug) {

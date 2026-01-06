@@ -33,6 +33,9 @@ public class PlayerSettingsManager {
     private static final String KEY_SUBTITLE_URL_PREFIX = "subtitle_url_";      // 按视频URL存储
     private static final String KEY_SUBTITLE_LOCAL_PREFIX = "subtitle_local_";  // 按视频URL存储本地字幕Uri
     
+    // 自动旋转设置
+    private static final String KEY_AUTO_ROTATE = "auto_rotate";
+    
     private static PlayerSettingsManager sInstance;
     private final SharedPreferences mPreferences;
     
@@ -231,6 +234,16 @@ public class PlayerSettingsManager {
             .remove(KEY_SUBTITLE_URL_PREFIX + hash)
             .remove(KEY_SUBTITLE_LOCAL_PREFIX + hash)
             .apply();
+    }
+    
+    // ===== 自动旋转设置 =====
+    
+    public void setAutoRotateEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_AUTO_ROTATE, enabled).apply();
+    }
+    
+    public boolean isAutoRotateEnabled() {
+        return mPreferences.getBoolean(KEY_AUTO_ROTATE, true); // 默认启用
     }
     
     /**

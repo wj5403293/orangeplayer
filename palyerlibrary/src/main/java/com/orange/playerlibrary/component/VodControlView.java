@@ -111,6 +111,11 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     
     // 竖屏全屏按钮
     private ImageView mShup;
+    
+    // 锁定按钮
+    private ImageView mLockButton;
+    private boolean mIsLocked = false;
+    private View.OnClickListener mOnLockClickListener;
 
     // 状态
     private boolean mIsDragging = false;
@@ -163,6 +168,49 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     public VodControlView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
+    }
+    
+    /**
+     * 重写 onInterceptTouchEvent，让触摸事件穿透到下面的 surface_container
+     * 只有当触摸点在底部控制栏区域时才拦截事件
+     */
+    @Override
+    public boolean onInterceptTouchEvent(android.view.MotionEvent event) {
+        // 检查触摸点是否在底部控制栏区域内
+        if (mBottomContainer != null && mBottomContainer.getVisibility() == VISIBLE) {
+            int[] location = new int[2];
+            mBottomContainer.getLocationOnScreen(location);
+            float touchY = event.getRawY();
+            if (touchY >= location[1] && touchY <= location[1] + mBottomContainer.getHeight()) {
+                // 触摸点在底部控制栏区域，拦截事件让控制栏处理
+                return super.onInterceptTouchEvent(event);
+            }
+        }
+        
+        // 检查触摸点是否在锁定按钮区域
+        if (mLockButton != null && mLockButton.getVisibility() == VISIBLE) {
+            int[] location = new int[2];
+            mLockButton.getLocationOnScreen(location);
+            float touchX = event.getRawX();
+            float touchY = event.getRawY();
+            if (touchX >= location[0] && touchX <= location[0] + mLockButton.getWidth() &&
+                touchY >= location[1] && touchY <= location[1] + mLockButton.getHeight()) {
+                // 触摸点在锁定按钮区域，拦截事件
+                return super.onInterceptTouchEvent(event);
+            }
+        }
+        
+        // 其他区域不拦截，让事件穿透到 surface_container
+        return false;
+    }
+    
+    /**
+     * 重写 onTouchEvent，不消费事件，让事件传递给下面的 surface_container
+     */
+    @Override
+    public boolean onTouchEvent(android.view.MotionEvent event) {
+        // 不消费事件，让事件传递给 surface_container
+        return false;
     }
 
     private void init() {
@@ -240,6 +288,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         mShup = findViewById(R.id.shup);
         if (mShup != null) {
             mShup.setOnClickListener(this);
+        }
+        
+        // 锁定按钮
+        mLockButton = findViewById(R.id.iv_lock);
+        if (mLockButton != null) {
+            mLockButton.setOnClickListener(this);
         }
 
         if (mSpeedControl != null) {
@@ -490,7 +544,114 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             if (mOnSubtitleToggleClickListener != null) {
                 mOnSubtitleToggleClickListener.onClick(v);
             }
+        } else if (id == R.id.iv_lock) {
+            // 从点击的View找到实际的VodControlView实例（全屏模式下可能是新实例）
+            VodControlView actualView = findParentVodControlView(v);
+            if (actualView != null) {
+                actualView.toggleLock();
+            } else {
+                toggleLock();
+            }
         }
+    }
+    
+    /**
+     * 从View向上遍历找到VodControlView父组件
+     * 解决全屏模式下组件实例问题
+     */
+    private VodControlView findParentVodControlView(View view) {
+        android.view.ViewParent parent = view.getParent();
+        while (parent != null) {
+            if (parent instanceof VodControlView) {
+                return (VodControlView) parent;
+            }
+            parent = parent.getParent();
+        }
+        return null;
+    }
+    
+    /**
+     * 切换锁定状态
+     */
+    public void toggleLock() {
+        setLocked(!mIsLocked);
+    }
+    
+    /**
+     * 设置锁定状态
+     */
+    public void setLocked(boolean locked) {
+        mIsLocked = locked;
+        updateLockButtonState();
+        
+        // 显示提示
+        String message = getContext().getString(locked ? R.string.orange_locked : R.string.orange_unlocked);
+        android.widget.Toast.makeText(getContext(), message, android.widget.Toast.LENGTH_SHORT).show();
+        
+        // 通知监听器
+        if (mOnLockClickListener != null) {
+            mOnLockClickListener.onClick(mLockButton);
+        }
+        
+        // 通知 Controller 广播锁定状态给所有组件（如 ErrorView、CompleteView 等）
+        if (mControlWrapper != null) {
+            mControlWrapper.setLocked(locked);
+        }
+        
+        // 锁定时隐藏其他控制组件，只显示锁定按钮
+        if (locked) {
+            if (mBottomContainer != null) mBottomContainer.setVisibility(GONE);
+            if (mBottomProgress != null) mBottomProgress.setVisibility(GONE);
+        } else {
+            if (mBottomContainer != null) mBottomContainer.setVisibility(VISIBLE);
+        }
+    }
+    
+    /**
+     * 是否锁定
+     */
+    public boolean isLocked() {
+        return mIsLocked;
+    }
+    
+    /**
+     * 更新锁定按钮状态
+     */
+    private void updateLockButtonState() {
+        if (mLockButton != null) {
+            mLockButton.setSelected(mIsLocked);
+        }
+    }
+    
+    /**
+     * 设置锁定按钮点击监听器
+     */
+    public void setOnLockClickListener(View.OnClickListener listener) {
+        mOnLockClickListener = listener;
+    }
+    
+    /**
+     * 锁定状态下的可见性变化（只影响锁定按钮）
+     * @param isVisible 是否可见
+     */
+    public void onLockVisibilityChanged(boolean isVisible) {
+        android.util.Log.d(TAG, "onLockVisibilityChanged: isVisible=" + isVisible + 
+            ", mLockButton=" + mLockButton + 
+            ", isFullScreen=" + isFullScreen() +
+            ", isAttachedToWindow=" + isAttachedToWindow());
+        if (mLockButton != null && isFullScreen()) {
+            mLockButton.setVisibility(isVisible ? VISIBLE : GONE);
+            android.util.Log.d(TAG, "onLockVisibilityChanged: set lock button visibility=" + (isVisible ? "VISIBLE" : "GONE"));
+        }
+    }
+    
+    /**
+     * 锁定按钮是否可见
+     */
+    public boolean isLockButtonVisible() {
+        boolean visible = mLockButton != null && mLockButton.getVisibility() == VISIBLE;
+        android.util.Log.d(TAG, "isLockButtonVisible: " + visible);
+        return visible;
     }
 
     private void toggleFullScreen() {
@@ -526,7 +687,21 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onVisibilityChanged(boolean isVisible, Animation anim) {
+        android.util.Log.d(TAG, "onVisibilityChanged: isVisible=" + isVisible + ", mIsLocked=" + mIsLocked + ", isAttachedToWindow=" + isAttachedToWindow());
+        
+        // 锁定状态下，只显示/隐藏锁定按钮
+        if (mIsLocked) {
+            if (mLockButton != null && isFullScreen()) {
+                mLockButton.setVisibility(isVisible ? VISIBLE : GONE);
+            }
+            // 锁定时不显示其他控制组件
+            return;
+        }
+        
         if (isVisible) {
+            // 设置整个 VodControlView 可见
+            setVisibility(VISIBLE);
+            android.util.Log.d(TAG, "onVisibilityChanged: setVisibility(VISIBLE), actual visibility=" + getVisibility());
             if (mBottomContainer != null) {
                 mBottomContainer.setVisibility(VISIBLE);
                 if (anim != null) {
@@ -536,7 +711,14 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             if (mIsShowBottomProgress && mBottomProgress != null) {
                 mBottomProgress.setVisibility(GONE);
             }
+            // 全屏时显示锁定按钮
+            if (mLockButton != null && isFullScreen()) {
+                mLockButton.setVisibility(VISIBLE);
+            }
         } else {
+            // 设置整个 VodControlView 隐藏
+            setVisibility(GONE);
+            android.util.Log.d(TAG, "onVisibilityChanged: setVisibility(GONE), actual visibility=" + getVisibility());
             if (mBottomContainer != null) {
                 mBottomContainer.setVisibility(GONE);
                 if (anim != null) {
@@ -548,6 +730,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 AlphaAnimation fadeIn = new AlphaAnimation(0.0f, 1.0f);
                 fadeIn.setDuration(300L);
                 mBottomProgress.startAnimation(fadeIn);
+            }
+            // 隐藏锁定按钮
+            if (mLockButton != null) {
+                mLockButton.setVisibility(GONE);
             }
         }
     }
@@ -630,6 +816,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             if (mSkipButton != null) mSkipButton.setVisibility(VISIBLE);
             if (mEpisodeSelect != null) mEpisodeSelect.setVisibility(VISIBLE);
             if (mSpeedControl != null) mSpeedControl.setVisibility(VISIBLE);
+            // 全屏时显示锁定按钮
+            if (mLockButton != null) mLockButton.setVisibility(VISIBLE);
         } else if (playerState == PlayerConstants.PLAYER_NORMAL) {
             if (mDanmuContainer != null) {
                 mDanmuContainer.setVisibility(GONE);
@@ -646,6 +834,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             }
             if (mSkipButton != null) mSkipButton.setVisibility(GONE);
             if (mEpisodeSelect != null) mEpisodeSelect.setVisibility(GONE);
+            // 非全屏时隐藏锁定按钮，并重置锁定状态
+            if (mLockButton != null) mLockButton.setVisibility(GONE);
+            if (mIsLocked) {
+                mIsLocked = false;
+                updateLockButtonState();
+            }
         }
     }
 
