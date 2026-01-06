@@ -94,7 +94,49 @@ dependencies {
 
 > **说明**：普通版本支持 H.263/H.264/H.265 等常见编码，对于 MPEG 编码可能出现有声音无画面的情况。`ex_so` 扩展库补充了 MPEG 编码和更多协议支持。
 
-### 3. 基本使用
+### 3. AndroidManifest.xml 配置
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- 允许使用 minSdk 24 的投屏库 -->
+    <uses-sdk tools:overrideLibrary="com.uaoanlao.tv" />
+    
+    <!-- 网络权限（必需）-->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- 投屏需要的 WiFi 权限（可选，投屏功能需要）-->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    
+    <application
+        android:usesCleartextTraffic="true"
+        ... >
+        
+        <!-- Activity 配置（支持横竖屏切换和画中画）-->
+        <activity
+            android:name=".YourActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true">
+        </activity>
+    </application>
+</manifest>
+```
+
+**关键配置说明：**
+
+| 配置项 | 说明 |
+|--------|------|
+| `usesCleartextTraffic="true"` | 允许 HTTP 明文流量（播放 HTTP 视频源需要）|
+| `configChanges` | 防止横竖屏切换时 Activity 重建 |
+| `supportsPictureInPicture` | 启用画中画模式 |
+| `resizeableActivity` | 允许调整窗口大小 |
+
+### 4. 基本使用
 
 ```xml
 <!-- 布局文件 -->

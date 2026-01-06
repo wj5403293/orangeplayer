@@ -22,6 +22,11 @@ public class PlayerSettingsManager {
     private static final String KEY_DANMAKU_SPEED = "danmaku_speed";
     private static final String KEY_DANMAKU_ALPHA = "danmaku_alpha";
     
+    // 解码方式设置
+    private static final String KEY_DECODE_MODE = "decode_mode";
+    public static final String DECODE_HARDWARE = "hardware";  // 硬件解码
+    public static final String DECODE_SOFTWARE = "software";  // 软件解码
+    
     // 字幕设置
     private static final String KEY_SUBTITLE_SIZE = "subtitle_size";
     private static final String KEY_SUBTITLE_ENABLED = "subtitle_enabled";
@@ -147,6 +152,20 @@ public class PlayerSettingsManager {
     
     public float getDanmakuAlpha() {
         return mPreferences.getFloat(KEY_DANMAKU_ALPHA, 1.0f);
+    }
+    
+    // ===== 解码方式设置 =====
+    
+    public void setDecodeMode(String mode) {
+        mPreferences.edit().putString(KEY_DECODE_MODE, mode).apply();
+    }
+    
+    public String getDecodeMode() {
+        return mPreferences.getString(KEY_DECODE_MODE, DECODE_HARDWARE); // 默认硬件解码
+    }
+    
+    public boolean isHardwareDecode() {
+        return DECODE_HARDWARE.equals(getDecodeMode());
     }
     
     // ===== 字幕设置 =====

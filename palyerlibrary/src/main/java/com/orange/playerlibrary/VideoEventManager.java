@@ -584,12 +584,19 @@ public class VideoEventManager {
         android.widget.TextView singleLoopBtn = dialogView.findViewById(R.id.djxh);
         android.widget.TextView playPauseBtn = dialogView.findViewById(R.id.bwzt);
         
+        // 解码方式按钮
+        android.widget.TextView decodeHardwareBtn = dialogView.findViewById(R.id.decode_hardware);
+        android.widget.TextView decodeSoftwareBtn = dialogView.findViewById(R.id.decode_software);
+        
         // 获取音量控制组件
         android.widget.SeekBar volumeSeekBar = dialogView.findViewById(R.id.volumeSeek_bar);
         android.widget.TextView volumeText = dialogView.findViewById(R.id.volumeText);
         
         // 设置播放核心按钮
         setupEngineButtons(aliEngineBtn, exoEngineBtn, ijkEngineBtn, systemEngineBtn);
+        
+        // 设置解码方式按钮
+        setupDecodeModeButtons(decodeHardwareBtn, decodeSoftwareBtn);
         
         // 设置播放模式按钮
         setupPlayModeButtons(sequentialPlayBtn, singleLoopBtn, playPauseBtn);
@@ -759,6 +766,98 @@ public class VideoEventManager {
         } catch (ClassNotFoundException e) {
             return false;
         }
+    }
+    
+    /**
+     * 设置解码方式按钮
+     */
+    private void setupDecodeModeButtons(android.widget.TextView hardwareBtn, android.widget.TextView softwareBtn) {
+        // 获取当前解码方式
+        String currentMode = mSettingsManager.getDecodeMode();
+        boolean isHardware = PlayerSettingsManager.DECODE_HARDWARE.equals(currentMode);
+        
+        // 高亮当前解码方式
+        if (hardwareBtn != null) {
+            hardwareBtn.setTextColor(isHardware ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            hardwareBtn.setOnClickListener(v -> selectDecodeMode(PlayerSettingsManager.DECODE_HARDWARE));
+        }
+        if (softwareBtn != null) {
+            softwareBtn.setTextColor(!isHardware ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+            softwareBtn.setOnClickListener(v -> selectDecodeMode(PlayerSettingsManager.DECODE_SOFTWARE));
+        }
+    }
+    
+    /**
+     * 选择解码方式
+     */
+    private void selectDecodeMode(String mode) {
+        String oldMode = mSettingsManager.getDecodeMode();
+        if (oldMode.equals(mode)) {
+            return; // 没有变化
+        }
+        
+        // 保存解码方式设置
+        mSettingsManager.setDecodeMode(mode);
+        
+        // 应用解码方式到 GSY
+        applyDecodeMode(mode);
+        
+        // 关闭设置对话框
+        if (mCurrentSetupDialog != null) {
+            mCurrentSetupDialog.dismiss();
+        }
+        
+        // 重新加载视频以应用新的解码方式
+        if (mVideoView != null) {
+            // 记录当前播放位置和URL
+            long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+            String currentUrl = mVideoView.getUrl();
+            boolean wasPlaying = mVideoView.isPlaying();
+            
+            // 释放并重新加载
+            mVideoView.release();
+            com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+            
+            // 重新初始化播放器
+            String currentEngine = mSettingsManager.getPlayerEngine();
+            mVideoView.selectPlayerFactory(currentEngine);
+            
+            // 重新加载视频
+            if (currentUrl != null && !currentUrl.isEmpty()) {
+                mVideoView.setUp(currentUrl, false, "");
+                if (currentPosition > 0) {
+                    mVideoView.setSeekOnStart(currentPosition);
+                }
+                if (wasPlaying) {
+                    mVideoView.startPlayLogic();
+                }
+            }
+        }
+        
+        // 提示用户
+        String modeName = PlayerSettingsManager.DECODE_HARDWARE.equals(mode) ? "硬件解码" : "软件解码";
+        showToast("已切换为 " + modeName);
+    }
+    
+    /**
+     * 应用解码方式到 GSY
+     */
+    private void applyDecodeMode(String mode) {
+        boolean useHardware = PlayerSettingsManager.DECODE_HARDWARE.equals(mode);
+        
+        // GSY 使用 GSYVideoType 设置解码方式
+        // enableMediaCodec: true = 硬件解码, false = 软件解码
+        // enableMediaCodecTexture: 硬件解码时是否使用 TextureView 渲染
+        if (useHardware) {
+            // 硬件解码
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodec();
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
+        } else {
+            // 软件解码
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.disableMediaCodec();
+        }
+        
+        android.util.Log.d(TAG, "applyDecodeMode: " + mode + ", useHardware=" + useHardware);
     }
     
     /**

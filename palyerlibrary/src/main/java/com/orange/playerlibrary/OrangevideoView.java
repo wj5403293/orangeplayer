@@ -343,7 +343,28 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 break;
         }
         
+        // 应用解码方式设置
+        applyDecodeMode(settingsManager);
+        
         mPlayerFactoryInitialized = true;
+    }
+    
+    /**
+     * 应用解码方式设置
+     */
+    private void applyDecodeMode(PlayerSettingsManager settingsManager) {
+        boolean useHardware = settingsManager.isHardwareDecode();
+        
+        if (useHardware) {
+            // 硬件解码
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodec();
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
+        } else {
+            // 软件解码
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.disableMediaCodec();
+        }
+        
+        android.util.Log.d(TAG, "applyDecodeMode: useHardware=" + useHardware);
     }
 
     public void setDebugLogCallback(DebugLogCallback callback) {
@@ -1875,6 +1896,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize) {
                 mIsSniffing = false;
                 setOrangePlayState(STATE_ENDSNIFFING);
+                
+                // 将嗅探到的视频添加到选集列表
+                if (videoList != null && !videoList.isEmpty() && mOrangeController != null) {
+                    // 先清空选集
+                    mOrangeController.removeVideoList();
+                    
+                    // 添加嗅探到的视频到选集
+                    for (int i = 0; i < videoList.size(); i++) {
+                        VideoSniffing.VideoInfo info = videoList.get(i);
+                        String name = info.title;
+                        if (name == null || name.isEmpty()) {
+                            name = "视频 " + (i + 1);
+                        }
+                        mOrangeController.addVideo(name, info.url, info.headers);
+                    }
+                    android.util.Log.d(TAG, "嗅探完成，已添加 " + videoList.size() + " 个视频到选集");
+                }
+                
                 for (OnStateChangeListener listener : mStateChangeListeners) {
                     if (listener instanceof OnSniffingListener) {
                         ((OnSniffingListener) listener).onSniffingFinish(videoList, videoSize);
