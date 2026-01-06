@@ -581,29 +581,52 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * 设置锁定状态
      */
     public void setLocked(boolean locked) {
+        android.util.Log.d(TAG, "setLocked: locked=" + locked + ", this=" + this + ", isAttachedToWindow=" + isAttachedToWindow());
+        
         mIsLocked = locked;
         updateLockButtonState();
         
-        // 显示提示
-        String message = getContext().getString(locked ? R.string.orange_locked : R.string.orange_unlocked);
-        android.widget.Toast.makeText(getContext(), message, android.widget.Toast.LENGTH_SHORT).show();
-        
-        // 通知监听器
-        if (mOnLockClickListener != null) {
-            mOnLockClickListener.onClick(mLockButton);
-        }
-        
-        // 通知 Controller 广播锁定状态给所有组件（如 ErrorView、CompleteView 等）
-        if (mControlWrapper != null) {
-            mControlWrapper.setLocked(locked);
-        }
-        
-        // 锁定时隐藏其他控制组件，只显示锁定按钮
+        // 直接在当前实例上更新 UI（不通过 ControlWrapper 绕回来，避免全屏模式下操作旧实例）
         if (locked) {
+            // 锁定时隐藏其他控制组件，只显示锁定按钮
             if (mBottomContainer != null) mBottomContainer.setVisibility(GONE);
             if (mBottomProgress != null) mBottomProgress.setVisibility(GONE);
+            // 确保锁定按钮可见
+            if (mLockButton != null && isFullScreen()) {
+                mLockButton.setVisibility(VISIBLE);
+            }
         } else {
+            // 解锁时显示控制组件
             if (mBottomContainer != null) mBottomContainer.setVisibility(VISIBLE);
+        }
+        
+        // 找到同级的 TitleView 并通知它（避免使用可能是旧实例的引用）
+        notifySiblingTitleView(locked);
+        
+        // 通知 Controller 更新锁定状态（只更新状态，不操作 UI）
+        if (mControlWrapper != null) {
+            mControlWrapper.onLockStateChanged(locked);
+        }
+    }
+    
+    /**
+     * 通知同级的 TitleView 锁定状态变化
+     * 通过遍历父容器找到 TitleView，避免使用可能是旧实例的引用
+     */
+    private void notifySiblingTitleView(boolean locked) {
+        android.view.ViewParent parent = getParent();
+        if (parent instanceof android.view.ViewGroup) {
+            android.view.ViewGroup container = (android.view.ViewGroup) parent;
+            for (int i = 0; i < container.getChildCount(); i++) {
+                android.view.View child = container.getChildAt(i);
+                if (child instanceof com.orange.playerlibrary.component.TitleView) {
+                    com.orange.playerlibrary.component.TitleView titleView = 
+                        (com.orange.playerlibrary.component.TitleView) child;
+                    titleView.onLockStateChanged(locked);
+                    android.util.Log.d(TAG, "notifySiblingTitleView: found and notified TitleView");
+                    break;
+                }
+            }
         }
     }
     
@@ -635,13 +658,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * @param isVisible 是否可见
      */
     public void onLockVisibilityChanged(boolean isVisible) {
-        android.util.Log.d(TAG, "onLockVisibilityChanged: isVisible=" + isVisible + 
-            ", mLockButton=" + mLockButton + 
-            ", isFullScreen=" + isFullScreen() +
-            ", isAttachedToWindow=" + isAttachedToWindow());
         if (mLockButton != null && isFullScreen()) {
             mLockButton.setVisibility(isVisible ? VISIBLE : GONE);
-            android.util.Log.d(TAG, "onLockVisibilityChanged: set lock button visibility=" + (isVisible ? "VISIBLE" : "GONE"));
         }
     }
     
@@ -650,7 +668,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      */
     public boolean isLockButtonVisible() {
         boolean visible = mLockButton != null && mLockButton.getVisibility() == VISIBLE;
-        android.util.Log.d(TAG, "isLockButtonVisible: " + visible);
         return visible;
     }
 
@@ -687,8 +704,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onVisibilityChanged(boolean isVisible, Animation anim) {
-        android.util.Log.d(TAG, "onVisibilityChanged: isVisible=" + isVisible + ", mIsLocked=" + mIsLocked + ", isAttachedToWindow=" + isAttachedToWindow());
-        
         // 锁定状态下，只显示/隐藏锁定按钮
         if (mIsLocked) {
             if (mLockButton != null && isFullScreen()) {
@@ -701,7 +716,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (isVisible) {
             // 设置整个 VodControlView 可见
             setVisibility(VISIBLE);
-            android.util.Log.d(TAG, "onVisibilityChanged: setVisibility(VISIBLE), actual visibility=" + getVisibility());
             if (mBottomContainer != null) {
                 mBottomContainer.setVisibility(VISIBLE);
                 if (anim != null) {
@@ -718,7 +732,6 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         } else {
             // 设置整个 VodControlView 隐藏
             setVisibility(GONE);
-            android.util.Log.d(TAG, "onVisibilityChanged: setVisibility(GONE), actual visibility=" + getVisibility());
             if (mBottomContainer != null) {
                 mBottomContainer.setVisibility(GONE);
                 if (anim != null) {

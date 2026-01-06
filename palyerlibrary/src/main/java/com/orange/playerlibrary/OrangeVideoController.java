@@ -981,6 +981,15 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     }
     
     /**
+     * 内部设置锁定状态（只更新状态，不触发 UI 操作）
+     * 用于从 VodControlView 回调时避免循环调用
+     */
+    public void setLockedInternal(boolean locked) {
+        mIsLocked = locked;
+        debug("setLockedInternal: " + locked);
+    }
+    
+    /**
      * 切换锁定状态
      */
     @Override

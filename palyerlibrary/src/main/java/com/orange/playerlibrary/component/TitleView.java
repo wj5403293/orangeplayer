@@ -434,9 +434,12 @@ public class TitleView extends FrameLayout implements IControlComponent {
     public void onLockStateChanged(boolean isLocked) {
         if (isLocked) {
             setVisibility(GONE);
+        } else {
+            // 解锁时，如果在全屏模式，立即显示标题栏
+            if (mControlWrapper != null && mControlWrapper.isFullScreen()) {
+                setVisibility(VISIBLE);
+            }
         }
-        // 解锁时不直接设置 VISIBLE，由 onVisibilityChanged 控制
-        // 这样可以避免锁定解除后标题栏立即显示
     }
 
     // ===== 标题设置 =====

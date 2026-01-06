@@ -359,7 +359,7 @@ public class VideoEventManager {
      * 显示倍速选择对话
      */
     private void showSpeedDialog() {
-                mController.hide(); // 隐藏播放器UI
+        hideController(); // 隐藏播放器UI
         
         try {
             // 创建对话框视图
@@ -510,7 +510,7 @@ public class VideoEventManager {
      * 显示投屏对话框
      */
     private void showCastDialog() {
-        mController.hide(); // 隐藏播放器UI
+        hideController(); // 隐藏播放器UI
         
         // 检查投屏库是否可用
         if (!com.orange.playerlibrary.cast.DLNACastManager.isDLNAAvailable()) {
@@ -539,7 +539,7 @@ public class VideoEventManager {
      * 显示设置对话框
      */
     public void showSetupDialog() {
-        mController.hide(); // 隐藏播放器UI
+        hideController(); // 隐藏播放器UI
         
         // 创建设置对话框视图
         View dialogView = View.inflate(mActivity, R.layout.setup_dialog, null);
@@ -922,7 +922,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
-        mController.hide();
+        hideController();
         
         // 创建对话框
         View dialogView = View.inflate(mActivity, R.layout.timer_dialog, null);
@@ -1275,7 +1275,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
-        mController.hide();
+        hideController();
         
         // 创建对话框
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
@@ -1364,7 +1364,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
-        mController.hide();
+        hideController();
         
         // 创建对话框
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
@@ -1491,7 +1491,7 @@ public class VideoEventManager {
      * 显示跳过片头片尾弹窗（使用skip_dialog_full布局）
      */
     public void showSkipDialog() {
-        mController.hide();
+        hideController();
         
         // 创建对话框视图
         View dialogView = View.inflate(mActivity, R.layout.skip_dialog_full, null);
@@ -1639,7 +1639,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
-        mController.hide();
+        hideController();
         
         // 创建对话框
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
@@ -1718,7 +1718,7 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
-        mController.hide();
+        hideController();
         
         // 创建对话框
         View dialogView = View.inflate(mActivity, R.layout.speed_dialog, null);
@@ -1805,7 +1805,7 @@ public class VideoEventManager {
             return;
         }
         
-        mController.hide();
+        hideController();
         
         try {
             // 创建对话框视图
@@ -2201,6 +2201,42 @@ public class VideoEventManager {
     }
     
     /**
+     * 获取当前实际显示的 Controller
+     * 如果是全屏模式，返回全屏播放器的 Controller
+     */
+    private OrangeVideoController getActualController() {
+        android.util.Log.d("VideoEventManager", "getActualController called");
+        if (mActivity != null) {
+            android.view.ViewGroup vp = (android.view.ViewGroup) mActivity.findViewById(android.view.Window.ID_ANDROID_CONTENT);
+            if (vp != null) {
+                android.view.View fullView = vp.findViewById(com.shuyu.gsyvideoplayer.GSYVideoManager.FULLSCREEN_ID);
+                android.util.Log.d("VideoEventManager", "fullView=" + fullView);
+                if (fullView instanceof OrangevideoView) {
+                    OrangevideoView fullPlayer = (OrangevideoView) fullView;
+                    OrangeVideoController fullController = fullPlayer.getVideoController();
+                    android.util.Log.d("VideoEventManager", "fullController=" + fullController);
+                    if (fullController != null) {
+                        return fullController;
+                    }
+                }
+            }
+        }
+        android.util.Log.d("VideoEventManager", "returning mController=" + mController);
+        return mController;
+    }
+    
+    /**
+     * 隐藏当前活动的控制器
+     */
+    private void hideController() {
+        OrangeVideoController controller = getActualController();
+        android.util.Log.d("VideoEventManager", "hideController: controller=" + controller);
+        if (controller != null) {
+            controller.hide();
+        }
+    }
+    
+    /**
      * 显示弹幕输入对话框
      */
     private void showDanmakuInputDialog() {
@@ -2243,7 +2279,7 @@ public class VideoEventManager {
             return;
         }
         
-        mController.hide(); // 隐藏播放器UI
+        hideController(); // 隐藏播放器UI
         
         // 创建对话框视图
         View dialogView = View.inflate(mActivity, R.layout.danmuset_dialog_full, null);
@@ -2466,7 +2502,7 @@ public class VideoEventManager {
      * 按照 steering rules，从点击的 View 向上遍历找到正确的父组件
      */
     private void showSubtitleDialog(View clickedView) {
-        mController.hide();
+        hideController();
         
         // 从点击的 View 找到实际的 VodControlView（全屏模式下需要）
         VodControlView actualVodControlView = findParentVodControlView(clickedView);

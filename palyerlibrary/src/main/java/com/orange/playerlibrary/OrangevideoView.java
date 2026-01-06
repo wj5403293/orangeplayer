@@ -1107,8 +1107,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 需要特殊处理：先获取暂停时保存的位置，然后 seek + start
             // GSY 基类的 mCurrentPosition 在 onVideoPause 时保存了当前位置
             long savedPosition = mCurrentPosition;
-            android.util.Log.d(TAG, "onVideoResume: ExoPlayer/System, savedPosition=" + savedPosition + ", seek=" + seek);
-            
             try {
                 if (savedPosition >= 0 && getGSYVideoManager() != null) {
                     // 先 start，再 seek（ExoPlayer 在播放状态下 seek 更可靠）
@@ -1126,7 +1124,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     mCurrentPosition = 0;
                 }
             } catch (Exception e) {
-                android.util.Log.e(TAG, "onVideoResume error: " + e.getMessage());
                 e.printStackTrace();
             }
         } else {
@@ -2755,19 +2752,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void onClickUiToggle(android.view.MotionEvent e) {
-        android.util.Log.d("OrangevideoView", "onClickUiToggle called, mCurrentPlayState=" + mCurrentPlayState);
-        
         if (mCurrentPlayState != PlayerConstants.STATE_PLAYING && 
             mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERED) {
-            android.util.Log.d("OrangevideoView", "onClickUiToggle: invalid state, returning");
             return;
         }
         
         boolean isShowing = isControllerShowing();
-        android.util.Log.d("OrangevideoView", "onClickUiToggle: isControllerShowing=" + isShowing);
-        
         if (isShowing) {
             hideController();
         } else {
@@ -2778,8 +2770,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void showController() {
         // 检查锁定状态
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
-        android.util.Log.d("OrangevideoView", "showController: isLocked=" + isLocked);
-        
         if (mVodControlView != null) {
             if (isLocked) {
                 // 锁定状态下只显示锁定按钮
@@ -2803,8 +2793,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void hideController() {
         // 检查锁定状态
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
-        android.util.Log.d("OrangevideoView", "hideController: isLocked=" + isLocked);
-        
         if (mVodControlView != null) {
             if (isLocked) {
                 // 锁定状态下只隐藏锁定按钮
@@ -2825,23 +2813,28 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 锁定状态变化时调用，立即更新 UI
+     * 锁定状态变化时调用，通知其他组件（不包括 VodControlView，它自己处理）
      * @param locked 是否锁定
      */
     public void onLockStateChanged(boolean locked) {
+        android.util.Log.d(TAG, "onLockStateChanged: locked=" + locked);
+        
+        // 更新 OrangeController 的锁定状态
+        if (mOrangeController != null) {
+            mOrangeController.setLockedInternal(locked);
+        }
+        
+        // 只更新 TitleView，VodControlView 自己处理自己的 UI
         if (locked) {
-            // 锁定时立即隐藏标题栏和控制器（除了锁定按钮）
+            // 锁定时隐藏标题栏
             if (mTitleView != null) {
                 mTitleView.setVisibility(android.view.View.GONE);
             }
-            if (mVodControlView != null) {
-                mVodControlView.setVisibility(android.view.View.GONE);
-                // 但保持锁定按钮可见
-                mVodControlView.onLockVisibilityChanged(true);
-            }
         } else {
-            // 解锁时显示控制器
-            showController();
+            // 解锁时显示标题栏（如果在全屏模式）
+            if (mTitleView != null && isIfCurrentIsFullscreen()) {
+                mTitleView.setVisibility(android.view.View.VISIBLE);
+            }
         }
     }
     
@@ -2893,15 +2886,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     protected void touchDoubleUp(android.view.MotionEvent e) {
-        android.util.Log.d("OrangevideoView", "touchDoubleUp called, mCurrentPlayState=" + mCurrentPlayState);
         sLastDoubleClickTime = System.currentTimeMillis();
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
             mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
             mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
-            android.util.Log.d("OrangevideoView", "touchDoubleUp: calling pause()");
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
-            android.util.Log.d("OrangevideoView", "touchDoubleUp: calling resume()");
             resume();
         }
     }
