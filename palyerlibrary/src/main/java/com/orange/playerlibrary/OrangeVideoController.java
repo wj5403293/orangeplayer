@@ -902,6 +902,17 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     }
     
     /**
+     * 重新附加字幕视图到新的播放器容器（用于全屏切换）
+     * 解决全屏模式下 SubtitleView 仍附加在旧播放器上导致字幕不显示的问题
+     * @param newPlayerContainer 新的播放器容器（全屏播放器）
+     */
+    public void reattachSubtitleView(android.view.ViewGroup newPlayerContainer) {
+        if (mSubtitleManager != null && newPlayerContainer != null) {
+            mSubtitleManager.reattachToPlayer(newPlayerContainer);
+        }
+    }
+    
+    /**
      * 加载字幕文件
      * @param url 字幕文件 URL 或本地路径
      */

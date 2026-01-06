@@ -60,7 +60,7 @@ dependencyResolutionManagement {
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.0'
+    implementation 'com.github.706412584:orangeplayer:v1.0.1'
     
     // GSY 基础依赖（必需）
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -248,7 +248,7 @@ public class MyApplication extends Application {
 
 ```gradle
 // 排除默认的阿里云 SDK
-implementation ('com.github.706412584:orangeplayer:1.0.0') {
+implementation ('com.github.706412584:orangeplayer:v1.0.1') {
     exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
 }
 
@@ -373,7 +373,7 @@ manager.downloadLanguage("eng", new LanguagePackManager.DownloadCallback() {
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.0'
+    implementation 'com.github.706412584:orangeplayer:1.0.3'
     
     // === GSY 基础依赖（必需）===
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'

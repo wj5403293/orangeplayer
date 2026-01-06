@@ -401,6 +401,15 @@ public class MainActivity extends AppCompatActivity {
     }
     
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // 处理 MediaProjection 权限结果（语音识别需要）
+        if (mController != null && mController.getVideoEventManager() != null) {
+            mController.getVideoEventManager().handleMediaProjectionResult(requestCode, resultCode, data);
+        }
+    }
+    
+    @Override
     public void onPictureInPictureModeChanged(boolean isInPiP, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPiP, newConfig);
         if (mPiPHelper != null) {

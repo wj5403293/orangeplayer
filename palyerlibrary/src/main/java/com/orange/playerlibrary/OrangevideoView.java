@@ -2325,6 +2325,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                     }
                     
+                    // 重新附加字幕视图到全屏播放器（解决全屏模式下字幕不显示的问题）
+                    if (mOrangeController != null) {
+                        mOrangeController.reattachSubtitleView(orangeFullPlayer);
+                    }
+                    
                     orangeFullPlayer.setOrangePlayState(mCurrentPlayState);
                     orangeFullPlayer.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
                     
@@ -2502,6 +2507,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
+                
+                // 重新附加字幕视图到原始播放器（解决退出全屏后字幕不显示的问题）
+                if (mOrangeController != null) {
+                    mOrangeController.reattachSubtitleView(OrangevideoView.this);
+                }
                 
                 // 强制刷新控制器：先隐藏再显示，确保使用正确的实例
                 hideController();

@@ -1,6 +1,7 @@
 package com.orange.playerlibrary.ocr;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.os.Build;
@@ -32,6 +33,13 @@ public class OcrSubtitleManager {
     
     private static final String TAG = "OcrSubtitleManager";
     
+    // SharedPreferences 配置
+    private static final String PREF_NAME = "ocr_subtitle_settings";
+    private static final String PREF_SCAN_REGION_LEFT = "scan_region_left";
+    private static final String PREF_SCAN_REGION_TOP = "scan_region_top";
+    private static final String PREF_SCAN_REGION_RIGHT = "scan_region_right";
+    private static final String PREF_SCAN_REGION_BOTTOM = "scan_region_bottom";
+    
     // 默认配置
     private static final int DEFAULT_FRAME_INTERVAL = 1000; // 1秒截取一帧
     private static final float DEFAULT_SUBTITLE_REGION_TOP = 0.82f; // 字幕区域从82%开始
@@ -49,6 +57,10 @@ public class OcrSubtitleManager {
     private int mFrameInterval = DEFAULT_FRAME_INTERVAL;
     private float mSubtitleRegionTop = DEFAULT_SUBTITLE_REGION_TOP;
     private float mSubtitleRegionBottom = DEFAULT_SUBTITLE_REGION_BOTTOM;
+    
+    // 自定义扫描区域 (Requirements: 8.5)
+    private OcrScanRegionView.ScanRegion mScanRegion;
+    private SharedPreferences mPrefs;
     
     private String mSourceLanguage = "chi_sim"; // 默认中文
     private String mTargetLanguage = "en"; // 默认翻译成英文
@@ -79,6 +91,10 @@ public class OcrSubtitleManager {
     public OcrSubtitleManager(Context context) {
         mContext = context.getApplicationContext();
         mMainHandler = new Handler(Looper.getMainLooper());
+        mPrefs = mContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        
+        // 加载持久化的扫描区域设置
+        loadScanRegion();
     }
     
     /**
@@ -178,6 +194,138 @@ public class OcrSubtitleManager {
     public void setSubtitleRegion(float top, float bottom) {
         mSubtitleRegionTop = top;
         mSubtitleRegionBottom = bottom;
+    }
+    
+    // ==================== 扫描区域管理 (Requirements: 8.5, 8.6) ====================
+    
+    /**
+     * 设置扫描区域
+     * @param region 扫描区域（使用相对比例 0-1）
+     */
+    public void setScanRegion(OcrScanRegionView.ScanRegion region) {
+        if (region != null && region.isValid()) {
+            mScanRegion = region.copy();
+            // 同步更新旧的字幕区域字段（兼容性）
+            mSubtitleRegionTop = region.top;
+            mSubtitleRegionBottom = region.bottom;
+            // 持久化保存
+            saveScanRegion();
+            Log.d(TAG, "setScanRegion: " + mScanRegion);
+        }
+    }
+    
+    /**
+     * 获取当前扫描区域
+     * @return 扫描区域的副本
+     */
+    public OcrScanRegionView.ScanRegion getScanRegion() {
+        if (mScanRegion == null) {
+            mScanRegion = OcrScanRegionView.ScanRegion.getDefault();
+        }
+        return mScanRegion.copy();
+    }
+    
+    /**
+     * 重置扫描区域为默认值
+     */
+    public void resetScanRegion() {
+        mScanRegion = OcrScanRegionView.ScanRegion.getDefault();
+        mSubtitleRegionTop = mScanRegion.top;
+        mSubtitleRegionBottom = mScanRegion.bottom;
+        saveScanRegion();
+        Log.d(TAG, "resetScanRegion: " + mScanRegion);
+    }
+    
+    /**
+     * 从 SharedPreferences 加载扫描区域设置
+     */
+    private void loadScanRegion() {
+        float left = mPrefs.getFloat(PREF_SCAN_REGION_LEFT, 0f);
+        float top = mPrefs.getFloat(PREF_SCAN_REGION_TOP, 0.8f);
+        float right = mPrefs.getFloat(PREF_SCAN_REGION_RIGHT, 1f);
+        float bottom = mPrefs.getFloat(PREF_SCAN_REGION_BOTTOM, 1f);
+        
+        mScanRegion = new OcrScanRegionView.ScanRegion(left, top, right, bottom);
+        
+        // 验证加载的区域是否有效
+        if (!mScanRegion.isValid()) {
+            Log.w(TAG, "Loaded scan region is invalid, resetting to default");
+            mScanRegion = OcrScanRegionView.ScanRegion.getDefault();
+        }
+        
+        // 同步更新旧的字幕区域字段（兼容性）
+        mSubtitleRegionTop = mScanRegion.top;
+        mSubtitleRegionBottom = mScanRegion.bottom;
+        
+        Log.d(TAG, "loadScanRegion: " + mScanRegion);
+    }
+    
+    /**
+     * 保存扫描区域设置到 SharedPreferences
+     */
+    private void saveScanRegion() {
+        if (mScanRegion == null) return;
+        
+        mPrefs.edit()
+                .putFloat(PREF_SCAN_REGION_LEFT, mScanRegion.left)
+                .putFloat(PREF_SCAN_REGION_TOP, mScanRegion.top)
+                .putFloat(PREF_SCAN_REGION_RIGHT, mScanRegion.right)
+                .putFloat(PREF_SCAN_REGION_BOTTOM, mScanRegion.bottom)
+                .apply();
+        
+        Log.d(TAG, "saveScanRegion: " + mScanRegion);
+    }
+    
+    /**
+     * 使用自定义区域裁剪视频帧
+     * Requirements: 8.6
+     * @param fullFrame 完整的视频帧
+     * @return 裁剪后的区域图像，如果失败返回 null
+     */
+    public Bitmap captureRegion(Bitmap fullFrame) {
+        if (fullFrame == null) {
+            Log.w(TAG, "captureRegion: fullFrame is null");
+            return null;
+        }
+        
+        if (mScanRegion == null) {
+            mScanRegion = OcrScanRegionView.ScanRegion.getDefault();
+        }
+        
+        int frameWidth = fullFrame.getWidth();
+        int frameHeight = fullFrame.getHeight();
+        
+        // 根据 ScanRegion 计算实际像素区域
+        int left = (int) (mScanRegion.left * frameWidth);
+        int top = (int) (mScanRegion.top * frameHeight);
+        int right = (int) (mScanRegion.right * frameWidth);
+        int bottom = (int) (mScanRegion.bottom * frameHeight);
+        
+        // 确保边界有效
+        left = Math.max(0, Math.min(frameWidth - 1, left));
+        top = Math.max(0, Math.min(frameHeight - 1, top));
+        right = Math.max(left + 1, Math.min(frameWidth, right));
+        bottom = Math.max(top + 1, Math.min(frameHeight, bottom));
+        
+        int cropWidth = right - left;
+        int cropHeight = bottom - top;
+        
+        if (cropWidth <= 0 || cropHeight <= 0) {
+            Log.w(TAG, "captureRegion: invalid crop dimensions " + cropWidth + "x" + cropHeight);
+            return null;
+        }
+        
+        Log.d(TAG, "captureRegion: frame=" + frameWidth + "x" + frameHeight + 
+                   ", region=" + mScanRegion + 
+                   ", pixels=[" + left + "," + top + "," + right + "," + bottom + "]" +
+                   ", crop=" + cropWidth + "x" + cropHeight);
+        
+        try {
+            return Bitmap.createBitmap(fullFrame, left, top, cropWidth, cropHeight);
+        } catch (Exception e) {
+            Log.e(TAG, "captureRegion: failed to crop bitmap", e);
+            return null;
+        }
     }
     
     /**
@@ -714,12 +862,19 @@ public class OcrSubtitleManager {
     
     /**
      * 裁剪字幕区域
+     * 使用自定义扫描区域 (Requirements: 8.6)
      */
     private Bitmap cropSubtitleRegion(Bitmap frame) {
         if (frame == null) {
             return null;
         }
         
+        // 使用自定义扫描区域（如果已设置）
+        if (mScanRegion != null && mScanRegion.isValid()) {
+            return captureRegion(frame);
+        }
+        
+        // 回退到旧的 top/bottom 方式（兼容性）
         int width = frame.getWidth();
         int height = frame.getHeight();
         
@@ -728,7 +883,7 @@ public class OcrSubtitleManager {
         int cropHeight = bottom - top;
         
         // 打印字幕识别区域信息
-        Log.d(TAG, "=== 字幕识别区域 ===");
+        Log.d(TAG, "=== 字幕识别区域 (legacy) ===");
         Log.d(TAG, "视频尺寸: " + width + "x" + height);
         Log.d(TAG, "区域比例: " + (mSubtitleRegionTop * 100) + "% - " + (mSubtitleRegionBottom * 100) + "%");
         Log.d(TAG, "区域像素: y=" + top + " 到 y=" + bottom + ", 高度=" + cropHeight + "px");

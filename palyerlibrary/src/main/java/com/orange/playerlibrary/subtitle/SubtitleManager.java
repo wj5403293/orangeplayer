@@ -39,7 +39,7 @@ public class SubtitleManager {
     private ExecutorService mExecutor;
     
     // 字幕状态
-    private boolean mEnabled = true;
+    private boolean mEnabled = false; // 默认关闭
     private boolean mLoaded = false;
     private String mCurrentSubtitlePath;
     
@@ -98,6 +98,57 @@ public class SubtitleManager {
         
         playerContainer.addView(mSubtitleView, params);
         Log.d(TAG, "SubtitleView attached to player");
+    }
+    
+    /**
+     * 重新附加到新的播放器容器（用于全屏切换）
+     * 解决全屏模式下 SubtitleView 仍附加在旧播放器上的问题
+     */
+    public void reattachToPlayer(ViewGroup newPlayerContainer) {
+        Log.d(TAG, "reattachToPlayer called, newPlayerContainer=" + newPlayerContainer);
+        
+        if (newPlayerContainer == null) {
+            Log.e(TAG, "reattachToPlayer: newPlayerContainer is null!");
+            return;
+        }
+        
+        if (mSubtitleView == null) {
+            Log.w(TAG, "reattachToPlayer: mSubtitleView is null, creating new one");
+            mSubtitleView = new SubtitleView(mContext);
+            mSubtitleView.setTextSize(mTextSize);
+            mSubtitleView.setTextColor(mTextColor);
+            mSubtitleView.setBackgroundColor(mBackgroundColor);
+        }
+        
+        // 移除旧的父容器
+        ViewGroup oldParent = (ViewGroup) mSubtitleView.getParent();
+        if (oldParent != null) {
+            Log.d(TAG, "reattachToPlayer: removing from old parent: " + oldParent.getClass().getSimpleName());
+            oldParent.removeView(mSubtitleView);
+        }
+        
+        // 添加到新的播放器容器底部
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+        params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
+        params.bottomMargin = dpToPx(mBottomMargin);
+        params.leftMargin = dpToPx(20);
+        params.rightMargin = dpToPx(20);
+        
+        newPlayerContainer.addView(mSubtitleView, params);
+        Log.d(TAG, "reattachToPlayer: SubtitleView added to " + newPlayerContainer.getClass().getSimpleName());
+        
+        // 强制布局更新
+        mSubtitleView.requestLayout();
+        
+        // 延迟检查附加状态
+        mHandler.postDelayed(() -> {
+            if (mSubtitleView != null) {
+                Log.d(TAG, "reattachToPlayer (delayed check): isAttachedToWindow=" + mSubtitleView.isAttachedToWindow() 
+                    + ", size=" + mSubtitleView.getWidth() + "x" + mSubtitleView.getHeight());
+            }
+        }, 500);
     }
     
     /**
@@ -484,10 +535,97 @@ public class SubtitleManager {
      * @param text 要显示的文字
      */
     public void showText(String text) {
-        if (mSubtitleView != null) {
-            mSubtitleView.setVisibility(View.VISIBLE);
-            mSubtitleView.setText(text);
+        // 确保在主线程执行
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mHandler.post(() -> showTextInternal(text));
+        } else {
+            showTextInternal(text);
         }
+    }
+    
+    /**
+     * 内部方法：显示文字（必须在主线程调用）
+     */
+    private void showTextInternal(String text) {
+        if (mSubtitleView == null) {
+            Log.w(TAG, "showText: mSubtitleView is null!");
+            return;
+        }
+        
+        // 调试日志：检查 SubtitleView 状态
+        boolean isAttached = mSubtitleView.isAttachedToWindow();
+        int width = mSubtitleView.getWidth();
+        int height = mSubtitleView.getHeight();
+        android.view.ViewParent parent = mSubtitleView.getParent();
+        
+        Log.d(TAG, "showText: text=" + (text != null && text.length() > 0 ? text.substring(0, Math.min(20, text.length())) + "..." : "empty"));
+        Log.d(TAG, "showText: mSubtitleView=" + mSubtitleView + " (hashCode=" + System.identityHashCode(mSubtitleView) + ")");
+        Log.d(TAG, "showText: isAttachedToWindow=" + isAttached + ", size=" + width + "x" + height);
+        Log.d(TAG, "showText: parent=" + (parent != null ? parent.getClass().getSimpleName() : "null") + 
+                   " (hashCode=" + (parent != null ? System.identityHashCode(parent) : 0) + ")");
+        
+        if (!isAttached) {
+            Log.e(TAG, "showText: SubtitleView is NOT attached to window! Subtitle will not be visible.");
+            Log.e(TAG, "showText: This is likely a stale SubtitleView instance from before fullscreen switch.");
+            Log.e(TAG, "showText: Need to call reattachToPlayer() after fullscreen switch!");
+            return; // 不显示，因为视图未附加
+        }
+        
+        // 禁用动画，直接显示（语音识别需要立即显示，不能等待淡入动画）
+        mSubtitleView.setAnimationEnabled(false);
+        
+        // 禁用自动隐藏（语音识别字幕由外部控制显示时间）
+        mSubtitleView.setAutoHideEnabled(false);
+        
+        // 直接设置文本和可见性，不使用 setSubtitleText（避免动画问题）
+        if (text == null || text.isEmpty()) {
+            mSubtitleView.setText("");
+            mSubtitleView.setVisibility(View.GONE);
+        } else {
+            mSubtitleView.setText(text);
+            mSubtitleView.setVisibility(View.VISIBLE);
+            mSubtitleView.setAlpha(1f);
+            
+            // 强制立即测量和布局，确保尺寸正确
+            // 关键：从 GONE 变为 VISIBLE 时，必须先 measure 再 layout
+            if (width == 0 || height == 0) {
+                // 获取父容器尺寸
+                if (parent instanceof android.view.ViewGroup) {
+                    android.view.ViewGroup parentView = (android.view.ViewGroup) parent;
+                    int parentWidth = parentView.getWidth();
+                    int parentHeight = parentView.getHeight();
+                    
+                    Log.d(TAG, "showText: parent size=" + parentWidth + "x" + parentHeight);
+                    
+                    // 强制测量（使用父容器尺寸作为约束）
+                    int widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(
+                        parentWidth - dpToPx(40), // 减去左右边距
+                        android.view.View.MeasureSpec.AT_MOST);
+                    int heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(
+                        parentHeight,
+                        android.view.View.MeasureSpec.AT_MOST);
+                    mSubtitleView.measure(widthSpec, heightSpec);
+                    
+                    // 强制布局
+                    android.view.ViewGroup.LayoutParams lp = mSubtitleView.getLayoutParams();
+                    if (lp instanceof android.widget.FrameLayout.LayoutParams) {
+                        android.widget.FrameLayout.LayoutParams flp = (android.widget.FrameLayout.LayoutParams) lp;
+                        int left = flp.leftMargin;
+                        int top = parentHeight - mSubtitleView.getMeasuredHeight() - flp.bottomMargin;
+                        int right = left + mSubtitleView.getMeasuredWidth();
+                        int bottom = top + mSubtitleView.getMeasuredHeight();
+                        mSubtitleView.layout(left, top, right, bottom);
+                        
+                        Log.d(TAG, "showText: forced layout, new size=" + mSubtitleView.getWidth() + "x" + mSubtitleView.getHeight());
+                    }
+                }
+            }
+            
+            // 确保重绘
+            mSubtitleView.invalidate();
+        }
+        
+        Log.d(TAG, "showText: visibility=" + mSubtitleView.getVisibility() + ", alpha=" + mSubtitleView.getAlpha());
     }
     
     public void toggle() {
