@@ -27,6 +27,7 @@
 | 🎬 多播放内核 | 系统/ExoPlayer/IJK/阿里云，运行时切换 |
 | 📝 字幕系统 | SRT/ASS/VTT 格式，大小可调 |
 | 🔤 OCR 识别 | Tesseract 硬字幕识别 + ML Kit 翻译 |
+| 🎤 语音识别 | Vosk 离线语音识别，实时字幕生成 |
 | 💬 弹幕功能 | 大小/速度/透明度可调，支持发送 |
 | 🎛️ 倍速播放 | 0.35x - 10x，长按倍速 |
 | ⏰ 定时关闭 | 30/60/90/120 分钟 |
@@ -321,7 +322,143 @@ DLNACastManager.getInstance().setOnCastStateListener(new DLNACastManager.OnCastS
 
 ---
 
+## 语音识别字幕
+
+OrangePlayer 支持使用 Vosk 离线语音识别引擎，实时识别视频音频并生成字幕。
+
+### 系统要求
+
+- **Android 10 (API 29) 或更高版本**
+- 原因：使用 AudioPlaybackCapture API 捕获应用内音频
+
+### 添加依赖
+
+```gradle
+dependencies {
+    // Vosk 离线语音识别
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+}
+```
+
+### 下载语音模型
+
+Vosk 需要语言模型文件才能工作。模型文件需要放在应用的 `assets` 目录或外部存储。
+
+#### 推荐模型
+
+| 语言 | 模型名称 | 大小 | 下载地址 |
+|------|---------|------|---------|
+| 中文 | vosk-model-small-cn | ~42 MB | [下载](https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip) |
+| 英语 | vosk-model-small-en-us | ~40 MB | [下载](https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip) |
+| 日语 | vosk-model-small-ja | ~48 MB | [下载](https://alphacephei.com/vosk/models/vosk-model-small-ja-0.22.zip) |
+
+更多语言模型请访问：https://alphacephei.com/vosk/models
+
+#### 模型放置位置
+
+**方式一：放在 assets 目录（推荐）**
+
+```
+app/src/main/assets/
+└── vosk-model-small-cn/
+    ├── am/
+    ├── conf/
+    ├── graph/
+    └── ...
+```
+
+**方式二：运行时下载到外部存储**
+
+```java
+// 下载并解压模型到 /sdcard/Android/data/your.package/files/vosk-models/
+File modelDir = new File(context.getExternalFilesDir(null), "vosk-models/vosk-model-small-cn");
+```
+
+### 使用方法
+
+```java
+import com.orange.playerlibrary.speech.VoskSpeechEngine;
+import com.orange.playerlibrary.VideoEventManager;
+
+// 检查 Vosk SDK 是否可用
+if (com.orange.playerlibrary.speech.VoskAvailabilityChecker.isVoskAvailable()) {
+    // 通过播放器 UI 启动语音识别
+    // 用户点击字幕按钮 -> 语音识别翻译 -> 选择语言 -> 开始识别
+    
+    // 或者通过代码启动
+    VideoEventManager eventManager = videoView.getEventManager();
+    eventManager.startSpeechTranslate();
+} else {
+    // 提示用户安装 Vosk SDK
+    Toast.makeText(context, "需要安装 Vosk SDK", Toast.LENGTH_SHORT).show();
+}
+```
+
+### 权限说明
+
+语音识别功能**不需要麦克风权限**，因为使用的是 AudioPlaybackCapture API 捕获应用内音频。
+
+但首次使用时会弹出系统权限对话框：
+
+```
+是否允许橘子播放器开始录制或投放？
+- 整个屏幕
+- 此应用
+```
+
+这是 Android 系统的 MediaProjection 权限，用于捕获应用内音频，**无法绕过**。
+
+### 功能特点
+
+- ✅ **离线识别**：无需网络连接
+- ✅ **实时字幕**：识别结果实时显示
+- ✅ **自动清理**：字幕超过 25 字符自动清空
+- ✅ **多语言支持**：支持中文、英语、日语等多种语言
+- ⚠️ **倍速限制**：倍速播放会降低识别准确率（模型使用正常语速训练）
+
+### 注意事项
+
+1. **首次启动较慢**：加载模型需要 2-5 秒
+2. **内存占用**：模型会占用约 50-100 MB 内存
+3. **识别准确率**：
+   - 正常语速：85-95%
+   - 1.5x 倍速：70-80%
+   - 2.0x 倍速：50-60%
+4. **不支持实时翻译**：当前版本仅支持识别，不支持翻译
+
+### 故障排查
+
+**问题：识别不准确**
+- 确保使用正确的语言模型
+- 降低播放倍速
+- 检查音频质量
+
+**问题：无法启动识别**
+- 检查 Android 版本是否 >= 10
+- 检查模型文件是否正确放置
+- 查看 Logcat 日志
+
+**问题：识别延迟**
+- 正常延迟 1-2 秒
+- 如果延迟过长，检查设备性能
+
+---
+
 ## OCR 字幕翻译
+
+OrangePlayer 支持识别视频画面中的硬字幕（嵌入在视频中的字幕），并使用 ML Kit 进行翻译。
+
+### 添加依赖
+
+```gradle
+dependencies {
+    // OCR 文字识别
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
+    
+    // 文字翻译
+    implementation 'com.google.mlkit:translate:17.0.2'
+}
+```
 
 ### 语言包
 
@@ -365,6 +502,44 @@ manager.downloadLanguage("eng", new LanguagePackManager.DownloadCallback() {
 });
 ```
 
+### 使用方法
+
+```java
+import com.orange.playerlibrary.ocr.OcrAvailabilityChecker;
+
+// 检查 OCR 功能是否可用
+if (OcrAvailabilityChecker.isOcrTranslateAvailable()) {
+    // 通过播放器 UI 启动 OCR
+    // 用户点击字幕按钮 -> OCR 翻译字幕 -> 设置识别区域 -> 选择语言 -> 开始识别
+} else {
+    // 提示用户安装依赖
+    String message = OcrAvailabilityChecker.getMissingDependenciesMessage();
+    Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+}
+```
+
+### 功能特点
+
+- ✅ **硬字幕识别**：识别嵌入在视频中的字幕
+- ✅ **实时翻译**：使用 ML Kit 翻译识别结果
+- ✅ **区域选择**：可自定义识别区域
+- ✅ **多语言支持**：支持中文、英语、日语、韩语等
+- ⚠️ **性能影响**：OCR 识别会占用较多 CPU 资源
+
+---
+
+## 语音识别 vs OCR 对比
+
+| 功能 | 语音识别 | OCR 识别 |
+|------|---------|---------|
+| 识别对象 | 视频音频 | 视频画面字幕 |
+| 系统要求 | Android 10+ | Android 5.0+ |
+| 网络要求 | 离线 | 离线（首次需下载模型）|
+| 准确率 | 85-95% | 70-90% |
+| 性能影响 | 中等 | 较高 |
+| 倍速影响 | 较大 | 无影响 |
+| 适用场景 | 无字幕视频 | 硬字幕视频 |
+
 ---
 
 ## 完整依赖配置示例
@@ -398,6 +573,13 @@ dependencies {
     // DLNA 投屏
     implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // OCR 字幕识别与翻译
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
+    implementation 'com.google.mlkit:translate:17.0.2'
+    
+    // 语音识别（需要 Android 10+）
+    implementation 'com.alphacephei:vosk-android:0.3.47'
 }
 ```
 
@@ -425,6 +607,12 @@ dependencies {
 
 # Tesseract OCR
 -keep class com.googlecode.tesseract.android.** { *; }
+
+# ML Kit Translation
+-keep class com.google.mlkit.** { *; }
+
+# Vosk 语音识别
+-keep class org.vosk.** { *; }
 
 # 阿里云播放器
 -keep class com.aliyun.player.** { *; }

@@ -2668,9 +2668,15 @@ public class VideoEventManager {
             View btnOcrTranslate = dialogView.findViewById(R.id.btn_ocr_translate);
             android.widget.TextView ocrStatus = dialogView.findViewById(R.id.ocr_status);
             if (btnOcrTranslate != null) {
-                // 检查 OCR 功能是否可用
-                boolean ocrAvailable = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.isTesseractAvailable();
-                boolean translateAvailable = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.isMlKitTranslateAvailable();
+                // 安全检查 OCR 功能是否可用（避免调用不存在的类）
+                boolean ocrAvailable = false;
+                boolean translateAvailable = false;
+                try {
+                    ocrAvailable = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.isTesseractAvailable();
+                    translateAvailable = com.orange.playerlibrary.ocr.OcrAvailabilityChecker.isMlKitTranslateAvailable();
+                } catch (Throwable e) {
+                    Log.e(TAG, "Error checking OCR availability", e);
+                }
                 
                 if (!ocrAvailable || !translateAvailable) {
                     // 功能不可用，显示安装提示
@@ -2699,7 +2705,26 @@ public class VideoEventManager {
             View btnSpeechTranslate = dialogView.findViewById(R.id.btn_speech_translate);
             android.widget.TextView speechStatus = dialogView.findViewById(R.id.speech_status);
             if (btnSpeechTranslate != null) {
-                if (isSpeechRunning()) {
+                // 安全检查 Vosk SDK 是否可用（避免调用不存在的类）
+                boolean voskAvailable = false;
+                try {
+                    voskAvailable = com.orange.playerlibrary.speech.VoskAvailabilityChecker.isVoskAvailable();
+                } catch (Throwable e) {
+                    Log.e(TAG, "Error checking Vosk availability", e);
+                }
+                
+                if (!voskAvailable) {
+                    // Vosk SDK 不可用，显示安装提示
+                    if (speechStatus != null) {
+                        speechStatus.setText("需要安装 Vosk SDK");
+                        speechStatus.setTextColor(0xFFFF6B6B);
+                    }
+                    ((android.widget.Button) btnSpeechTranslate).setText("查看安装说明");
+                    btnSpeechTranslate.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        showVoskInstallGuide();
+                    });
+                } else if (isSpeechRunning()) {
                     // 正在运行，显示停止按钮
                     if (speechStatus != null) {
                         speechStatus.setText("语音识别正在运行中");
@@ -2712,14 +2737,12 @@ public class VideoEventManager {
                         showToast("语音识别已停止");
                     });
                 } else {
-                    // 显示正常状态
+                    // 功能可用，显示正常状态
                     if (speechStatus != null) {
                         speechStatus.setText("识别视频音频并翻译为字幕");
                     }
                     btnSpeechTranslate.setOnClickListener(v -> {
                         dialog.dismiss();
-                        // 直接尝试打开设置，不再预检查
-                        // 因为某些设备 isRecognitionAvailable 返回 false 但实际可用
                         showSpeechTranslateSettings();
                     });
                 }
@@ -2966,6 +2989,19 @@ public class VideoEventManager {
         
         new AlertDialog.Builder(mActivity)
             .setTitle("安装 OCR 翻译功能")
+            .setMessage(message)
+            .setPositiveButton("知道了", null)
+            .show();
+    }
+    
+    /**
+     * 显示 Vosk 语音识别安装指南
+     */
+    private void showVoskInstallGuide() {
+        String message = com.orange.playerlibrary.speech.VoskAvailabilityChecker.getMissingDependenciesMessage();
+        
+        new AlertDialog.Builder(mActivity)
+            .setTitle("安装语音识别功能")
             .setMessage(message)
             .setPositiveButton("知道了", null)
             .show();
@@ -3600,6 +3636,17 @@ public class VideoEventManager {
             return;
         }
         
+        // 清理文本：去除多余空格
+        text = cleanSpeechText(text);
+        
+        // 限制字幕最大长度（避免字幕过长）
+        final int MAX_SUBTITLE_LENGTH = 25; // 最多显示 25 个字符
+        if (text.length() > MAX_SUBTITLE_LENGTH) {
+            // 超过最大长度，只保留最后的部分
+            text = "..." + text.substring(text.length() - MAX_SUBTITLE_LENGTH);
+            Log.d(TAG, "showSpeechSubtitle: text truncated to " + MAX_SUBTITLE_LENGTH + " chars");
+        }
+        
         long currentTime = System.currentTimeMillis();
         
         // 更新当前字幕内容
@@ -3664,6 +3711,31 @@ public class VideoEventManager {
             };
             mMainHandler.postDelayed(mSpeechSubtitleRefreshRunnable, SPEECH_SUBTITLE_REFRESH_INTERVAL);
         }
+    }
+    
+    /**
+     * 清理语音识别文本
+     * 1. 去除首尾空格
+     * 2. 将多个连续空格替换为单个空格
+     * 3. 去除换行符前后的空格
+     */
+    private String cleanSpeechText(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        
+        // 去除首尾空格
+        text = text.trim();
+        
+        // 将多个连续空格替换为单个空格
+        text = text.replaceAll("\\s+", " ");
+        
+        // 如果包含换行符（翻译字幕），去除换行符前后的空格
+        if (text.contains("\n")) {
+            text = text.replaceAll("\\s*\\n\\s*", "\n");
+        }
+        
+        return text;
     }
     
     /**
@@ -3948,48 +4020,22 @@ public class VideoEventManager {
     private void startSpeechTranslate(String sourceLang, String targetLang) {
         Log.d(TAG, "startSpeechTranslate: sourceLang=" + sourceLang + ", targetLang=" + targetLang);
         
-        // 检查录音权限
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            int permissionStatus = mActivity.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO);
-            Log.d(TAG, "RECORD_AUDIO permission status: " + permissionStatus + 
-                " (GRANTED=" + android.content.pm.PackageManager.PERMISSION_GRANTED + ")");
-            
-            if (permissionStatus != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                Log.d(TAG, "Requesting RECORD_AUDIO permission...");
-                mActivity.requestPermissions(
-                    new String[]{android.Manifest.permission.RECORD_AUDIO}, 
-                    REQUEST_CODE_RECORD_AUDIO);
-                // 保存参数，权限授予后继续
-                mPendingSpeechSourceLang = sourceLang;
-                mPendingSpeechTargetLang = targetLang;
-                return;
-            }
-        }
-        
-        Log.d(TAG, "Permission granted, calling doStartSpeechTranslate...");
+        // AudioPlaybackCapture 不需要麦克风权限，只需要 MediaProjection 权限
+        // MediaProjection 权限会在 SpeechSubtitleManager.start() 中请求
         doStartSpeechTranslate(sourceLang, targetLang);
     }
     
+    // MediaProjection 权限回调需要的变量（不是麦克风权限）
     private String mPendingSpeechSourceLang;
     private String mPendingSpeechTargetLang;
-    private static final int REQUEST_CODE_RECORD_AUDIO = 1002;
     
     /**
-     * 处理录音权限请求结果
+     * 处理录音权限请求结果（已废弃，AudioPlaybackCapture 不需要麦克风权限）
      */
+    @Deprecated
     public void handleRecordAudioPermissionResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == REQUEST_CODE_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                // 权限已授予，继续启动语音识别
-                if (mPendingSpeechSourceLang != null) {
-                    doStartSpeechTranslate(mPendingSpeechSourceLang, mPendingSpeechTargetLang);
-                    mPendingSpeechSourceLang = null;
-                    mPendingSpeechTargetLang = null;
-                }
-            } else {
-                showToast("需要录音权限才能使用语音识别");
-            }
-        }
+        // AudioPlaybackCapture 不需要麦克风权限，此方法已废弃
+        Log.w(TAG, "handleRecordAudioPermissionResult: This method is deprecated, AudioPlaybackCapture doesn't need RECORD_AUDIO permission");
     }
     
     /**
