@@ -250,6 +250,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void onPlayError(String url, Object... objects) {
                 super.onPlayError(url, objects);
+                android.util.Log.e(TAG, "onPlayError: url=" + url + ", objects=" + java.util.Arrays.toString(objects));
                 setOrangePlayState(PlayerConstants.STATE_ERROR);
             }
 
@@ -271,7 +272,39 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             }
         });
+        
+        // 启动错误检测定时器
+        startErrorDetectionTimer();
     }
+    
+    /**
+     * 启动错误检测定时器
+     * 检测播放器是否卡在 PREPARING 状态超过 30 秒
+     */
+    private void startErrorDetectionTimer() {
+        if (mInnerHandler != null) {
+            mInnerHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    // 如果卡在 PREPARING 状态超过 30 秒，认为出错
+                    if (mCurrentState == CURRENT_STATE_PREPAREING) {
+                        long preparingTime = System.currentTimeMillis() - mPreparingStartTime;
+                        if (preparingTime > 30000) {
+                            android.util.Log.e(TAG, "错误检测: 播放器卡在 PREPARING 状态超过 30 秒，触发错误状态");
+                            setOrangePlayState(PlayerConstants.STATE_ERROR);
+                            setStateAndUi(CURRENT_STATE_ERROR);
+                        } else {
+                            // 继续检测
+                            startErrorDetectionTimer();
+                        }
+                    }
+                }
+            }, 5000); // 每 5 秒检测一次
+        }
+    }
+    
+    // 记录进入 PREPARING 状态的时间
+    private long mPreparingStartTime = 0;
     
     /**
      * 初始化播放器核心
@@ -2705,9 +2738,50 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             setOrangePlayState(8);
         }
     }
+    
+    /**
+     * 重写 setStateAndUi 添加详细日志
+     */
+    @Override
+    protected void setStateAndUi(int state) {
+        String stateName = getStateName(state);
+        android.util.Log.d(TAG, "========================================");
+        android.util.Log.d(TAG, "setStateAndUi: " + stateName + " (" + state + ")");
+        android.util.Log.d(TAG, "  当前状态: " + getStateName(mCurrentState) + " (" + mCurrentState + ")");
+        android.util.Log.d(TAG, "  URL: " + mOriginUrl);
+        android.util.Log.d(TAG, "  缓冲进度: " + getBuffterPoint() + "%");
+        android.util.Log.d(TAG, "  播放位置: " + getCurrentPositionWhenPlaying() + "ms / " + getDuration() + "ms");
+        android.util.Log.d(TAG, "  LoadingProgressBar: " + (mLoadingProgressBar != null ? 
+            (mLoadingProgressBar.getVisibility() == VISIBLE ? "VISIBLE" : "INVISIBLE") : "null"));
+        android.util.Log.d(TAG, "========================================");
+        
+        // 记录进入 PREPARING 状态的时间
+        if (state == CURRENT_STATE_PREPAREING && mCurrentState != CURRENT_STATE_PREPAREING) {
+            mPreparingStartTime = System.currentTimeMillis();
+        }
+        
+        super.setStateAndUi(state);
+    }
+    
+    /**
+     * 获取状态名称（用于日志）
+     */
+    private String getStateName(int state) {
+        switch (state) {
+            case CURRENT_STATE_NORMAL: return "NORMAL";
+            case CURRENT_STATE_PREPAREING: return "PREPARING";
+            case CURRENT_STATE_PLAYING: return "PLAYING";
+            case CURRENT_STATE_PLAYING_BUFFERING_START: return "BUFFERING_START";
+            case CURRENT_STATE_PAUSE: return "PAUSE";
+            case CURRENT_STATE_AUTO_COMPLETE: return "COMPLETE";
+            case CURRENT_STATE_ERROR: return "ERROR";
+            default: return "UNKNOWN_" + state;
+        }
+    }
 
     @Override
     protected void changeUiToNormal() {
+        android.util.Log.d(TAG, "changeUiToNormal: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
@@ -2715,61 +2789,72 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     protected void changeUiToPreparingShow() {
         // 视频加载时显示加载动画
+        android.util.Log.d(TAG, "changeUiToPreparingShow: 显示加载动画, state=" + mCurrentState + ", url=" + mOriginUrl);
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
     
     @Override
     protected void changeUiToPlayingShow() {
+        android.util.Log.d(TAG, "changeUiToPlayingShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         // 不停止网速更新，让它持续运行，updateLoadingSpeed 会根据 loading 可见性决定是否显示
     }
     
     @Override
     protected void changeUiToPlayingBufferingShow() {
+        android.util.Log.d(TAG, "changeUiToPlayingBufferingShow: 显示缓冲动画, state=" + mCurrentState + ", bufferPercent=" + getBuffterPoint());
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
     
     @Override
     protected void changeUiToPauseShow() {
+        android.util.Log.d(TAG, "changeUiToPauseShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void changeUiToError() {
+        android.util.Log.e(TAG, "changeUiToError: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void changeUiToCompleteShow() {
+        android.util.Log.d(TAG, "changeUiToCompleteShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPrepareingClear() {
+        android.util.Log.d(TAG, "changeUiToPrepareingClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPlayingClear() {
+        android.util.Log.d(TAG, "changeUiToPlayingClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPlayingBufferingClear() {
+        android.util.Log.d(TAG, "changeUiToPlayingBufferingClear: 隐藏缓冲动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToPauseClear() {
+        android.util.Log.d(TAG, "changeUiToPauseClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     protected void changeUiToCompleteClear() {
+        android.util.Log.d(TAG, "changeUiToCompleteClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
@@ -2778,6 +2863,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 嗅探开始 - 显示加载动画
      */
     protected void changeUiToSniffingShow() {
+        android.util.Log.d(TAG, "changeUiToSniffingShow: 显示嗅探加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
@@ -2786,12 +2872,23 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 嗅探结束 - 隐藏加载动画
      */
     protected void changeUiToSniffingEnd() {
+        android.util.Log.d(TAG, "changeUiToSniffingEnd: 隐藏嗅探加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
     
     @Override
     protected void hideAllWidget() {
+        android.util.Log.d(TAG, "hideAllWidget: 隐藏所有组件包括加载动画, state=" + mCurrentState);
+        
+        // 在 PREPARING 和 BUFFERING 状态下，不隐藏加载动画
+        // 这些状态下用户需要看到加载进度
+        if (mCurrentState == CURRENT_STATE_PREPAREING || 
+            mCurrentState == CURRENT_STATE_PLAYING_BUFFERING_START) {
+            android.util.Log.d(TAG, "hideAllWidget: 跳过隐藏加载动画（正在加载/缓冲）");
+            return;
+        }
+        
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
