@@ -1,15 +1,18 @@
 # OrangePlayer 橘子播放器
 
+> **For Developers**: Professional Android video player library for building video applications.  
+> Open source under Apache 2.0 License.
+
 <p align="center">
   <img src="docs/logo.png" width="200" alt="OrangePlayer Logo" />
 </p>
 
 <p align="center">
-  <strong>功能完整的 Android 视频播放器库</strong>
+  <strong>功能完整的 Android 视频播放器 SDK</strong>
 </p>
 
 <p align="center">
-  基于 <a href="https://github.com/CarGuo/GSYVideoPlayer">GSYVideoPlayer</a> 的增强视频播放器，提供弹幕、字幕、OCR、语音识别等丰富功能
+  基于 <a href="https://github.com/CarGuo/GSYVideoPlayer">GSYVideoPlayer</a> 的增强视频播放器库，为 Android 开发者提供完整的视频播放解决方案
 </p>
 
 <p align="center">
