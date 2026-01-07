@@ -386,6 +386,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         mControlWrapper = createControlWrapper();
         
+        // 自动创建控制器（如果用户没有手动设置）
+        if (mOrangeController == null) {
+            mOrangeController = new OrangeVideoController(context);
+            mOrangeController.setVideoView(this);
+        }
+        
         mPrepareView = new com.orange.playerlibrary.component.PrepareView(context);
         mPrepareView.attach(mControlWrapper);
         mPrepareView.setClickStart();
