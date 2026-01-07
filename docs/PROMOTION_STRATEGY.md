@@ -122,6 +122,10 @@
 - 提交 PR 到：https://github.com/JStumpp/awesome-android
 - 添加到 Video 分类
 
+#### Android Arsenal（已失效 ❌）
+- ~~原提交地址：https://android-arsenal.com/submit~~
+- 该网站已不再维护，无法提交新项目
+
 #### Android Dev Digest（推荐指数：⭐⭐⭐⭐）
 - 网址：https://www.androiddevdigest.com/
 - 提交优质 Android 开发资源
@@ -337,7 +341,7 @@ GSYVideoPlayer alternative
 
 ### 第二周
 - [ ] 发布掘金文章（第一篇）
-- [ ] 提交到 Android Arsenal
+- [ ] ~~提交到 Android Arsenal~~（网站已失效）
 - [ ] 发布知乎文章
 - [ ] 发布 Bilibili 视频
 
