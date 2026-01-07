@@ -1231,7 +1231,7 @@ if (OcrAvailabilityChecker.isOcrTranslateAvailable()) {
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.3'
+    implementation 'com.github.706412584:orangeplayer:1.0.4'
     
     // === GSY 基础依赖（必需）===
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -1274,7 +1274,7 @@ dependencies {
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.3'
+    implementation 'com.github.706412584:orangeplayer:1.0.4'
     
     // === GSY 基础依赖（必需）===
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -1350,6 +1350,8 @@ dependencies {
     implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
     implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
     implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 }
 ```
 

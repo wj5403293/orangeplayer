@@ -276,6 +276,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     /**
      * 初始化播放器核心
      * 根据用户设置选择合适的播放引擎
+     * 如果选择的内核不可用，自动回退到系统播放器
      */
     private void initPlayerFactory() {
         if (mPlayerFactoryInitialized) {
@@ -284,10 +285,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
         String engine = settingsManager.getPlayerEngine();
+        boolean fallbackToSystem = false;
+        
         // 根据设置切换播放器核心
         switch (engine) {
             case PlayerConstants.ENGINE_IJK:
-                PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                // 检查 IJK so 库是否可用
+                if (isIjkPlayerAvailable()) {
+                    try {
+                        PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                        android.util.Log.d(TAG, "initPlayerFactory: 使用 IJK 播放器");
+                    } catch (Exception e) {
+                        android.util.Log.w(TAG, "initPlayerFactory: IJK 播放器初始化失败，回退到系统播放器", e);
+                        fallbackToSystem = true;
+                    }
+                } else {
+                    android.util.Log.w(TAG, "initPlayerFactory: IJK so 库未找到，回退到系统播放器");
+                    fallbackToSystem = true;
+                }
                 break;
                 
             case PlayerConstants.ENGINE_EXO:
@@ -295,6 +310,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 // 解决横竖屏切换时 MediaCodec IllegalStateException 问题
                 try {
                     PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
+                    android.util.Log.d(TAG, "initPlayerFactory: 使用 ExoPlayer");
                     // ExoPlayer 需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
                     // 设置渲染类型为 SurfaceView (Android Q+)
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -309,14 +325,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
                     }
                 } catch (Exception e) {
+                    android.util.Log.w(TAG, "initPlayerFactory: ExoPlayer 初始化失败", e);
                     // 回退到 GSY 原生 Exo2PlayerManager
                     try {
                         @SuppressWarnings("unchecked")
                         Class<? extends IPlayerManager> exoClass = 
                             (Class<? extends IPlayerManager>) Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
                         PlayerFactory.setPlayManager(exoClass);
+                        android.util.Log.d(TAG, "initPlayerFactory: 回退到 GSY Exo2PlayerManager");
                     } catch (ClassNotFoundException ex) {
-                        PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                        android.util.Log.w(TAG, "initPlayerFactory: Exo2PlayerManager 未找到，回退到系统播放器", ex);
+                        fallbackToSystem = true;
                     }
                 }
                 break;
@@ -328,33 +347,69 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     Class<? extends IPlayerManager> aliClass = 
                         (Class<? extends IPlayerManager>) Class.forName("com.shuyu.aliplay.AliPlayerManager");
                     PlayerFactory.setPlayManager(aliClass);
+                    android.util.Log.d(TAG, "initPlayerFactory: 使用阿里云播放器");
                 } catch (ClassNotFoundException e) {
-                    PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    android.util.Log.w(TAG, "initPlayerFactory: 阿里云播放器未找到，回退到系统播放器", e);
+                    fallbackToSystem = true;
                 }
                 break;
                 
             case PlayerConstants.ENGINE_DEFAULT:
             default:
-                // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
-                PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
-                // 系统播放器也需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                    com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
-                } else {
-                    // 低版本 Android 使用 TextureView
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                    com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
-                }
+                fallbackToSystem = true;
                 break;
+        }
+        
+        // 回退到系统播放器
+        if (fallbackToSystem) {
+            // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
+            PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
+            android.util.Log.d(TAG, "initPlayerFactory: 使用系统播放器");
+            
+            // 系统播放器也需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
+            } else {
+                // 低版本 Android 使用 TextureView
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
+            }
+            
+            // 如果用户设置的不是系统播放器，但回退到了系统播放器，更新设置
+            if (!PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
+                settingsManager.setPlayerEngine(PlayerConstants.ENGINE_DEFAULT);
+                android.util.Log.i(TAG, "initPlayerFactory: 已自动切换到系统播放器，并更新设置");
+            }
         }
         
         // 应用解码方式设置
         applyDecodeMode(settingsManager);
         
         mPlayerFactoryInitialized = true;
+    }
+    
+    /**
+     * 检查 IJK 播放器 so 库是否可用
+     * 通过尝试加载 IJK 的 native 库来判断
+     */
+    private boolean isIjkPlayerAvailable() {
+        try {
+            // 尝试加载 IJK 的 native 库
+            System.loadLibrary("ijkffmpeg");
+            System.loadLibrary("ijksdl");
+            System.loadLibrary("ijkplayer");
+            return true;
+        } catch (UnsatisfiedLinkError e) {
+            // so 库未找到
+            android.util.Log.d(TAG, "isIjkPlayerAvailable: IJK so 库未找到");
+            return false;
+        } catch (Exception e) {
+            android.util.Log.w(TAG, "isIjkPlayerAvailable: 检查 IJK 可用性时出错", e);
+            return false;
+        }
     }
     
     /**

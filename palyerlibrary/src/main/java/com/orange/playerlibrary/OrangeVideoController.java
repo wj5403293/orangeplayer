@@ -475,6 +475,8 @@ public class OrangeVideoController extends OrangeStandardVideoController {
      */
     public void setVideoTitle(String title) {
         mVideoTitle = title;
+        // 更新 TitleView 显示
+        updateTitleViewDisplay(title);
     }
 
     /**
@@ -496,6 +498,46 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             mVideoTitle = mVideoTitle + "|" + title;
         } else {
             mVideoTitle = title;
+        }
+        // 更新 TitleView 显示
+        updateTitleViewDisplay(mVideoTitle);
+    }
+    
+    /**
+     * 更新 TitleView 显示
+     * 遍历父容器找到正确的 TitleView 实例（避免全屏模式下的多实例问题）
+     */
+    private void updateTitleViewDisplay(String title) {
+        if (title == null || title.isEmpty()) {
+            return;
+        }
+        
+        // 方案一：通过 VideoView 获取 TitleView（可能是旧实例）
+        if (mVideoView != null) {
+            com.orange.playerlibrary.component.TitleView titleView = mVideoView.getTitleView();
+            if (titleView != null && titleView.isAttachedToWindow()) {
+                titleView.setTitle(title);
+                return;
+            }
+        }
+        
+        // 方案二：遍历父容器找到正确的 TitleView 实例
+        if (mVideoView != null) {
+            android.view.ViewParent parent = mVideoView.getParent();
+            if (parent instanceof android.view.ViewGroup) {
+                android.view.ViewGroup container = (android.view.ViewGroup) parent;
+                for (int i = 0; i < container.getChildCount(); i++) {
+                    android.view.View child = container.getChildAt(i);
+                    if (child instanceof com.orange.playerlibrary.component.TitleView) {
+                        com.orange.playerlibrary.component.TitleView titleView = 
+                            (com.orange.playerlibrary.component.TitleView) child;
+                        if (titleView.isAttachedToWindow()) {
+                            titleView.setTitle(title);
+                            return;
+                        }
+                    }
+                }
+            }
         }
     }
 
