@@ -27,7 +27,7 @@ OrangePlayer is built on top of GSYVideoPlayer and adds a bunch of useful featur
 
 ```gradle
 dependencies {
-    implementation 'com.github.706412584:orangeplayer:v1.0.3'
+    implementation 'com.github.706412584:orangeplayer:v1.0.5'
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
     implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
 }

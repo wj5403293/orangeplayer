@@ -92,7 +92,7 @@
 ```gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:v1.0.3'
+    implementation 'com.github.706412584:orangeplayer:v1.0.5'
     
     // GSY 基础依赖（必需）
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -733,7 +733,7 @@ if (OcrAvailabilityChecker.isOcrTranslateAvailable()) {
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.4'
+    implementation 'com.github.706412584:orangeplayer:1.0.5'
     
     // === GSY 基础依赖（必需）===
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -776,7 +776,7 @@ dependencies {
 // app/build.gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.4'
+    implementation 'com.github.706412584:orangeplayer:1.0.5'
     
     // === GSY 基础依赖（必需）===
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
