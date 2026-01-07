@@ -1,11 +1,33 @@
 # OrangePlayer 橘子播放器
 
-基于 [GSYVideoPlayer](https://github.com/CarGuo/GSYVideoPlayer) 的增强视频播放器库，提供丰富的播放功能和自定义控制组件。
+<p align="center">
+  <img src="docs/logo.png" width="200" alt="OrangePlayer Logo" />
+</p>
 
-[![](https://jitpack.io/v/706412584/orangeplayer.svg)](https://jitpack.io/#706412584/orangeplayer)
-[![Android CI](https://github.com/706412584/orangeplayer/actions/workflows/android.yml/badge.svg)](https://github.com/706412584/orangeplayer/actions/workflows/android.yml)
+<p align="center">
+  <strong>功能完整的 Android 视频播放器库</strong>
+</p>
 
-📱 [下载 Demo APK](https://github.com/706412584/orangeplayer/releases/tag/demo)
+<p align="center">
+  基于 <a href="https://github.com/CarGuo/GSYVideoPlayer">GSYVideoPlayer</a> 的增强视频播放器，提供弹幕、字幕、OCR、语音识别等丰富功能
+</p>
+
+<p align="center">
+  <a href="https://jitpack.io/#706412584/orangeplayer"><img src="https://jitpack.io/v/706412584/orangeplayer.svg" alt="JitPack"></a>
+  <a href="https://github.com/706412584/orangeplayer/actions/workflows/android.yml"><img src="https://github.com/706412584/orangeplayer/actions/workflows/android.yml/badge.svg" alt="Android CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+  <a href="https://android-arsenal.com/api?level=21"><img src="https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat" alt="API"></a>
+  <a href="https://github.com/706412584/orangeplayer/stargazers"><img src="https://img.shields.io/github/stars/706412584/orangeplayer.svg?style=social&label=Star" alt="GitHub stars"></a>
+</p>
+
+<p align="center">
+  📱 <a href="https://github.com/706412584/orangeplayer/releases/tag/demo">下载 Demo APK</a> | 
+  📖 <a href="docs/INSTALLATION.md">快速开始</a> | 
+  📚 <a href="docs/API.md">API 文档</a> | 
+  ❓ <a href="docs/FAQ.md">常见问题</a>
+</p>
+
+---
 
 ## 截图预览
 
