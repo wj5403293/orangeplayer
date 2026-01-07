@@ -38,210 +38,801 @@
 
 ---
 
+## 📚 文档导航
+
+- **快速开始**
+  - [安装指南](docs/INSTALLATION.md) - 完整的依赖配置和环境设置
+  - [基本使用](#基本使用) - 最简单的集成示例
+  - [完整示例](#完整使用示例) - 15 个实用代码示例
+
+- **功能指南**
+  - [播放内核切换](docs/PLAYER_ENGINES.md) - 系统/ExoPlayer/IJK/阿里云
+  - [OCR 字幕翻译](docs/OCR_GUIDE.md) - 硬字幕识别与翻译
+  - [语音识别字幕](docs/SPEECH_RECOGNITION.md) - 实时语音转字幕
+  - [投屏功能](docs/CAST_GUIDE.md) - DLNA 投屏配置
+
+- **开发文档**
+  - [API 文档](docs/API.md) - 完整的 API 参考
+  - [项目结构](docs/STRUCTURE.md) - 代码组织说明
+
+- **其他**
+  - [常见问题](docs/FAQ.md) - 问题排查和解决方案
+  - [更新日志](CHANGELOG.md) - 版本更新记录
+
+---
+
 ## 快速开始
 
-### 1. 添加仓库
+### 1. 添加依赖
+
+在 `app/build.gradle` 中添加：
 
 ```gradle
-// settings.gradle
-dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-        // 阿里云播放器仓库（如需使用阿里云内核）
-        maven { url 'https://maven.aliyun.com/repository/releases' }
-    }
-}
-```
-
-### 2. 添加依赖
-
-⚠️ **重要**：OrangePlayer 基于 GSYVideoPlayer，必须同时添加 GSY 的基础依赖，否则会报 `NoClassDefFoundError`！
-
-#### 最小依赖配置（仅系统播放器）
-
-**方案一：支持传递依赖的构建工具（推荐）**
-
-如果你的构建工具支持自动解析传递依赖（如 Gradle、Maven），只需添加：
-
-```gradle
-// app/build.gradle
 dependencies {
     // OrangePlayer 核心库
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
-    // GSY 基础依赖（会自动引入子依赖）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
-}
-```
-
-**方案二：不支持传递依赖的构建工具**
-
-如果你的构建工具不自动解析传递依赖，需要手动添加所有子依赖：
-
-```gradle
-// app/build.gradle
-dependencies {
-    // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:v1.0.3'
-    
-    // GSY 基础依赖
+    // GSY 基础依赖（必需）
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
     
-    // GSY 子依赖（手动添加）
-    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    implementation 'io.github.carguo:gsyijkjava:1.0.0'
-}
-```
-
-> **依赖说明：**
-> - `gsyvideoplayer-java` - GSY 主模块
-> - `gsyvideoplayer-base` - 包含 `BasePlayerManager` 等核心类
-> - `gsyvideoplayer-androidvideocache` - 视频缓存功能（gsyvideoplayer-java 依赖它）
-> - `gsyijkjava` - IJK 接口层（约 50KB，不含 so 库，所有播放器都需要）
-
-#### 推荐配置（ExoPlayer）
-
-如果使用 ExoPlayer（推荐，格式支持更全）：
-
-```gradle
-// app/build.gradle
-dependencies {
-    // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:v1.0.3'
-    
-    // GSY 基础依赖
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
-    
-    // ExoPlayer 播放内核
+    // ExoPlayer 播放内核（推荐）
     implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
-    
-    // 如果构建工具不支持传递依赖，还需要手动添加：
-    // implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    // implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    // implementation 'io.github.carguo:gsyijkjava:1.0.0'
-    // implementation 'androidx.media3:media3-exoplayer:1.8.0'
-    // implementation 'androidx.media3:media3-ui:1.8.0'
 }
 ```
 
-#### 其他播放内核（可选）
+> 💡 **提示**：完整的依赖配置请查看 [安装指南](docs/INSTALLATION.md)
 
-```gradle
-dependencies {
-    // 阿里云播放器模式（需要 License）
-    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
-    
-    // IJK 播放器 so 库（根据需要选择 CPU 架构）
-    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'   // arm64-v8a
-    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'  // armeabi-v7a
-}
-```
-
-#### 更多格式支持（可选）
-
-如需支持 MPEG 编码、RTSP、concat、crypto 协议等，添加扩展 so 库：
-
-```gradle
-dependencies {
-    // 扩展编码支持（支持 mpeg 编码和更多协议，支持 16k Page Size）
-    // 注意：会增加包体积
-    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
-}
-```
-
-> **说明**：普通版本支持 H.263/H.264/H.265 等常见编码，对于 MPEG 编码可能出现有声音无画面的情况。`ex_so` 扩展库补充了 MPEG 编码和更多协议支持。
-
-### 3. AndroidManifest.xml 配置
+### 2. 布局文件
 
 ```xml
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          xmlns:tools="http://schemas.android.com/tools">
-    
-    <!-- 允许使用 minSdk 24 的投屏库 -->
-    <uses-sdk tools:overrideLibrary="com.uaoanlao.tv" />
-    
-    <!-- 网络权限（必需）-->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    
-    <!-- 投屏需要的 WiFi 权限（可选，投屏功能需要）-->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
-    
-    <application
-        android:usesCleartextTraffic="true"
-        ... >
-        
-        <!-- Activity 配置（支持横竖屏切换和画中画）-->
-        <activity
-            android:name=".YourActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
-            android:supportsPictureInPicture="true"
-            android:resizeableActivity="true">
-        </activity>
-    </application>
-</manifest>
-```
-
-**关键配置说明：**
-
-| 配置项 | 说明 |
-|--------|------|
-| `usesCleartextTraffic="true"` | 允许 HTTP 明文流量（播放 HTTP 视频源需要）|
-| `configChanges` | 防止横竖屏切换时 Activity 重建 |
-| `supportsPictureInPicture` | 启用画中画模式 |
-| `resizeableActivity` | 允许调整窗口大小 |
-
-### 4. 基本使用
-
-#### 方式一：自动初始化（推荐）
-
-OrangePlayer 会自动创建和配置控制器，无需手动设置：
-
-```xml
-<!-- 布局文件 -->
 <com.orange.playerlibrary.OrangevideoView
     android:id="@+id/video_player"
     android:layout_width="match_parent"
     android:layout_height="200dp" />
 ```
 
-```java
-// Activity 中
-import com.orange.playerlibrary.OrangevideoView;
-
-OrangevideoView videoView = findViewById(R.id.video_player);
-videoView.setUp("https://example.com/video.mp4", true, "视频标题");
-videoView.startPlayLogic();
-```
-
-#### 方式二：自定义控制器（高级）
-
-如果需要自定义控制器，可以手动创建并设置：
+### 3. 基本使用
 
 ```java
 import com.orange.playerlibrary.OrangevideoView;
-import com.orange.playerlibrary.OrangeVideoController;
 
-OrangevideoView videoView = findViewById(R.id.video_player);
-
-// 创建自定义控制器
-OrangeVideoController controller = new OrangeVideoController(this);
-// 自定义控制器配置...
-
-// 设置控制器（可选）
-videoView.setVideoController(controller);
-
-// 设置视频
-videoView.setUp("https://example.com/video.mp4", true, "视频标题");
-videoView.startPlayLogic();
+public class MainActivity extends AppCompatActivity {
+    private OrangevideoView mVideoView;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        
+        mVideoView = findViewById(R.id.video_player);
+        
+        // 设置视频地址和标题
+        mVideoView.setUp("https://example.com/video.mp4", true, "示例视频");
+        
+        // 开始播放
+        mVideoView.startPlayLogic();
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mVideoView.onVideoPause();
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mVideoView.onVideoResume();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mVideoView.release();
+    }
+    
+    @Override
+    public void onBackPressed() {
+        if (mVideoView.isFullScreen()) {
+            mVideoView.exitFullScreen();
+            return;
+        }
+        super.onBackPressed();
+    }
+}
 ```
 
-> **注意**：大多数情况下不需要手动设置控制器，OrangePlayer 会自动创建并配置好所有组件。
+就这么简单！OrangePlayer 会自动创建和配置所有 UI 组件。
+
+---
+
+## 完整使用示例
+
+查看 [完整示例代码](docs/EXAMPLES.md)，包含 15 个实用场景：
+
+1. [基础播放器](docs/EXAMPLES.md#示例-1基础播放器) - 最简单的实现
+2. [带自定义请求头](docs/EXAMPLES.md#示例-2带自定义请求头的播放)
+3. [播放状态监听](docs/EXAMPLES.md#示例-3播放状态监听)
+4. [播放进度监听](docs/EXAMPLES.md#示例-4播放进度监听)
+5. [播放完成监听](docs/EXAMPLES.md#示例-5播放完成监听)
+6. [倍速播放](docs/EXAMPLES.md#示例-6倍速播放)
+7. [字幕加载](docs/EXAMPLES.md#示例-7字幕加载)
+8. [弹幕功能](docs/EXAMPLES.md#示例-8弹幕功能)
+9. [播放列表](docs/EXAMPLES.md#示例-9播放列表)
+10. [画中画模式](docs/EXAMPLES.md#示例-10画中画模式)
+11. [投屏功能](docs/EXAMPLES.md#示例-11投屏功能)
+12. [OCR 字幕识别](docs/EXAMPLES.md#示例-12ocr-字幕识别)
+13. [语音识别字幕](docs/EXAMPLES.md#示例-13语音识别字幕)
+14. [播放器设置](docs/EXAMPLES.md#示例-14播放器设置)
+15. [错误处理](docs/EXAMPLES.md#示例-15错误处理)
+
+---
+
+## 播放内核切换
+
+OrangePlayer 支持 4 种播放内核，可在运行时动态切换。
+
+```java
+// 切换到 ExoPlayer（推荐）
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+
+// 切换到 IJK 播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_IJK);
+
+// 切换到系统播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_DEFAULT);
+
+// 切换到阿里云播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
+```
+
+详细对比和配置请查看 [播放内核指南](docs/PLAYER_ENGINES.md)。
+
+---
+
+## 可选功能
+
+### OCR 字幕翻译
+
+识别视频画面中的硬字幕并翻译。
+
+```gradle
+dependencies {
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
+    implementation 'com.google.mlkit:translate:17.0.2'
+}
+```
+
+详细配置请查看 [OCR 功能指南](docs/OCR_GUIDE.md)。
+
+### 语音识别字幕
+
+实时识别视频音频并生成字幕（需要 Android 10+）。
+
+```gradle
+dependencies {
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+}
+```
+
+详细配置请查看 [语音识别指南](docs/SPEECH_RECOGNITION.md)。
+
+### DLNA 投屏
+
+```gradle
+dependencies {
+    implementation 'com.github.AnyListen:UaoanDLNA:1.0.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
+```
+
+详细配置请查看 [投屏功能指南](docs/CAST_GUIDE.md)。
+
+---
+
+## 常见问题
+
+遇到问题？查看 [常见问题解答](docs/FAQ.md)：
+
+- [NoClassDefFoundError: BasePlayerManager](docs/FAQ.md#q1-noclassdeffounderror-baseplayermanager)
+- [播放黑屏或无声音](docs/FAQ.md#q4-播放黑屏或无声音)
+- [阿里云播放器黑屏/水印](docs/FAQ.md#q5-阿里云播放器黑屏水印)
+- [字幕不显示](docs/FAQ.md#q8-字幕不显示)
+- [语音识别无法启动](docs/FAQ.md#q10-语音识别无法启动)
+- [OCR 识别不准确](docs/FAQ.md#q11-ocr-识别不准确)
+
+更多问题请查看完整的 [FAQ 文档](docs/FAQ.md)。
+
+---
+
+## API 文档
+
+完整的 API 参考请查看 [API 文档](docs/API.md)。
+
+### 主要类
+
+- [OrangevideoView](docs/API.md#orangevideoview) - 主播放器视图
+- [OrangeVideoController](docs/API.md#orangevideocontroller) - 播放器控制器
+- [SubtitleManager](docs/API.md#subtitlemanager) - 字幕管理器
+- [LanguagePackManager](docs/API.md#languagepackmanager) - OCR 语言包管理
+- [PlayerSettingsManager](docs/API.md#playersettingsmanager) - 设置管理器
+- [PlayerConstants](docs/API.md#playerconstants) - 常量定义
+
+---
+
+## 项目结构
+
+详细结构请查看 [STRUCTURE.md](docs/STRUCTURE.md)
+
+---
+
+## 混淆配置
+
+```proguard
+# GSYVideoPlayer
+-keep class com.shuyu.gsyvideoplayer.** { *; }
+-keep class tv.danmaku.ijk.** { *; }
+
+# OrangePlayer
+-keep class com.orange.playerlibrary.** { *; }
+
+# Tesseract OCR
+-keep class com.googlecode.tesseract.android.** { *; }
+
+# ML Kit Translation
+-keep class com.google.mlkit.** { *; }
+
+# Vosk 语音识别
+-keep class org.vosk.** { *; }
+
+# 阿里云播放器
+-keep class com.aliyun.player.** { *; }
+-keep class com.cicada.player.** { *; }
+
+# DLNA 投屏
+-keep class com.uaoanlao.tv.** { *; }
+```
+
+---
+
+## License
+
+Apache License 2.0
+
+---
+
+## 作者
+
+**QQ: 706412584**
+
+如有问题或建议，欢迎联系交流。
+
+## 致谢
+
+- [GSYVideoPlayer](https://github.com/CarGuo/GSYVideoPlayer)
+- [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
+- [DanmakuFlameMaster](https://github.com/bilibili/DanmakuFlameMaster)
+- [UaoanDLNA](https://github.com/AnyListen/UaoanDLNA)
+
+### 示例 1：基础播放器
+
+最简单的视频播放实现：
+
+```java
+public class MainActivity extends AppCompatActivity {
+    private OrangevideoView mVideoView;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        
+        mVideoView = findViewById(R.id.video_player);
+        
+        // 设置视频地址和标题
+        mVideoView.setUp("https://example.com/video.mp4", true, "示例视频");
+        
+        // 开始播放
+        mVideoView.startPlayLogic();
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mVideoView.onVideoPause();
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mVideoView.onVideoResume();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mVideoView.release();
+    }
+    
+    @Override
+    public void onBackPressed() {
+        if (mVideoView.isFullScreen()) {
+            mVideoView.exitFullScreen();
+            return;
+        }
+        super.onBackPressed();
+    }
+}
+```
+
+### 示例 2：带自定义请求头的播放
+
+```java
+// 设置带请求头的视频地址
+Map<String, String> headers = new HashMap<>();
+headers.put("User-Agent", "MyPlayer/1.0");
+headers.put("Referer", "https://example.com");
+headers.put("Authorization", "Bearer your_token");
+
+mVideoView.setUrl("https://example.com/video.mp4", headers);
+mVideoView.startPlayLogic();
+```
+
+### 示例 3：播放状态监听
+
+```java
+import com.orange.playerlibrary.interfaces.OnStateChangeListener;
+import com.orange.playerlibrary.PlayerConstants;
+
+mVideoView.addOnStateChangeListener(new OnStateChangeListener() {
+    @Override
+    public void onPlayerStateChanged(int playerState) {
+        switch (playerState) {
+            case PlayerConstants.PLAYER_NORMAL:
+                Log.d(TAG, "普通模式");
+                break;
+            case PlayerConstants.PLAYER_FULL_SCREEN:
+                Log.d(TAG, "全屏模式");
+                break;
+        }
+    }
+    
+    @Override
+    public void onPlayStateChanged(int playState) {
+        switch (playState) {
+            case PlayerConstants.STATE_IDLE:
+                Log.d(TAG, "空闲状态");
+                break;
+            case PlayerConstants.STATE_PREPARING:
+                Log.d(TAG, "准备中");
+                break;
+            case PlayerConstants.STATE_PREPARED:
+                Log.d(TAG, "准备完成");
+                break;
+            case PlayerConstants.STATE_PLAYING:
+                Log.d(TAG, "播放中");
+                updatePlayButton(true);
+                break;
+            case PlayerConstants.STATE_PAUSED:
+                Log.d(TAG, "暂停");
+                updatePlayButton(false);
+                break;
+            case PlayerConstants.STATE_PLAYBACK_COMPLETED:
+                Log.d(TAG, "播放完成");
+                break;
+            case PlayerConstants.STATE_ERROR:
+                Log.d(TAG, "播放错误");
+                showErrorDialog();
+                break;
+        }
+    }
+});
+```
+
+### 示例 4：播放进度监听
+
+```java
+import com.orange.playerlibrary.interfaces.OnProgressListener;
+
+mVideoView.setOnProgressListener(new OnProgressListener() {
+    @Override
+    public void onProgress(long currentPosition, long duration) {
+        // 更新进度条
+        int progress = (int) (currentPosition * 100 / duration);
+        mProgressBar.setProgress(progress);
+        
+        // 更新时间显示
+        String current = formatTime(currentPosition);
+        String total = formatTime(duration);
+        mTimeText.setText(current + " / " + total);
+    }
+});
+
+private String formatTime(long milliseconds) {
+    long seconds = milliseconds / 1000;
+    long minutes = seconds / 60;
+    long hours = minutes / 60;
+    
+    if (hours > 0) {
+        return String.format("%02d:%02d:%02d", hours, minutes % 60, seconds % 60);
+    } else {
+        return String.format("%02d:%02d", minutes, seconds % 60);
+    }
+}
+```
+
+### 示例 5：播放完成监听
+
+```java
+import com.orange.playerlibrary.interfaces.OnPlayCompleteListener;
+
+mVideoView.setOnPlayCompleteListener(new OnPlayCompleteListener() {
+    @Override
+    public void onPlayComplete() {
+        // 播放完成后的操作
+        Toast.makeText(MainActivity.this, "播放完成", Toast.LENGTH_SHORT).show();
+        
+        // 自动播放下一个视频
+        playNextVideo();
+        
+        // 或者显示重播按钮
+        showReplayButton();
+    }
+});
+```
+
+### 示例 6：倍速播放
+
+```java
+// 设置倍速
+mVideoView.setSpeed(1.5f);  // 1.5 倍速
+
+// 倍速选项按钮
+String[] speeds = {"0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "2.0x"};
+new AlertDialog.Builder(this)
+    .setTitle("选择倍速")
+    .setItems(speeds, (dialog, which) -> {
+        float speed = Float.parseFloat(speeds[which].replace("x", ""));
+        mVideoView.setSpeed(speed);
+        Toast.makeText(this, "已设置为 " + speeds[which], Toast.LENGTH_SHORT).show();
+    })
+    .show();
+```
+
+### 示例 7：字幕加载
+
+```java
+import com.orange.playerlibrary.subtitle.SubtitleManager;
+
+// 获取字幕管理器
+SubtitleManager subtitleManager = mVideoView.getController().getSubtitleManager();
+
+// 加载字幕文件
+subtitleManager.loadSubtitle("https://example.com/subtitle.srt", 
+    new SubtitleManager.OnSubtitleLoadListener() {
+        @Override
+        public void onLoadSuccess(int count) {
+            Toast.makeText(MainActivity.this, 
+                "字幕加载成功，共 " + count + " 条", 
+                Toast.LENGTH_SHORT).show();
+            subtitleManager.start();
+        }
+        
+        @Override
+        public void onLoadFailed(String error) {
+            Toast.makeText(MainActivity.this, 
+                "字幕加载失败：" + error, 
+                Toast.LENGTH_SHORT).show();
+        }
+    });
+
+// 设置字幕大小
+subtitleManager.setTextSize(18f);  // 18sp
+
+// 从本地文件加载字幕
+File subtitleFile = new File(getExternalFilesDir(null), "subtitle.srt");
+if (subtitleFile.exists()) {
+    subtitleManager.loadSubtitle(Uri.fromFile(subtitleFile), listener);
+}
+```
+
+### 示例 8：弹幕功能
+
+```java
+import com.orange.playerlibrary.danmaku.IDanmakuController;
+
+// 获取弹幕控制器
+IDanmakuController danmakuController = mVideoView.getController().getDanmakuController();
+
+// 发送弹幕
+danmakuController.sendDanmaku("这是一条弹幕", 0xFFFFFFFF);  // 白色弹幕
+
+// 显示/隐藏弹幕
+danmakuController.show();
+danmakuController.hide();
+
+// 设置弹幕参数
+PlayerSettingsManager settings = PlayerSettingsManager.getInstance(this);
+settings.setDanmakuTextSize(16f);      // 字体大小
+settings.setDanmakuSpeed(1.2f);        // 滚动速度
+settings.setDanmakuAlpha(0.8f);        // 透明度
+```
+
+### 示例 9：播放列表
+
+```java
+import java.util.ArrayList;
+import java.util.HashMap;
+
+// 创建播放列表
+ArrayList<HashMap<String, Object>> playlist = new ArrayList<>();
+
+HashMap<String, Object> video1 = new HashMap<>();
+video1.put("url", "https://example.com/video1.mp4");
+video1.put("title", "视频 1");
+playlist.add(video1);
+
+HashMap<String, Object> video2 = new HashMap<>();
+video2.put("url", "https://example.com/video2.mp4");
+video2.put("title", "视频 2");
+playlist.add(video2);
+
+// 设置播放列表
+mVideoView.getController().setVideoList(playlist);
+
+// 播放指定索引
+mVideoView.getController().playIndex(0);
+
+// 播放下一个
+mVideoView.getController().playNext();
+
+// 监听播放完成，自动播放下一个
+mVideoView.setOnPlayCompleteListener(() -> {
+    mVideoView.getController().playNext();
+});
+```
+
+### 示例 10：画中画模式
+
+```java
+import android.app.PictureInPictureParams;
+import android.os.Build;
+import android.util.Rational;
+
+// 进入画中画模式（Android 8.0+）
+private void enterPictureInPicture() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        // 设置画中画参数
+        Rational aspectRatio = new Rational(16, 9);
+        PictureInPictureParams params = new PictureInPictureParams.Builder()
+            .setAspectRatio(aspectRatio)
+            .build();
+        
+        // 进入画中画
+        enterPictureInPictureMode(params);
+    }
+}
+
+@Override
+public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, 
+                                          Configuration newConfig) {
+    super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+    
+    if (isInPictureInPictureMode) {
+        // 进入画中画模式，隐藏控制器
+        mVideoView.getController().hide();
+    } else {
+        // 退出画中画模式，显示控制器
+        mVideoView.getController().show();
+    }
+}
+```
+
+### 示例 11：投屏功能
+
+```java
+import com.orange.playerlibrary.cast.DLNACastManager;
+
+// 检查投屏是否可用
+if (DLNACastManager.isDLNAAvailable()) {
+    // 开始投屏
+    DLNACastManager.getInstance().startCast(
+        this,
+        mVideoView.getUrl(),
+        mVideoView.getController().getTitle()
+    );
+    
+    // 监听投屏状态
+    DLNACastManager.getInstance().setOnCastStateListener(
+        new DLNACastManager.OnCastStateListener() {
+            @Override
+            public void onCastStarted() {
+                Toast.makeText(MainActivity.this, "投屏已开始", Toast.LENGTH_SHORT).show();
+                // 暂停本地播放
+                mVideoView.pause();
+            }
+            
+            @Override
+            public void onCastStopped() {
+                Toast.makeText(MainActivity.this, "投屏已停止", Toast.LENGTH_SHORT).show();
+                // 恢复本地播放
+                mVideoView.resume();
+            }
+            
+            @Override
+            public void onCastError(String message) {
+                Toast.makeText(MainActivity.this, 
+                    "投屏错误：" + message, 
+                    Toast.LENGTH_SHORT).show();
+            }
+        });
+} else {
+    Toast.makeText(this, "投屏功能不可用，请检查依赖", Toast.LENGTH_SHORT).show();
+}
+```
+
+### 示例 12：OCR 字幕识别
+
+```java
+import com.orange.playerlibrary.ocr.OcrAvailabilityChecker;
+import com.orange.playerlibrary.ocr.LanguagePackManager;
+
+// 检查 OCR 功能是否可用
+if (OcrAvailabilityChecker.isOcrTranslateAvailable()) {
+    // 检查语言包
+    LanguagePackManager manager = new LanguagePackManager(this);
+    
+    if (!manager.isLanguageInstalled("chi_sim")) {
+        // 下载简体中文语言包
+        manager.downloadLanguage("chi_sim", 
+            new LanguagePackManager.DownloadCallback() {
+                @Override
+                public void onProgress(int progress, long downloaded, long total) {
+                    // 更新下载进度
+                    mProgressDialog.setProgress(progress);
+                }
+                
+                @Override
+                public void onSuccess() {
+                    Toast.makeText(MainActivity.this, 
+                        "语言包下载成功", 
+                        Toast.LENGTH_SHORT).show();
+                    // 启动 OCR
+                    startOcrTranslate();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Toast.makeText(MainActivity.this, 
+                        "下载失败：" + error, 
+                        Toast.LENGTH_SHORT).show();
+                }
+            });
+    } else {
+        // 直接启动 OCR
+        startOcrTranslate();
+    }
+} else {
+    // 显示缺少的依赖
+    String message = OcrAvailabilityChecker.getMissingDependenciesMessage();
+    new AlertDialog.Builder(this)
+        .setTitle("OCR 功能不可用")
+        .setMessage(message)
+        .setPositiveButton("查看文档", (dialog, which) -> {
+            // 打开文档链接
+        })
+        .show();
+}
+
+private void startOcrTranslate() {
+    // 通过播放器 UI 启动 OCR
+    // 用户点击字幕按钮 -> OCR 翻译字幕 -> 设置识别区域 -> 选择语言 -> 开始识别
+}
+```
+
+### 示例 13：语音识别字幕
+
+```java
+import com.orange.playerlibrary.speech.VoskAvailabilityChecker;
+import com.orange.playerlibrary.VideoEventManager;
+
+// 检查 Vosk 是否可用
+if (VoskAvailabilityChecker.isVoskAvailable()) {
+    // 检查模型文件
+    File modelDir = new File(getExternalFilesDir(null), 
+        "vosk-models/vosk-model-small-cn");
+    
+    if (!modelDir.exists()) {
+        // 提示用户下载模型
+        new AlertDialog.Builder(this)
+            .setTitle("需要下载语音模型")
+            .setMessage("首次使用需要下载约 42MB 的中文语音模型")
+            .setPositiveButton("下载", (dialog, which) -> {
+                downloadVoskModel();
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    } else {
+        // 启动语音识别
+        VideoEventManager eventManager = mVideoView.getController()
+            .getVideoEventManager();
+        if (eventManager != null) {
+            eventManager.startSpeechTranslate();
+        }
+    }
+} else {
+    Toast.makeText(this, 
+        "语音识别需要 Android 10 或更高版本", 
+        Toast.LENGTH_SHORT).show();
+}
+```
+
+### 示例 14：播放器设置
+
+```java
+import com.orange.playerlibrary.PlayerSettingsManager;
+
+PlayerSettingsManager settings = PlayerSettingsManager.getInstance(this);
+
+// 播放内核设置
+settings.setPlayerEngine(PlayerConstants.ENGINE_EXO);
+
+// 播放模式
+settings.setPlayMode("sequential");  // 顺序播放
+// settings.setPlayMode("single_loop");  // 单曲循环
+// settings.setPlayMode("play_pause");   // 播放后暂停
+
+// 长按倍速
+settings.setLongPressSpeed(2.0f);  // 长按 2 倍速
+
+// 跳过片头片尾
+settings.setSkipOpening(30);  // 跳过前 30 秒
+settings.setSkipEnding(60);   // 跳过后 60 秒
+
+// 底部进度条
+settings.setBottomProgressEnabled(true);
+
+// 自动旋转
+settings.setAutoRotateEnabled(true);
+
+// 硬件解码
+settings.setHardwareDecode(true);
+```
+
+### 示例 15：错误处理
+
+```java
+mVideoView.addOnStateChangeListener(new OnStateChangeListener() {
+    @Override
+    public void onPlayerStateChanged(int playerState) {
+        // 不处理
+    }
+    
+    @Override
+    public void onPlayStateChanged(int playState) {
+        if (playState == PlayerConstants.STATE_ERROR) {
+            // 播放错误，尝试切换播放内核
+            handlePlaybackError();
+        }
+    }
+});
+
+private void handlePlaybackError() {
+    new AlertDialog.Builder(this)
+        .setTitle("播放错误")
+        .setMessage("当前播放内核无法播放此视频，是否尝试切换播放内核？")
+        .setPositiveButton("切换到 ExoPlayer", (dialog, which) -> {
+            mVideoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+            mVideoView.startPlayLogic();
+        })
+        .setNegativeButton("切换到 IJK", (dialog, which) -> {
+            mVideoView.selectPlayerFactory(PlayerConstants.ENGINE_IJK);
+            mVideoView.startPlayLogic();
+        })
+        .setNeutralButton("取消", null)
+        .show();
+}
+```
 
 ---
 
