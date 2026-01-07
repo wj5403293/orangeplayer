@@ -53,7 +53,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     // 图标更新防抖
     private long mLastIconUpdateTime = 0;
 
-    // 长按倍速相关
+    // 长按倍速相关（默认 3.0x，最高 3.0x）
     private float mLongPressSpeed = 3.0f;
     private float mNormalSpeed = 1.0f;
     private boolean mIsLongPressing = false;

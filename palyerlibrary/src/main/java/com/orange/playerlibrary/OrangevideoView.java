@@ -40,7 +40,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private String mVideoUrl;
     private Map<String, String> mVideoHeaders;
     private static float sSpeed = 1.0f;
-    private static float sLongSpeed = 3.0f;
+    private static float sLongSpeed = 3.0f;  // 默认 3.0x，最高 3.0x
     private boolean mKeepVideoPlaying = false;
     private boolean mAutoThumbnailEnabled = true;
     private Object mDefaultThumbnail = null;
@@ -77,7 +77,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private com.orange.playerlibrary.component.ErrorView mErrorView;
     private boolean mUseOrangeComponents = true;
     
-    private final List<OnStateChangeListener> mStateChangeListeners = new ArrayList<>();
+    private List<OnStateChangeListener> mStateChangeListeners;
     private OnProgressListener mProgressListener;
     private OnPlayCompleteListener mPlayCompleteListener;
     
@@ -131,6 +131,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     private void initOrangePlayer() {
+        // 初始化状态监听器列表（必须在最开始，因为 VideoEventManager 构造时会用到）
+        if (mStateChangeListeners == null) {
+            mStateChangeListeners = new ArrayList<>();
+        }
+        
         mUseOrangeComponents = true;
         
         // 初始化播放核心（必须在这里初始化，因为需要 Context）
@@ -1193,10 +1198,37 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void setSpeed(float speed) {
-        if (speed < 0.5f) speed = 0.5f;
-        if (speed > 3.0f) speed = 3.0f;
+        // 扩大倍速范围限制：0.35x - 5.0x（普通倍速）
+        if (speed < 0.35f) speed = 0.35f;
+        if (speed > 5.0f) speed = 5.0f;
         sSpeed = speed;
-        super.setSpeed(speed);
+        
+        // 添加日志
+        String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+        android.util.Log.d(TAG, "setSpeed: speed=" + speed + ", engine=" + currentEngine + ", isPlaying=" + isPlaying());
+        
+        // 直接设置倍速
+        try {
+            super.setSpeed(speed);
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "setSpeed: failed to set speed", e);
+        }
+        
+        // 对于 IJK 和系统播放器，确保倍速立即生效
+        // 某些情况下需要在播放状态下才能设置倍速
+        if (isPlaying()) {
+            final float finalSpeed = speed;
+            android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            handler.postDelayed(() -> {
+                try {
+                    // 延迟再次设置，确保生效
+                    super.setSpeed(finalSpeed);
+                    android.util.Log.d(TAG, "setSpeed: delayed apply speed=" + finalSpeed);
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "setSpeed: delayed apply failed", e);
+                }
+            }, 100);
+        }
     }
 
     public static float getSpeeds() {
@@ -1204,8 +1236,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public static void setSpeeds(float speed) {
-        if (speed < 0.5f) speed = 0.5f;
-        if (speed > 3.0f) speed = 3.0f;
+        // 扩大倍速范围限制：0.35x - 5.0x
+        if (speed < 0.35f) speed = 0.35f;
+        if (speed > 5.0f) speed = 5.0f;
         sSpeed = speed;
     }
 
@@ -1391,17 +1424,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void addOnStateChangeListener(OnStateChangeListener listener) {
+        if (mStateChangeListeners == null) {
+            mStateChangeListeners = new ArrayList<>();
+        }
         if (listener != null && !mStateChangeListeners.contains(listener)) {
             mStateChangeListeners.add(listener);
         }
     }
 
     public void removeOnStateChangeListener(OnStateChangeListener listener) {
-        mStateChangeListeners.remove(listener);
+        if (mStateChangeListeners != null) {
+            mStateChangeListeners.remove(listener);
+        }
     }
 
     public void clearOnStateChangeListeners() {
-        mStateChangeListeners.clear();
+        if (mStateChangeListeners != null) {
+            mStateChangeListeners.clear();
+        }
     }
 
     private void notifyPlayStateChanged(int playState) {
@@ -1955,9 +1995,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void received(String contentType, java.util.HashMap<String, String> respHeaders, 
                                String title, String videoUrl) {
-                for (OnStateChangeListener listener : mStateChangeListeners) {
-                    if (listener instanceof OnSniffingListener) {
-                        ((OnSniffingListener) listener).onSniffingReceived(contentType, respHeaders, title, videoUrl);
+                if (mStateChangeListeners != null) {
+                    for (OnStateChangeListener listener : mStateChangeListeners) {
+                        if (listener instanceof OnSniffingListener) {
+                            ((OnSniffingListener) listener).onSniffingReceived(contentType, respHeaders, title, videoUrl);
+                        }
                     }
                 }
             }
@@ -1983,9 +2025,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     }
                 }
                 
-                for (OnStateChangeListener listener : mStateChangeListeners) {
-                    if (listener instanceof OnSniffingListener) {
-                        ((OnSniffingListener) listener).onSniffingFinish(videoList, videoSize);
+                if (mStateChangeListeners != null) {
+                    for (OnStateChangeListener listener : mStateChangeListeners) {
+                        if (listener instanceof OnSniffingListener) {
+                            ((OnSniffingListener) listener).onSniffingFinish(videoList, videoSize);
+                        }
                     }
                 }
             }
@@ -2952,8 +2996,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         mIsLongPressing = true;
         mNormalSpeedBeforeLongPress = getSpeed();
+        
         // 从设置中获取长按倍速
         float longPressSpeed = PlayerSettingsManager.getInstance(getContext()).getLongPressSpeed();
+        
+        // IJK 内核限制：如果设置的长按倍速 > 2.0x，则限制为 2.0x
+        String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+        if (PlayerConstants.ENGINE_IJK.equals(currentEngine) && longPressSpeed > 2.0f) {
+            longPressSpeed = 2.0f;
+            android.util.Log.d(TAG, "touchLongPress: IJK engine, limit speed to 2.0x");
+        }
+        
         setSpeed(longPressSpeed);
         
         // 使用 GestureView 显示提示

@@ -45,7 +45,7 @@ public class VideoEventManager {
     // 对话框引
     private AlertDialog mCurrentSetupDialog;
     
-    // 长按倍速相
+    // 长按倍速相关（默认 3.0x，最高 3.0x）
     private float mLongPressSpeed = 3.0f;
     private float mNormalSpeed = 1.0f;
     private boolean mIsLongPressing = false;
@@ -385,10 +385,20 @@ public class VideoEventManager {
      * 设置倍速选项
      */
     private void setupSpeedOptions(View dialogView, AlertDialog dialog) {
-        // 倍速选项
-        final String[] speeds = {"0.35x", "0.45x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x", 
-                                "2.5x", "3.0x", "3.5x", "4.0x", "4.5x", "5.0x", "6.0x", "7.0x", 
-                                "8.0x", "9.0x", "10.0x"};
+        // 获取当前播放器内核
+        String currentEngine = mSettingsManager.getPlayerEngine();
+        boolean isIjkEngine = PlayerConstants.ENGINE_IJK.equals(currentEngine);
+        
+        // 根据内核设置最大倍速
+        // IJK 内核：最高 2.0x（AudioTrack buffer 限制）
+        // 其他内核：最高 5.0x
+        final String[] speeds;
+        if (isIjkEngine) {
+            speeds = new String[]{"0.35x", "0.45x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x"};
+        } else {
+            speeds = new String[]{"0.35x", "0.45x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x", 
+                                 "2.5x", "3.0x", "3.5x", "4.0x", "4.5x", "5.0x"};
+        }
         
         // 创建数据列表
         ArrayList<HashMap<String, Object>> arrayList = new ArrayList<>();
@@ -398,7 +408,7 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 使用 RecyclerView 显示倍速列
+        // 使用 RecyclerView 显示倍速列表
         RecyclerView recyclerView = dialogView.findViewById(R.id.recycler);
         if (recyclerView != null) {
             OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -409,7 +419,7 @@ public class VideoEventManager {
                     String speedText = data.get(position).get("name").toString();
                     float speedValue = Float.parseFloat(speedText.replace("x", ""));
                     
-                    // 高亮当前倍
+                    // 高亮当前倍速
                     float currentSpeed = mVideoView.getSpeed();
                     if (Math.abs(speedValue - currentSpeed) < 0.01f) {
                         speedName.setTextColor(COLOR_HIGHLIGHT);
@@ -428,7 +438,7 @@ public class VideoEventManager {
                         dialog.dismiss();
                     });
                 });
-                    } else {
+        } else {
         }
     }
     
@@ -1388,15 +1398,28 @@ public class VideoEventManager {
         RecyclerView recyclerView = dialogView.findViewById(R.id.recycler);
         if (recyclerView == null) return;
         
+        // 获取当前播放器内核
+        String currentEngine = mSettingsManager.getPlayerEngine();
+        boolean isIjkEngine = PlayerConstants.ENGINE_IJK.equals(currentEngine);
+        
+        // 根据内核设置长按倍速选项
+        // IJK 内核：最高 2.0x（AudioTrack buffer 限制）
+        // 其他内核：最高 3.0x
+        String[] speeds;
+        if (isIjkEngine) {
+            speeds = new String[]{"1.5x", "1.75x", "2.0x"};
+        } else {
+            speeds = new String[]{"2.0x", "2.5x", "3.0x"};
+        }
+        
         ArrayList<HashMap<String, Object>> arrayList = new ArrayList<>();
-        String[] speeds = {"2.0x", "3.0x", "3.5x", "4.0x", "4.5x", "5.0x", "5.5x", "6.0x"};
         for (String speed : speeds) {
             HashMap<String, Object> map = new HashMap<>();
             map.put("name", speed);
             arrayList.add(map);
         }
         
-        // 当前长按倍
+        // 当前长按倍速
         final float currentSpeed = mLongPressSpeed;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
@@ -1407,7 +1430,7 @@ public class VideoEventManager {
                 String speedText = data.get(position).get("name").toString();
                 float speedValue = Float.parseFloat(speedText.replace("x", ""));
                 
-                // 高亮当前倍
+                // 高亮当前倍速
                 if (Math.abs(speedValue - currentSpeed) < 0.01f) {
                     speedName.setTextColor(COLOR_HIGHLIGHT);
                     speedName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
@@ -1421,7 +1444,7 @@ public class VideoEventManager {
                 // 倍速选择事件
                 speedName.setOnClickListener(v -> {
                     setLongPressSpeed(speedValue);
-                    showToast("长按倍 " + speedText);
+                    showToast("长按倍数 " + speedText);
                     dialog.dismiss();
                 });
             });

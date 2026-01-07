@@ -72,6 +72,7 @@ public class PlayerSettingsManager {
     }
     
     public float getLongPressSpeed() {
+        // 默认 3.0x（长按倍速最高 3.0x）
         return mPreferences.getFloat(KEY_LONG_PRESS_SPEED, 3.0f);
     }
     
