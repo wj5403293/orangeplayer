@@ -1261,13 +1261,9 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     
     /**
      * 加载预览图
+     * 优先使用 ScreenshotManager 截取当前画面，失败时回退到 Glide
      */
     private void loadPreviewImage(long timeMs) {
-        if (TextUtils.isEmpty(sVideoUrl)) {
-            showPreviewError("无法加载预览");
-            return;
-        }
-        
         // 避免重复加载相同位置
         if (mCurrentPreviewPosition == timeMs) {
             return;
@@ -1276,6 +1272,73 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         
         // 显示加载状态
         showPreviewLoading();
+        
+        // 方案选择：
+        // 1. 如果拖动位置接近当前播放位置（±3秒），使用 ScreenshotManager 截取当前画面
+        // 2. 否则使用 Glide 的 frame 提取功能
+        
+        OrangevideoView videoView = getVideoView();
+        long currentPosition = videoView != null ? videoView.getCurrentPositionWhenPlaying() : -1;
+        long positionDiff = Math.abs(timeMs - currentPosition);
+        
+        // 如果拖动位置接近当前播放位置（3秒内），使用实时截图
+        if (videoView != null && positionDiff < 3000) {
+            loadPreviewWithScreenshot(videoView, timeMs);
+        } else {
+            // 否则使用 Glide 提取视频帧
+            loadPreviewImageWithGlide(timeMs);
+        }
+    }
+    
+    /**
+     * 使用 ScreenshotManager 截取当前画面作为预览
+     */
+    private void loadPreviewWithScreenshot(OrangevideoView videoView, long timeMs) {
+        try {
+            com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
+                new com.orange.playerlibrary.screenshot.ScreenshotManager(getContext(), videoView);
+            
+            screenshotManager.takeScreenshot(false, new com.orange.playerlibrary.screenshot.ScreenshotManager.ScreenshotCallback() {
+                @Override
+                public void onSuccess(Bitmap bitmap, String message) {
+                    if (mPreviewImage != null && mCurrentPreviewPosition == timeMs) {
+                        // 缩放 Bitmap 到预览尺寸
+                        Bitmap scaledBitmap = Bitmap.createScaledBitmap(
+                            bitmap, PREVIEW_WIDTH, PREVIEW_HEIGHT, true);
+                        
+                        mPreviewImage.setImageBitmap(scaledBitmap);
+                        hidePreviewLoading();
+                        animatePreviewChange();
+                        
+                        // 回收原始 Bitmap
+                        if (bitmap != scaledBitmap) {
+                            bitmap.recycle();
+                        }
+                    }
+                }
+                
+                @Override
+                public void onError(String error) {
+                    // 截图失败，回退到 Glide 方案
+                    android.util.Log.w(TAG, "Screenshot failed, fallback to Glide: " + error);
+                    loadPreviewImageWithGlide(timeMs);
+                }
+            });
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "loadPreviewWithScreenshot error", e);
+            // 回退到 Glide 方案
+            loadPreviewImageWithGlide(timeMs);
+        }
+    }
+    
+    /**
+     * 使用 Glide 加载预览图（从视频文件提取帧）
+     */
+    private void loadPreviewImageWithGlide(long timeMs) {
+        if (TextUtils.isEmpty(sVideoUrl)) {
+            showPreviewError("无法加载预览");
+            return;
+        }
         
         try {
             Context context = getContext().getApplicationContext();
@@ -1318,6 +1381,16 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         } catch (Exception e) {
             showPreviewError("预览加载失败");
         }
+    }
+    
+    /**
+     * 获取播放器视图
+     */
+    private OrangevideoView getVideoView() {
+        if (mControlWrapper != null && mControlWrapper instanceof OrangeVideoController) {
+            return ((OrangeVideoController) mControlWrapper).getVideoView();
+        }
+        return null;
     }
     
     /**
