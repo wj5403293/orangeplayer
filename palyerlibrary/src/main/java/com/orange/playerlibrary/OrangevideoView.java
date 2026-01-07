@@ -421,7 +421,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mVodControlView.attach(mControlWrapper);
         addView(mVodControlView, matchParentParams);
         
-        setOrangePlayState(PlayerConstants.STATE_IDLE);
+        // 使用 post 延迟状态通知，确保所有组件都已附加到窗口
+        // 这样可以避免在 setUp() 后立即调用 startPlayLogic() 时出现的问题
+        post(new Runnable() {
+            @Override
+            public void run() {
+                setOrangePlayState(PlayerConstants.STATE_IDLE);
+            }
+        });
+        
         ensureEventBinding();
     }
 
@@ -691,31 +699,50 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     // ==================== 重写 setUp 方法以支持预览功能 ====================
     
-    @Override
-    public boolean setUp(String url, boolean cacheWithPlay, String title) {
-        // 保存视频URL
+    /**
+     * 保存视频 URL 并设置预览功能
+     * 所有 setUp 方法的公共逻辑
+     */
+    private void saveVideoUrl(String url) {
         this.mVideoUrl = url;
         // 设置视频URL给VodControlView用于预览功能
         com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
+    }
+    
+    /**
+     * 更新标题到 TitleView
+     */
+    private void updateTitleView(String title) {
+        if (mTitleView != null && title != null && !title.isEmpty()) {
+            mTitleView.setTitle(title);
+        }
+    }
+    
+    @Override
+    public boolean setUp(String url, boolean cacheWithPlay, String title) {
+        saveVideoUrl(url);
         // 异步获取视频首帧作为封面
         getVideoFirstFrameAsync(url);
-        return super.setUp(url, cacheWithPlay, title);
+        boolean result = super.setUp(url, cacheWithPlay, title);
+        // 更新标题到 TitleView
+        updateTitleView(title);
+        return result;
     }
     
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
-        // 保存视频URL
-        this.mVideoUrl = url;
-        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
-        return super.setUp(url, cacheWithPlay, cachePath, title);
+        saveVideoUrl(url);
+        boolean result = super.setUp(url, cacheWithPlay, cachePath, title);
+        updateTitleView(title);
+        return result;
     }
     
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
-        // 保存视频URL
-        this.mVideoUrl = url;
-        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
-        return super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
+        saveVideoUrl(url);
+        boolean result = super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
+        updateTitleView(title);
+        return result;
     }
 
     public void setUrl(String url) {
@@ -723,11 +750,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void setUrl(String url, Map<String, String> headers) {
-        this.mVideoUrl = url;
         this.mVideoHeaders = headers;
-        
-        // 设置视频URL给VodControlView用于预览功能
-        com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
         
         if (headers != null) {
             setUp(url, true, null, headers, "");
@@ -764,7 +787,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null) {
             mOrangeController.setThumbnail(null);
         }
-        setOrangePlayState(PlayerConstants.STATE_PREPARING);
+        
+        // 不在这里设置 STATE_PREPARING，移到 startPlayLogic() 中
+        // 确保在 PrepareView 附加到窗口后才发送状态通知
         startPlayLogic();
     }
 
@@ -1205,13 +1230,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         // 添加日志
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
-        android.util.Log.d(TAG, "setSpeed: speed=" + speed + ", engine=" + currentEngine + ", isPlaying=" + isPlaying());
-        
         // 直接设置倍速
         try {
             super.setSpeed(speed);
         } catch (Exception e) {
-            android.util.Log.e(TAG, "setSpeed: failed to set speed", e);
         }
         
         // 对于 IJK 和系统播放器，确保倍速立即生效
@@ -1223,9 +1245,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 try {
                     // 延迟再次设置，确保生效
                     super.setSpeed(finalSpeed);
-                    android.util.Log.d(TAG, "setSpeed: delayed apply speed=" + finalSpeed);
                 } catch (Exception e) {
-                    android.util.Log.e(TAG, "setSpeed: delayed apply failed", e);
                 }
             }, 100);
         }
@@ -1475,7 +1495,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     private void notifyComponentsPlayStateChanged(int playState) {
-        if (mPrepareView != null) mPrepareView.onPlayStateChanged(playState);
+        if (mPrepareView != null) {
+            mPrepareView.onPlayStateChanged(playState);
+        }
         if (mCompleteView != null) mCompleteView.onPlayStateChanged(playState);
         if (mErrorView != null) mErrorView.onPlayStateChanged(playState);
         if (mTitleView != null) mTitleView.onPlayStateChanged(playState);
@@ -3004,7 +3026,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         if (PlayerConstants.ENGINE_IJK.equals(currentEngine) && longPressSpeed > 2.0f) {
             longPressSpeed = 2.0f;
-            android.util.Log.d(TAG, "touchLongPress: IJK engine, limit speed to 2.0x");
         }
         
         setSpeed(longPressSpeed);
@@ -3052,6 +3073,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void startPlayLogic() {
+        // 检查 PrepareView 是否已附加到窗口
+        if (mPrepareView != null && !mPrepareView.isAttachedToWindow()) {
+            // 延迟到下一帧，等待组件附加到窗口
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    startPlayLogic();
+                }
+            });
+            return;
+        }
+        // 在这里设置 STATE_PREPARING，确保 PrepareView 已附加到窗口
+        setOrangePlayState(PlayerConstants.STATE_PREPARING);
+        
         // 添加日志显示当前播放核心
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = getGSYVideoManager().getPlayer();

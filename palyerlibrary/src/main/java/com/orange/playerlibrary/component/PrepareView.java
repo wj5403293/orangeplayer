@@ -102,6 +102,14 @@ public class PrepareView extends FrameLayout implements IControlComponent {
         mGlideOptions = new RequestOptions()
                 .diskCacheStrategy(DiskCacheStrategy.ALL);
     }
+    
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        // 附加到窗口时，确保初始状态为 VISIBLE（准备视图应该默认显示）
+        android.util.Log.d(TAG, "PrepareView.onAttachedToWindow: 设置为 VISIBLE");
+        setVisibility(VISIBLE);
+    }
 
 
     /**
@@ -110,9 +118,15 @@ public class PrepareView extends FrameLayout implements IControlComponent {
     public void setClickStart() {
         // 设置整个视图的点击事件，与参考实现一致
         setOnClickListener(v -> {
+            // 只有在可见状态下才响应点击，避免横竖屏切换后误触发
+            if (getVisibility() != VISIBLE) {
+                android.util.Log.d(TAG, "PrepareView: 不可见，忽略点击事件");
+                return;
+            }
+            
             if (mControlWrapper != null) {
+                android.util.Log.d(TAG, "PrepareView: 点击播放");
                 mControlWrapper.start();
-            } else {
             }
         });
     }
@@ -134,6 +148,12 @@ public class PrepareView extends FrameLayout implements IControlComponent {
 
     @Override
     public void onPlayStateChanged(int playState) {
+        // 添加日志追踪
+        android.util.Log.d(TAG, "PrepareView.onPlayStateChanged: playState=" + playState + 
+            ", visibility=" + getVisibility() + 
+            ", isAttachedToWindow=" + isAttachedToWindow() +
+            ", size=" + getWidth() + "x" + getHeight());
+        
         switch (playState) {
             case PlayerConstants.STATE_ERROR:
             case PlayerConstants.STATE_PLAYING:
@@ -143,7 +163,10 @@ public class PrepareView extends FrameLayout implements IControlComponent {
             case PlayerConstants.STATE_BUFFERED:
             case PlayerConstants.STATE_PREPARED:
                 // 隐藏准备视图
+                android.util.Log.d(TAG, "PrepareView: 隐藏准备视图 (state=" + playState + ")");
                 setVisibility(GONE);
+                // 禁用点击事件，避免横竖屏切换后误触发
+                setClickable(false);
                 if (mThumb != null) {
                     mThumb.setVisibility(GONE);
                     mThumb.setImageBitmap(null);
@@ -152,10 +175,13 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 
             case PlayerConstants.STATE_IDLE:
                 // 显示准备视图
+                android.util.Log.d(TAG, "PrepareView: 显示准备视图 (STATE_IDLE)");
                 if (mLoadingProgress != null) {
                     mLoadingProgress.setVisibility(GONE);
                 }
                 setVisibility(VISIBLE);
+                // 启用点击事件
+                setClickable(true);
                 bringToFront();
                 if (mNetWarning != null) {
                     mNetWarning.setVisibility(GONE);
@@ -169,8 +195,9 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 break;
                 
             case PlayerConstants.STATE_PREPARING:
-                // 准备中 - 隐藏 PrepareView，让 OrangevideoView 的 AVLoadingIndicatorView 显示
-                setVisibility(GONE);
+                // 准备中 - 立即完全隐藏 PrepareView 及其所有子视图
+                // 确保不会遮挡 OrangevideoView 的加载动画
+                android.util.Log.d(TAG, "PrepareView: 收到 STATE_PREPARING，开始隐藏");
                 if (mStartPlay != null) {
                     mStartPlay.setVisibility(GONE);
                 }
@@ -180,13 +207,20 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 if (mThumb != null) {
                     mThumb.setVisibility(GONE);
                 }
-                // 不显示 PrepareView 的加载动画，使用 OrangevideoView 的 AVLoadingIndicatorView
                 if (mLoadingProgress != null) {
                     mLoadingProgress.setVisibility(GONE);
                 }
+                // 最后隐藏整个 PrepareView，确保不会遮挡加载动画
+                setVisibility(GONE);
+                // 禁用点击事件
+                setClickable(false);
+                // 强制请求布局更新，确保立即生效
+                requestLayout();
+                android.util.Log.d(TAG, "PrepareView: STATE_PREPARING 处理完成，visibility=" + getVisibility());
                 break;
                 
             case 8: // 移动网络警告状态
+                android.util.Log.d(TAG, "PrepareView: 显示网络警告");
                 setVisibility(VISIBLE);
                 if (mNetWarning != null) {
                     mNetWarning.setVisibility(VISIBLE);

@@ -81,21 +81,20 @@ public class CustomFullscreenHelper {
                     return;
                 }
                 
-                // 根据设备方向判断应该是横屏还是竖屏
-                // 0度和180度附近是竖屏，90度和270度附近是横屏
+                // 全屏模式下，只在横屏的两个方向之间切换
+                // 忽略竖屏方向（0度和180度），防止误退出全屏
                 int newOrientation;
-                if (orientation > 315 || orientation <= 45) {
-                    // 正竖屏 (0度)
-                    newOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-                } else if (orientation > 45 && orientation <= 135) {
+                
+                if (orientation > 45 && orientation <= 135) {
                     // 反横屏 (90度) - 设备顺时针旋转90度
                     newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
-                } else if (orientation > 135 && orientation <= 225) {
-                    // 反竖屏 (180度)
-                    newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
-                } else {
+                } else if (orientation > 225 && orientation <= 315) {
                     // 正横屏 (270度) - 设备逆时针旋转90度
                     newOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+                } else {
+                    // 竖屏方向（0度附近或180度附近）- 忽略，保持当前横屏方向
+                    android.util.Log.d(TAG, "onOrientationChanged: 忽略竖屏方向 orientation=" + orientation);
+                    return;
                 }
                 
                 // 只有方向真正改变时才更新

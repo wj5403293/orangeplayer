@@ -51,13 +51,13 @@ public class MainActivity extends AppCompatActivity {
     private OrangeVideoController mController;
     private PiPHelper mPiPHelper;
     private DanmakuControllerImpl mDanmakuController;
-    
+
     // Demo UI
     private EditText mEtVideoUrl;
     private TextView mTvDebugLog;
     private ScrollView mScrollLog;
     private StringBuilder mLogBuilder = new StringBuilder();
-    
+
     private String mCurrentUrl = DEFAULT_VIDEO_URL;
     private String mCurrentTitle = DEFAULT_VIDEO_TITLE;
 
@@ -77,14 +77,14 @@ public class MainActivity extends AppCompatActivity {
         mEtVideoUrl = findViewById(R.id.et_video_url);
         mTvDebugLog = findViewById(R.id.tv_debug_log);
         mScrollLog = (ScrollView) mTvDebugLog.getParent();
-        
+
         // 设置默认URL
         mEtVideoUrl.setText(DEFAULT_VIDEO_URL);
 
         // 视频链接播放按钮
         Button btnPlayUrl = findViewById(R.id.btn_play_url);
         Button btnSniffPlay = findViewById(R.id.btn_sniff_play);
-        
+
         btnPlayUrl.setOnClickListener(v -> playInputUrl(false));
         btnSniffPlay.setOnClickListener(v -> playInputUrl(true));
 
@@ -115,16 +115,16 @@ public class MainActivity extends AppCompatActivity {
                 log("⛶ 全屏切换");
             }
         });
-        
+
         // 弹幕测试按钮
         Button btnBatchDanmaku = findViewById(R.id.btn_batch_danmaku);
         Button btnSendDanmaku = findViewById(R.id.btn_send_danmaku);
         Button btnToggleDanmaku = findViewById(R.id.btn_toggle_danmaku);
-        
+
         btnBatchDanmaku.setOnClickListener(v -> loadBatchDanmaku());
         btnSendDanmaku.setOnClickListener(v -> sendDanmaku());
         btnToggleDanmaku.setOnClickListener(v -> toggleDanmaku(btnToggleDanmaku));
-        
+
         // 播放历史按钮
         Button btnHistory = findViewById(R.id.btn_history);
         btnHistory.setOnClickListener(v -> showPlayHistoryDialog());
@@ -132,17 +132,17 @@ public class MainActivity extends AppCompatActivity {
         log("🍊 橘子播放器 SDK Demo 启动");
         log("基于 GSYVideoPlayer 开源框架");
     }
-    
+
     private void playInputUrl(boolean useSniff) {
         String url = mEtVideoUrl.getText().toString().trim();
         if (TextUtils.isEmpty(url)) {
             log("❌ 请输入视频链接");
             return;
         }
-        
+
         mCurrentUrl = url;
         mCurrentTitle = "自定义视频";
-        
+
         if (useSniff) {
             log("🔍 开始嗅探: " + getShortUrl(url));
             // 使用嗅探播放 - 先设置URL再启动嗅探
@@ -153,13 +153,13 @@ public class MainActivity extends AppCompatActivity {
             mVideoView.setUp(url, false, mCurrentTitle);
             mVideoView.startPlayLogic();
         }
-        
+
         // 更新标题
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setTitle(mCurrentTitle);
         }
     }
-    
+
     private String getShortUrl(String url) {
         if (url.length() > 50) {
             return url.substring(0, 47) + "...";
@@ -167,44 +167,62 @@ public class MainActivity extends AppCompatActivity {
         return url;
     }
 
+    /**
+     * 测试：设置链接后立即播放（复现准备视图问题）
+     */
+    private void testQuickPlay() {
+        String url = mEtVideoUrl.getText().toString().trim();
+        if (TextUtils.isEmpty(url)) {
+            log("❌ 请输入视频链接");
+            return;
+        }
+
+        log("🧪 测试快速播放: " + getShortUrl(url));
+        log("   步骤1: setUp()");
+        mVideoView.setUp(url, false, "测试视频");
+        log("   步骤2: 立即 startPlayLogic()");
+        mVideoView.startPlayLogic();
+        log("   ⚠️ 观察加载动画是否正常显示（不应该在准备视图上）");
+    }
+
     private void initPlayer() {
         // 创建控制器
         mController = new OrangeVideoController(this);
         mVideoView.setVideoController(mController);
-        
+
         // 设置加载动画（默认已是 LINE_SCALE_PULSE_OUT）
         mController.setLoading(OrangeVideoController.IndicatorType.LINE_SCALE_PULSE_OUT);
-        
+
         // 添加默认控制组件（内部会自动初始化弹幕）
         mController.addDefaultControlComponent(mCurrentTitle, false);
-        
+
         // 获取弹幕控制器（用于加载测试数据）
         if (mController.isDanmakuAvailable()) {
             mDanmakuController = (DanmakuControllerImpl) mController.getDanmakuController();
             loadTestDanmaku();
             log("✓ 弹幕功能已启用");
         }
-        
+
         // 设置嗅探监听器
         setupSniffingListener();
-        
+
         // 设置测试视频列表
         setupVideoList();
-        
+
         // 设置视频
         mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
         mVideoView.setLooping(false);
         mVideoView.setAutoRotateOnFullscreen(true);
-        
+        mVideoView.startPlayLogic();
         // 设置标题
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setTitle(mCurrentTitle);
         }
-        
+
         log("✓ 播放器初始化完成");
         log("✓ 加载动画: LINE_SCALE_PULSE_OUT");
     }
-    
+
     /**
      * 设置嗅探监听器
      */
@@ -219,18 +237,18 @@ public class MainActivity extends AppCompatActivity {
                     log("✓ 嗅探结束");
                 }
             }
-            
+
             @Override
             public void onPlayerStateChanged(int playerState) {
                 // 不处理
             }
         });
-        
+
         // 添加嗅探结果监听器
         mVideoView.addOnStateChangeListener(new OrangevideoView.OnSniffingAdapter() {
             @Override
-            public void onSniffingReceived(String contentType, HashMap<String, String> headers, 
-                                          String title, String url) {
+            public void onSniffingReceived(String contentType, HashMap<String, String> headers,
+                    String title, String url) {
                 runOnUiThread(() -> {
                     log("📹 发现视频: " + getShortUrl(url));
                     if (title != null && !title.isEmpty()) {
@@ -241,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-            
+
             @Override
             public void onSniffingFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize) {
                 runOnUiThread(() -> {
@@ -262,10 +280,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    
+
     private void initPiPHelper() {
         mPiPHelper = new PiPHelper(this, mVideoView);
-        
+
         // 检查是否从 PiP 恢复
         long restorePosition = mPiPHelper.checkPiPRestore(mCurrentUrl);
         if (restorePosition > 0) {
@@ -282,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
         }
         log("✓ 画中画功能已启用");
     }
-    
+
     private void setupVideoList() {
         ArrayList<HashMap<String, Object>> videoList = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
@@ -293,41 +311,42 @@ public class MainActivity extends AppCompatActivity {
         }
         mController.setVideoList(videoList);
     }
-    
+
     // ===== 弹幕测试方法 =====
-    
+
     private void loadTestDanmaku() {
-        if (mDanmakuController == null) return;
-        
+        if (mDanmakuController == null)
+            return;
+
         List<IDanmakuController.DanmakuItem> danmakus = new ArrayList<>();
-        String[] texts = {"测试弹幕1", "橘子播放器！", "666", "前方高能", "好看"};
-        int[] colors = {Color.WHITE, Color.RED, Color.GREEN, Color.CYAN, Color.YELLOW};
-        
+        String[] texts = { "测试弹幕1", "橘子播放器！", "666", "前方高能", "好看" };
+        int[] colors = { Color.WHITE, Color.RED, Color.GREEN, Color.CYAN, Color.YELLOW };
+
         for (int i = 0; i < texts.length; i++) {
             danmakus.add(new IDanmakuController.DanmakuItem(
-                texts[i], colors[i], (i + 1) * 3000, false));
+                    texts[i], colors[i], (i + 1) * 3000, false));
         }
         mDanmakuController.setDanmakuData(danmakus);
     }
-    
+
     private void loadBatchDanmaku() {
         if (mDanmakuController == null) {
             log("❌ 弹幕功能不可用");
             return;
         }
-        
+
         List<IDanmakuController.DanmakuItem> danmakus = new ArrayList<>();
-        int[] colors = {Color.WHITE, Color.RED, Color.GREEN, Color.CYAN, Color.YELLOW};
+        int[] colors = { Color.WHITE, Color.RED, Color.GREEN, Color.CYAN, Color.YELLOW };
         long currentPos = mVideoView.getCurrentPositionWhenPlaying();
-        
+
         for (int i = 0; i < 30; i++) {
             danmakus.add(new IDanmakuController.DanmakuItem(
-                "弹幕" + (i + 1), colors[i % colors.length], currentPos + i * 500, false));
+                    "弹幕" + (i + 1), colors[i % colors.length], currentPos + i * 500, false));
         }
         mDanmakuController.setDanmakuData(danmakus);
         log("✓ 加载 30 条弹幕");
     }
-    
+
     private void sendDanmaku() {
         if (mDanmakuController != null) {
             mDanmakuController.sendDanmaku("用户弹幕 " + System.currentTimeMillis() % 1000, Color.YELLOW);
@@ -336,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
             log("❌ 弹幕功能不可用");
         }
     }
-    
+
     private void toggleDanmaku(Button btn) {
         if (mDanmakuController != null) {
             boolean enabled = !mDanmakuController.isDanmakuEnabled();
@@ -361,10 +380,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ===== 生命周期 =====
-    
+
     // 记录切后台前是否在播放
     private boolean mWasPlayingBeforeBackground = false;
-    
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -386,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
         }
         mWasPlayingBeforeBackground = false;
     }
-    
+
     @Override
     protected void onStop() {
         super.onStop();
@@ -399,7 +418,7 @@ public class MainActivity extends AppCompatActivity {
             mVideoView.onVideoPause();
         }
     }
-    
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -408,7 +427,7 @@ public class MainActivity extends AppCompatActivity {
             mController.getVideoEventManager().handleMediaProjectionResult(requestCode, resultCode, data);
         }
     }
-    
+
     @Override
     public void onPictureInPictureModeChanged(boolean isInPiP, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPiP, newConfig);
@@ -427,12 +446,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ===== Demo 辅助方法 =====
-    
+
     private void log(String msg) {
         String timestamp = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
                 .format(new java.util.Date());
         mLogBuilder.append("[").append(timestamp).append("] ").append(msg).append("\n");
-        
+
         // 限制日志行数
         String[] lines = mLogBuilder.toString().split("\n");
         if (lines.length > 50) {
@@ -441,7 +460,7 @@ public class MainActivity extends AppCompatActivity {
                 mLogBuilder.append(lines[i]).append("\n");
             }
         }
-        
+
         if (mTvDebugLog != null) {
             mTvDebugLog.setText(mLogBuilder.toString());
             // 自动滚动到底部
@@ -450,56 +469,57 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-    
+
     // ===== 播放历史功能 =====
-    
+
     private void showPlayHistoryDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_play_history, null);
-        
+
         RecyclerView rvHistory = dialogView.findViewById(R.id.rv_history);
         TextView tvEmpty = dialogView.findViewById(R.id.tv_empty);
         Button btnClear = dialogView.findViewById(R.id.btn_clear_history);
-        
+
         // 获取历史列表
         List<PlayHistory> historyList = PlayHistoryManager.getInstance(this).getHistoryList(50);
-        
+
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .create();
-        
+
         if (historyList.isEmpty()) {
             tvEmpty.setVisibility(View.VISIBLE);
             rvHistory.setVisibility(View.GONE);
         } else {
             tvEmpty.setVisibility(View.GONE);
             rvHistory.setVisibility(View.VISIBLE);
-            
+
             rvHistory.setLayoutManager(new LinearLayoutManager(this));
-            PlayHistoryAdapter adapter = new PlayHistoryAdapter(historyList, new PlayHistoryAdapter.OnItemClickListener() {
-                @Override
-                public void onItemClick(PlayHistory history) {
-                    // 播放选中的视频
-                    dialog.dismiss();
-                    playFromHistory(history);
-                }
-                
-                @Override
-                public void onDeleteClick(PlayHistory history, int position) {
-                    // 删除历史记录
-                    PlayHistoryManager.getInstance(MainActivity.this).deleteHistory(history.getVideoUrl());
-                    historyList.remove(position);
-                    rvHistory.getAdapter().notifyItemRemoved(position);
-                    log("🗑 删除历史: " + (history.getVideoTitle().isEmpty() ? "未命名" : history.getVideoTitle()));
-                    
-                    if (historyList.isEmpty()) {
-                        tvEmpty.setVisibility(View.VISIBLE);
-                        rvHistory.setVisibility(View.GONE);
-                    }
-                }
-            });
+            PlayHistoryAdapter adapter = new PlayHistoryAdapter(historyList,
+                    new PlayHistoryAdapter.OnItemClickListener() {
+                        @Override
+                        public void onItemClick(PlayHistory history) {
+                            // 播放选中的视频
+                            dialog.dismiss();
+                            playFromHistory(history);
+                        }
+
+                        @Override
+                        public void onDeleteClick(PlayHistory history, int position) {
+                            // 删除历史记录
+                            PlayHistoryManager.getInstance(MainActivity.this).deleteHistory(history.getVideoUrl());
+                            historyList.remove(position);
+                            rvHistory.getAdapter().notifyItemRemoved(position);
+                            log("🗑 删除历史: " + (history.getVideoTitle().isEmpty() ? "未命名" : history.getVideoTitle()));
+
+                            if (historyList.isEmpty()) {
+                                tvEmpty.setVisibility(View.VISIBLE);
+                                rvHistory.setVisibility(View.GONE);
+                            }
+                        }
+                    });
             rvHistory.setAdapter(adapter);
         }
-        
+
         // 清空按钮
         btnClear.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
@@ -515,39 +535,39 @@ public class MainActivity extends AppCompatActivity {
                     .setNegativeButton("取消", null)
                     .show();
         });
-        
+
         dialog.show();
         log("📋 打开播放历史，共 " + historyList.size() + " 条记录");
     }
-    
+
     private void playFromHistory(PlayHistory history) {
         String url = history.getVideoUrl();
         String title = history.getVideoTitle();
         long position = history.getPosition();
-        
+
         mCurrentUrl = url;
         mCurrentTitle = title.isEmpty() ? "历史视频" : title;
-        
+
         mEtVideoUrl.setText(url);
         mVideoView.setUp(url, false, mCurrentTitle);
-        
+
         // 设置从历史位置开始播放
         if (position > 0) {
             mVideoView.setSeekOnStart(position);
         }
-        
+
         mVideoView.startPlayLogic();
-        
+
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setTitle(mCurrentTitle);
         }
-        
+
         log("▶ 从历史播放: " + getShortUrl(url));
         if (position > 0) {
             log("   续播位置: " + formatTime(position));
         }
     }
-    
+
     private String formatTime(long millis) {
         long totalSeconds = millis / 1000;
         long hours = totalSeconds / 3600;
@@ -558,24 +578,25 @@ public class MainActivity extends AppCompatActivity {
         }
         return String.format("%02d:%02d", minutes, seconds);
     }
-    
+
     // ===== 播放历史适配器 =====
-    
+
     private static class PlayHistoryAdapter extends RecyclerView.Adapter<PlayHistoryAdapter.ViewHolder> {
-        
+
         private final List<PlayHistory> mList;
         private final OnItemClickListener mListener;
-        
+
         interface OnItemClickListener {
             void onItemClick(PlayHistory history);
+
             void onDeleteClick(PlayHistory history, int position);
         }
-        
+
         PlayHistoryAdapter(List<PlayHistory> list, OnItemClickListener listener) {
             mList = list;
             mListener = listener;
         }
-        
+
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -583,22 +604,22 @@ public class MainActivity extends AppCompatActivity {
                     .inflate(R.layout.item_play_history, parent, false);
             return new ViewHolder(view);
         }
-        
+
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             PlayHistory history = mList.get(position);
             holder.bind(history, mListener, position);
         }
-        
+
         @Override
         public int getItemCount() {
             return mList.size();
         }
-        
+
         static class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvTitle, tvPosition, tvTime;
             ImageView ivThumbnail, btnDelete;
-            
+
             ViewHolder(@NonNull View itemView) {
                 super(itemView);
                 tvTitle = itemView.findViewById(R.id.tv_title);
@@ -607,18 +628,19 @@ public class MainActivity extends AppCompatActivity {
                 ivThumbnail = itemView.findViewById(R.id.iv_thumbnail);
                 btnDelete = itemView.findViewById(R.id.btn_delete);
             }
-            
+
             void bind(PlayHistory history, OnItemClickListener listener, int position) {
                 // 标题
                 String title = history.getVideoTitle();
                 tvTitle.setText(title.isEmpty() ? "未命名视频" : title);
-                
+
                 // 缩略图
                 String thumbnailBase64 = history.getThumbnailBase64();
                 if (thumbnailBase64 != null && !thumbnailBase64.isEmpty()) {
                     try {
                         byte[] bytes = android.util.Base64.decode(thumbnailBase64, android.util.Base64.NO_WRAP);
-                        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0,
+                                bytes.length);
                         ivThumbnail.setImageBitmap(bitmap);
                     } catch (Exception e) {
                         ivThumbnail.setImageResource(android.R.drawable.ic_menu_gallery);
@@ -626,20 +648,21 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     ivThumbnail.setImageResource(android.R.drawable.ic_menu_gallery);
                 }
-                
+
                 // 播放位置和进度
-                tvPosition.setText(history.getFormattedPosition() + " / " + history.getFormattedDuration() + " (" + history.getProgressPercent() + "%)");
-                
+                tvPosition.setText(history.getFormattedPosition() + " / " + history.getFormattedDuration() + " ("
+                        + history.getProgressPercent() + "%)");
+
                 // 时间
                 tvTime.setText(getRelativeTime(history.getLastPlayTime()));
-                
+
                 // 点击播放
                 itemView.setOnClickListener(v -> {
                     if (listener != null) {
                         listener.onItemClick(history);
                     }
                 });
-                
+
                 // 删除按钮
                 btnDelete.setOnClickListener(v -> {
                     if (listener != null) {
@@ -647,11 +670,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-            
+
             private String getRelativeTime(long timestamp) {
                 long now = System.currentTimeMillis();
                 long diff = now - timestamp;
-                
+
                 if (diff < 60 * 1000) {
                     return "刚刚";
                 } else if (diff < 60 * 60 * 1000) {

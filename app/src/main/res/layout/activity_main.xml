@@ -137,7 +137,8 @@
             android:textSize="11sp" />
 
     </LinearLayout>
-
+    
+    
     <!-- 调试日志（可滚动） -->
     <ScrollView
         android:layout_width="match_parent"
