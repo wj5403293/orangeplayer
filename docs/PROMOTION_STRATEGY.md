@@ -114,10 +114,6 @@
 
 ### 2.3 Android 专业平台
 
-#### Android Arsenal（推荐指数：⭐⭐⭐⭐⭐）
-- 提交项目：https://android-arsenal.com/submit
-- 分类：Video Players / Media
-
 #### Android Weekly（推荐指数：⭐⭐⭐⭐⭐）
 - 提交到周刊：https://androidweekly.net/submit
 - 需要有亮点功能
@@ -125,6 +121,26 @@
 #### Awesome Android（推荐指数：⭐⭐⭐⭐⭐）
 - 提交 PR 到：https://github.com/JStumpp/awesome-android
 - 添加到 Video 分类
+
+#### Android Dev Digest（推荐指数：⭐⭐⭐⭐）
+- 网址：https://www.androiddevdigest.com/
+- 提交优质 Android 开发资源
+
+#### Kotlin Weekly（推荐指数：⭐⭐⭐）
+- 如果使用 Kotlin：https://kotlinweekly.net/
+- 提交 Kotlin 相关项目
+
+#### Android Developers（推荐指数：⭐⭐⭐⭐）
+- Twitter: @AndroidDev
+- 标签：#AndroidDev #MadeWithAndroid
+- 优质项目可能被官方转发
+
+#### GitHub Trending（推荐指数：⭐⭐⭐⭐⭐）
+- 目标：登上 GitHub Trending
+- 策略：
+  - 在短时间内获得大量 Star
+  - 选择合适的发布时机（周二-周四）
+  - 同时在多个平台推广
 
 ## 三、视频平台推广
 
