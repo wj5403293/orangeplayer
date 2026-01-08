@@ -96,8 +96,82 @@ public class AudioCaptureService extends Service {
     }
     
     /**
-     * 初始化 Vosk 引擎
+     * 初始化 Vosk 引擎（异步加载模型，避免卡顿）
      */
+    public void initVoskAsync(String language, InitCallback callback) {
+        // 在后台线程加载模型
+        new Thread(() -> {
+            try {
+                mVoskEngine = new VoskSpeechEngine();
+                boolean success = mVoskEngine.init(this, language);
+                
+                if (success) {
+                    mVoskEngine.setCallback(new SpeechEngine.SpeechCallback() {
+                        @Override
+                        public void onPartialResult(String text) {
+                            if (mCallback != null) {
+                                mMainHandler.post(() -> mCallback.onPartialResult(text));
+                            }
+                        }
+                        
+                        @Override
+                        public void onFinalResult(String text) {
+                            if (mCallback != null) {
+                                mMainHandler.post(() -> mCallback.onFinalResult(text));
+                            }
+                        }
+                        
+                        @Override
+                        public void onError(int errorCode, String errorMessage) {
+                            if (mCallback != null) {
+                                mMainHandler.post(() -> mCallback.onError(errorMessage));
+                            }
+                        }
+                        
+                        @Override
+                        public void onReady() {
+                            Log.d(TAG, "Vosk ready");
+                        }
+                        
+                        @Override
+                        public void onSpeechStart() {}
+                        
+                        @Override
+                        public void onSpeechEnd() {}
+                    });
+                }
+                
+                // 回调到主线程
+                final boolean finalSuccess = success;
+                mMainHandler.post(() -> {
+                    if (callback != null) {
+                        callback.onInitComplete(finalSuccess);
+                    }
+                });
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to init Vosk", e);
+                mMainHandler.post(() -> {
+                    if (callback != null) {
+                        callback.onInitComplete(false);
+                    }
+                });
+            }
+        }, "VoskInitThread").start();
+    }
+    
+    /**
+     * 初始化回调接口
+     */
+    public interface InitCallback {
+        void onInitComplete(boolean success);
+    }
+    
+    /**
+     * 初始化 Vosk 引擎（同步方式，保留兼容性）
+     * @deprecated 使用 initVoskAsync 避免主线程卡顿
+     */
+    @Deprecated
     public boolean initVosk(String language) {
         mVoskEngine = new VoskSpeechEngine();
         boolean success = mVoskEngine.init(this, language);

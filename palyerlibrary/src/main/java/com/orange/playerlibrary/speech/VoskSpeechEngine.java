@@ -42,26 +42,52 @@ public class VoskSpeechEngine implements SpeechEngine {
         mContext = context.getApplicationContext();
         mLanguage = language;
         
-        String modelPath = getModelPath(language);
-        if (modelPath == null) {
-            Log.e(TAG, "Unsupported language: " + language);
-            return false;
-        }
+        // 尝试从缓存获取模型
+        VoskModelCache cache = VoskModelCache.getInstance();
+        mModel = cache.getCachedModel(language);
         
-        File modelDir = new File(context.getFilesDir(), modelPath);
-        if (!modelDir.exists()) {
-            Log.e(TAG, "Model not found: " + modelDir.getAbsolutePath());
-            return false;
+        if (mModel != null) {
+            Log.d(TAG, "Using cached model for language: " + language);
+        } else {
+            // 缓存中没有，需要加载
+            // 尝试使用 VoskModelManager 获取已安装的模型路径
+            VoskModelManager modelManager = new VoskModelManager(context);
+            String modelPath = modelManager.getInstalledModelPath(language);
+            
+            // 如果 VoskModelManager 没有找到，回退到旧的检查方式
+            if (modelPath == null) {
+                modelPath = getModelPath(language);
+                if (modelPath == null) {
+                    Log.e(TAG, "Unsupported language: " + language);
+                    return false;
+                }
+            }
+            
+            File modelDir = new File(context.getFilesDir(), modelPath);
+            if (!modelDir.exists()) {
+                Log.e(TAG, "Model not found: " + modelDir.getAbsolutePath());
+                return false;
+            }
+            
+            try {
+                Log.d(TAG, "Loading model from disk for language: " + language);
+                mModel = new Model(modelDir.getAbsolutePath());
+                // 缓存模型（使用公共方法）
+                // 注意：模型已经在这里创建，不需要再次缓存
+                Log.d(TAG, "Model loaded and will be cached on next access");
+            } catch (IOException e) {
+                Log.e(TAG, "Failed to initialize Vosk", e);
+                return false;
+            }
         }
         
         try {
-            mModel = new Model(modelDir.getAbsolutePath());
             mRecognizer = new Recognizer(mModel, SAMPLE_RATE);
             mIsInitialized = true;
-            Log.d(TAG, "Vosk initialized, language=" + language);
+            Log.d(TAG, "Vosk initialized, language=" + language + ", modelPath=" + (mModel != null ? "cached" : "loaded"));
             return true;
         } catch (IOException e) {
-            Log.e(TAG, "Failed to initialize Vosk", e);
+            Log.e(TAG, "Failed to create recognizer", e);
             return false;
         }
     }
@@ -123,11 +149,12 @@ public class VoskSpeechEngine implements SpeechEngine {
                 String result = mRecognizer.getResult();
                 String text = parseResult(result);
                 if (text != null && !text.isEmpty() && mCallback != null && !mIsReleasing) {
-                    Log.d(TAG, "Final result: " + text);
+                    Log.d(TAG, "========== Final result: [" + text + "] ==========");
                     mCallback.onFinalResult(text);
                     
                     // 重置 Recognizer，开始新的一句话识别
                     resetRecognizer();
+                    Log.d(TAG, "Recognizer reset, ready for next sentence");
                 }
             } else {
                 // Partial 结果：实时识别中
@@ -136,6 +163,7 @@ public class VoskSpeechEngine implements SpeechEngine {
                 String text = parsePartialResult(partialResult);
                 if (text != null && !text.isEmpty() && mCallback != null && !mIsReleasing) {
                     // 只在有变化时才回调，减少不必要的 UI 更新
+                    Log.v(TAG, "Partial result: [" + text + "]");
                     mCallback.onPartialResult(text);
                 }
             }
@@ -252,19 +280,15 @@ public class VoskSpeechEngine implements SpeechEngine {
             }
             mRecognizer = null;
         }
-        if (mModel != null) {
-            try {
-                mModel.close();
-            } catch (Exception e) {
-                Log.e(TAG, "Error closing model", e);
-            }
-            mModel = null;
-        }
+        
+        // 不要关闭 Model，因为它被缓存了
+        // Model 会在 VoskModelCache.clearCache() 时统一关闭
+        mModel = null;
         
         // 重置状态
         mIsReleasing = false;
         
-        Log.d(TAG, "Released");
+        Log.d(TAG, "Released (model kept in cache)");
     }
     
     @Override
@@ -317,8 +341,16 @@ public class VoskSpeechEngine implements SpeechEngine {
     
     /**
      * 检查模型是否已下载
+     * 支持检查任意品质的模型（小型、标准、大型）
      */
     public static boolean isModelDownloaded(Context context, String language) {
+        // 首先使用 VoskModelManager 检查（支持所有品质）
+        VoskModelManager modelManager = new VoskModelManager(context);
+        if (modelManager.isLanguageInstalled(language)) {
+            return true;
+        }
+        
+        // 回退到旧的检查方式（仅检查小型模型）
         String modelPath = getModelPath(language);
         if (modelPath == null) return false;
         

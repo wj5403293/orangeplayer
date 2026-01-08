@@ -44,7 +44,7 @@ import java.util.List;
  */
 public class MainActivity extends AppCompatActivity {
 
-    private static final String DEFAULT_VIDEO_URL = "https://v.cdnlz22.com/20240815/3725_2916c479/index.m3u8";
+    private static final String DEFAULT_VIDEO_URL = "http://player.alicdn.com/video/aliyunmedia.mp4";
     private static final String DEFAULT_VIDEO_TITLE = "测试视频";
 
     private OrangevideoView mVideoView;

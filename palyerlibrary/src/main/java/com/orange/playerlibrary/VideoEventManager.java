@@ -3646,9 +3646,10 @@ public class VideoEventManager {
     // 当前显示的语音字幕
     private String mCurrentSpeechSubtitle = "";
     private long mLastSpeechSubtitleUpdateTime = 0;
+    private long mLastSpeechSubtitleClearTime = 0; // 上次清空字幕的时间
     
     /**
-     * 显示语音识别字幕（每秒刷新当前结果，避免叠加）
+     * 显示语音识别字幕（超过10个字符自动清空）
      * @param text 字幕文本
      * @param isFinal 是否是最终结果
      */
@@ -3662,84 +3663,33 @@ public class VideoEventManager {
         // 清理文本：去除多余空格
         text = cleanSpeechText(text);
         
-        // 限制字幕最大长度（避免字幕过长）
-        final int MAX_SUBTITLE_LENGTH = 25; // 最多显示 25 个字符
+        // 检查是否需要清空（当前字幕超过10个字符，且新文本也超过10个字符）
+        if (mCurrentSpeechSubtitle.length() >= 10 && text.length() >= 10) {
+            // 清空字幕
+            mController.getSubtitleManager().showText("");
+            mCurrentSpeechSubtitle = "";
+            Log.d(TAG, "========== Auto CLEAR subtitle (>10 chars) ==========");
+        }
+        
+        // 限制字幕最大长度：只显示最后 15 个字符
+        final int MAX_SUBTITLE_LENGTH = 15;
         if (text.length() > MAX_SUBTITLE_LENGTH) {
             // 超过最大长度，只保留最后的部分
             text = "..." + text.substring(text.length() - MAX_SUBTITLE_LENGTH);
-            Log.d(TAG, "showSpeechSubtitle: text truncated to " + MAX_SUBTITLE_LENGTH + " chars");
         }
         
-        long currentTime = System.currentTimeMillis();
-        
-        // 更新当前字幕内容
-        mCurrentSpeechSubtitle = text;
-        mLastSpeechSubtitleUpdateTime = currentTime;
-        
-        // 取消之前的隐藏任务
-        if (mSpeechSubtitleHideRunnable != null) {
-            mMainHandler.removeCallbacks(mSpeechSubtitleHideRunnable);
-        }
-        
-        // 取消之前的刷新任务
-        if (mSpeechSubtitleRefreshRunnable != null) {
-            mMainHandler.removeCallbacks(mSpeechSubtitleRefreshRunnable);
-        }
-        
-        // 显示字幕
-        mController.getSubtitleManager().showText(text);
-        Log.d(TAG, "showSpeechSubtitle: text=" + text + ", isFinal=" + isFinal + ", time=" + currentTime);
-        
-        if (isFinal) {
-            // 最终结果：显示一段时间后隐藏
-            long duration = SPEECH_SUBTITLE_FINAL_DURATION;
-            mSpeechSubtitleHideRunnable = () -> {
-                if (mController != null && mController.getSubtitleManager() != null) {
-                    // 只有在语音识别仍在运行时才隐藏
-                    if (isSpeechRunning()) {
-                        mController.getSubtitleManager().showText("");
-                        mCurrentSpeechSubtitle = "";
-                    }
-                }
-            };
-            mMainHandler.postDelayed(mSpeechSubtitleHideRunnable, duration);
-        } else {
-            // Partial 结果：启动定时刷新，每秒显示最新的识别结果
-            mSpeechSubtitleRefreshRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    if (!isSpeechRunning()) {
-                        return;
-                    }
-                    
-                    long timeSinceLastUpdate = System.currentTimeMillis() - mLastSpeechSubtitleUpdateTime;
-                    
-                    // 如果超过2秒没有新的识别结果，清空字幕
-                    if (timeSinceLastUpdate > 2000) {
-                        if (mController != null && mController.getSubtitleManager() != null) {
-                            mController.getSubtitleManager().showText("");
-                            mCurrentSpeechSubtitle = "";
-                            Log.d(TAG, "Speech subtitle cleared due to timeout");
-                        }
-                    } else {
-                        // 继续显示当前字幕
-                        if (mController != null && mController.getSubtitleManager() != null) {
-                            mController.getSubtitleManager().showText(mCurrentSpeechSubtitle);
-                            Log.v(TAG, "Speech subtitle refreshed: " + mCurrentSpeechSubtitle);
-                        }
-                        // 继续下一次刷新
-                        mMainHandler.postDelayed(this, SPEECH_SUBTITLE_REFRESH_INTERVAL);
-                    }
-                }
-            };
-            mMainHandler.postDelayed(mSpeechSubtitleRefreshRunnable, SPEECH_SUBTITLE_REFRESH_INTERVAL);
+        // 只有文本变化时才更新显示（避免频繁刷新）
+        if (!text.equals(mCurrentSpeechSubtitle)) {
+            mController.getSubtitleManager().showText(text);
+            mCurrentSpeechSubtitle = text;
+            Log.v(TAG, "Update subtitle: [" + text + "]");
         }
     }
     
     /**
      * 清理语音识别文本
      * 1. 去除首尾空格
-     * 2. 将多个连续空格替换为单个空格
+     * 2. 将多个连续空格替换为单个空格（去除流式输出的空格问题）
      * 3. 去除换行符前后的空格
      */
     private String cleanSpeechText(String text) {
@@ -3750,7 +3700,7 @@ public class VideoEventManager {
         // 去除首尾空格
         text = text.trim();
         
-        // 将多个连续空格替换为单个空格
+        // 将多个连续空格替换为单个空格（解决 "11 22 33 33 555" 的问题）
         text = text.replaceAll("\\s+", " ");
         
         // 如果包含换行符（翻译字幕），去除换行符前后的空格
@@ -3759,6 +3709,29 @@ public class VideoEventManager {
         }
         
         return text;
+    }
+    
+    /**
+     * 格式化语音字幕（类似 OCR 的双层显示）
+     * @param originalText 原文
+     * @param translatedText 译文
+     * @param translationEnabled 是否启用翻译
+     * @return 格式化后的字幕文本
+     */
+    private String formatSpeechSubtitle(String originalText, String translatedText, boolean translationEnabled) {
+        // 清理文本
+        originalText = cleanSpeechText(originalText);
+        if (translatedText != null) {
+            translatedText = cleanSpeechText(translatedText);
+        }
+        
+        if (!translationEnabled || translatedText == null || translatedText.isEmpty()) {
+            // 未启用翻译或翻译失败，只显示原文
+            return originalText;
+        }
+        
+        // 启用翻译，显示双层字幕（原文 + 译文）
+        return originalText + "\n" + translatedText;
     }
     
     /**
@@ -3987,7 +3960,12 @@ public class VideoEventManager {
                     
                     Log.d(TAG, "Starting speech translate: source=" + sourceLang + ", target=" + targetLang);
                     dialog.dismiss();
-                    startSpeechTranslate(sourceLang, targetLang);
+                    
+                    // 提前加载模型（在后台线程）
+                    preloadSpeechModel(sourceLang, () -> {
+                        // 模型加载完成后启动识别
+                        startSpeechTranslate(sourceLang, targetLang);
+                    });
                 });
             }
             
@@ -4048,6 +4026,65 @@ public class VideoEventManager {
         doStartSpeechTranslate(sourceLang, targetLang);
     }
     
+    /**
+     * 提前加载语音模型（在后台线程，避免卡顿）
+     * 点击开始识别时调用，加载完成后再启动识别服务
+     * @param language 语言代码
+     * @param onComplete 加载完成回调
+     */
+    private void preloadSpeechModel(String language, Runnable onComplete) {
+        // 检查是否已缓存
+        com.orange.playerlibrary.speech.VoskModelCache cache = com.orange.playerlibrary.speech.VoskModelCache.getInstance();
+        if (cache.isModelCached(language)) {
+            Log.d(TAG, "Model already cached, starting recognition immediately");
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+        
+        // 使用下载进度对话框
+        final DownloadProgressDialog loadingDialog = new DownloadProgressDialog(mActivity);
+        loadingDialog.showWithRealProgress("正在加载语音模型");
+        
+        // 在后台线程加载模型
+        new Thread(() -> {
+            try {
+                // 模拟进度更新
+                mActivity.runOnUiThread(() -> loadingDialog.setProgress(10, "正在读取模型文件..."));
+                
+                // 使用缓存管理器加载模型
+                org.vosk.Model model = cache.loadAndCacheModel(mActivity, language);
+                
+                mActivity.runOnUiThread(() -> loadingDialog.setProgress(90, "模型加载完成"));
+                
+                // 短暂延迟让用户看到完成状态
+                Thread.sleep(300);
+                
+                // 回到主线程
+                mActivity.runOnUiThread(() -> {
+                    loadingDialog.complete();
+                    if (model != null) {
+                        Log.d(TAG, "Model preloaded and cached successfully, starting recognition service");
+                        // 模型加载成功，启动识别服务
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                    } else {
+                        loadingDialog.fail("模型加载失败");
+                        showToast("模型加载失败");
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to preload model", e);
+                mActivity.runOnUiThread(() -> {
+                    loadingDialog.fail("模型加载失败: " + e.getMessage());
+                    showToast("模型加载失败: " + e.getMessage());
+                });
+            }
+        }, "ModelPreloadThread").start();
+    }
+    
     // MediaProjection 权限回调需要的变量（不是麦克风权限）
     private String mPendingSpeechSourceLang;
     private String mPendingSpeechTargetLang;
@@ -4063,6 +4100,7 @@ public class VideoEventManager {
     
     /**
      * 实际启动语音识别翻译（使用 Vosk + AudioPlaybackCapture）
+     * 注意：调用此方法前应该已经通过 preloadSpeechModel 加载了模型
      */
     private void doStartSpeechTranslate(String sourceLang, String targetLang) {
         Log.d(TAG, "doStartSpeechTranslate: sourceLang=" + sourceLang + ", targetLang=" + targetLang);
@@ -4079,9 +4117,7 @@ public class VideoEventManager {
             return;
         }
         
-        showToast("正在初始化语音识别...");
-        
-        // 创建语音字幕管理器
+        // 创建语音字幕管理器（模型已经预加载，这里会很快）
         com.orange.playerlibrary.speech.SpeechSubtitleManager speechManager = 
             new com.orange.playerlibrary.speech.SpeechSubtitleManager(mActivity);
         
@@ -4089,14 +4125,11 @@ public class VideoEventManager {
         speechManager.setCallback(new com.orange.playerlibrary.speech.SpeechSubtitleManager.SpeechSubtitleCallback() {
             @Override
             public void onPartialSubtitle(String text, String translatedText) {
-                // 显示 partial 结果（现在只包含新增内容）
+                // 显示 partial 结果
                 mActivity.runOnUiThread(() -> {
                     if (mController != null && mController.getSubtitleManager() != null) {
-                        String displayText = text;
-                        if (translatedText != null && !translatedText.isEmpty()) {
-                            displayText = text + "\n" + translatedText;
-                        }
-                        Log.d(TAG, "Speech partial: " + displayText);
+                        String displayText = formatSpeechSubtitle(text, translatedText, targetLang != null);
+                        Log.d(TAG, "---------- Speech PARTIAL callback: original=[" + text + "], translated=[" + translatedText + "], display=[" + displayText + "] ----------");
                         showSpeechSubtitle(displayText, false);
                     }
                 });
@@ -4107,11 +4140,8 @@ public class VideoEventManager {
                 // 显示最终结果
                 mActivity.runOnUiThread(() -> {
                     if (mController != null && mController.getSubtitleManager() != null) {
-                        String displayText = text;
-                        if (translatedText != null && !translatedText.isEmpty()) {
-                            displayText = text + "\n" + translatedText;
-                        }
-                        Log.d(TAG, "Speech final: " + displayText);
+                        String displayText = formatSpeechSubtitle(text, translatedText, targetLang != null);
+                        Log.d(TAG, "---------- Speech FINAL callback: original=[" + text + "], translated=[" + translatedText + "], display=[" + displayText + "] ----------");
                         showSpeechSubtitle(displayText, true);
                     }
                 });
@@ -4127,9 +4157,11 @@ public class VideoEventManager {
             @Override
             public void onStateChanged(boolean isListening) {
                 Log.d(TAG, "Speech state changed: " + isListening);
-                if (isListening) {
-                    mActivity.runOnUiThread(() -> showToast("语音识别已启动"));
-                }
+                mActivity.runOnUiThread(() -> {
+                    if (isListening) {
+                        showToast("语音识别已启动");
+                    }
+                });
             }
         });
         
@@ -4264,8 +4296,15 @@ public class VideoEventManager {
             mSpeechSubtitleRefreshRunnable = null;
         }
         
-        // 清空字幕
+        // 关闭字幕显示
+        if (mController != null && mController.getSubtitleManager() != null) {
+            mController.getSubtitleManager().showText("");
+            mCurrentSpeechSubtitle = "";
+        }
+        
+        // 清空字幕和时间戳
         mCurrentSpeechSubtitle = "";
+        mLastSpeechSubtitleClearTime = 0;
         if (mController != null && mController.getSubtitleManager() != null) {
             mController.getSubtitleManager().showText("");
         }

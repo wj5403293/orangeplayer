@@ -230,21 +230,30 @@ public class SpeechSubtitleManager {
                 // 设置回调
                 mCaptureService.setCallback(mCaptureCallback);
                 
-                // 初始化 Vosk
-                if (!mCaptureService.initVosk(mSourceLanguage)) {
-                    if (mCallback != null) {
-                        mMainHandler.post(() -> mCallback.onError("语音识别引擎初始化失败"));
+                // 通知用户正在加载模型
+                if (mCallback != null) {
+                    mCallback.onStateChanged(false); // 还未开始识别
+                }
+                
+                // 异步初始化 Vosk（避免大型模型加载卡顿）
+                mCaptureService.initVoskAsync(mSourceLanguage, success -> {
+                    if (!success) {
+                        if (mCallback != null) {
+                            mMainHandler.post(() -> mCallback.onError("语音识别引擎初始化失败"));
+                        }
+                        return;
                     }
-                    return;
-                }
-                
-                // 初始化翻译
-                if (mTranslationEnabled) {
-                    initTranslation();
-                }
-                
-                // 开始捕获
-                startCapture();
+                    
+                    Log.d(TAG, "Vosk initialized successfully");
+                    
+                    // 初始化翻译
+                    if (mTranslationEnabled) {
+                        initTranslation();
+                    }
+                    
+                    // 开始捕获
+                    startCapture();
+                });
             }
         }
         
