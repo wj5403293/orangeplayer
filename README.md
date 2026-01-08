@@ -87,10 +87,6 @@
 
 ### 1. 添加仓库
 
-**使用 Maven Central（推荐）**
-
-无需额外配置，Maven Central 已默认包含在 Gradle 中。
-
 **使用 JitPack**
 
 在项目根目录的 `settings.gradle` 中添加 JitPack 仓库：
