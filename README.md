@@ -3,9 +3,6 @@
 > **For Developers**: Professional Android video player library for building video applications.  
 > Open source under Apache 2.0 License.
 
-<p align="center">
-  <img src="docs/logo.png" width="200" alt="OrangePlayer Logo" />
-</p>
 
 <p align="center">
   <strong>功能完整的 Android 视频播放器 SDK</strong>
@@ -128,9 +125,7 @@ allprojects {
 ```gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:v1.0.7'  // JitPack
-    // 或
-    implementation 'io.github.706412584:orangeplayer:1.0.7'    // Maven Central
+    implementation 'com.github.706412584:orangeplayer:1.0.7'  // JitPack
     
     // GSY 基础依赖（必需）
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -141,7 +136,7 @@ dependencies {
 ```
 
 > 💡 **提示**：
-> - JitPack 版本：`com.github.706412584:orangeplayer:v1.0.7`（需要添加 JitPack 仓库）
+> - JitPack 版本：`com.github.706412584:orangeplayer:1.0.7`（需要添加 JitPack 仓库）
 > - 完整的依赖配置请查看 [安装指南](docs/INSTALLATION.md)
 
 ### 3. 布局文件
