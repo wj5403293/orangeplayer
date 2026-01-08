@@ -81,11 +81,14 @@ public class TesseractOcrEngine implements OcrEngine {
         }
         
         try {
+            // 图像预处理：优化复杂背景识别
+            Bitmap processedBitmap = preprocessImage(bitmap);
+            
             Class<?> tessClass = mTessBaseAPI.getClass();
             
             // setImage
             java.lang.reflect.Method setImageMethod = tessClass.getMethod("setImage", Bitmap.class);
-            setImageMethod.invoke(mTessBaseAPI, bitmap);
+            setImageMethod.invoke(mTessBaseAPI, processedBitmap);
             Log.d(TAG, "setImage() done");
             
             // getUTF8Text
@@ -97,12 +100,155 @@ public class TesseractOcrEngine implements OcrEngine {
             java.lang.reflect.Method clearMethod = tessClass.getMethod("clear");
             clearMethod.invoke(mTessBaseAPI);
             
+            // 释放处理后的图像
+            if (processedBitmap != bitmap) {
+                processedBitmap.recycle();
+            }
+            
             // 过滤并清理识别结果
             return filterOcrResult(result);
         } catch (Exception e) {
             Log.e(TAG, "Failed to recognize", e);
             return null;
         }
+    }
+    
+    /**
+     * 图像预处理：优化复杂背景的识别
+     * 1. 灰度化
+     * 2. 二值化（自适应阈值）
+     * 3. 去噪
+     */
+    private Bitmap preprocessImage(Bitmap original) {
+        try {
+            int width = original.getWidth();
+            int height = original.getHeight();
+            
+            // 创建可变的 Bitmap
+            Bitmap processed = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            
+            int[] pixels = new int[width * height];
+            original.getPixels(pixels, 0, width, 0, 0, width, height);
+            
+            // 第一步：灰度化
+            int[] grayPixels = new int[width * height];
+            for (int i = 0; i < pixels.length; i++) {
+                int pixel = pixels[i];
+                int r = (pixel >> 16) & 0xff;
+                int g = (pixel >> 8) & 0xff;
+                int b = pixel & 0xff;
+                
+                // 使用加权平均法灰度化
+                int gray = (int) (0.299 * r + 0.587 * g + 0.114 * b);
+                grayPixels[i] = gray;
+            }
+            
+            // 第二步：自适应二值化（Otsu算法）
+            int threshold = calculateOtsuThreshold(grayPixels);
+            Log.d(TAG, "Otsu threshold: " + threshold);
+            
+            // 应用二值化
+            for (int i = 0; i < grayPixels.length; i++) {
+                int gray = grayPixels[i];
+                // 大于阈值的设为白色（255），小于的设为黑色（0）
+                int binary = gray > threshold ? 255 : 0;
+                pixels[i] = 0xFF000000 | (binary << 16) | (binary << 8) | binary;
+            }
+            
+            // 第三步：简单去噪（中值滤波）
+            pixels = medianFilter(pixels, width, height);
+            
+            processed.setPixels(pixels, 0, width, 0, 0, width, height);
+            
+            Log.d(TAG, "Image preprocessing completed");
+            return processed;
+        } catch (Exception e) {
+            Log.e(TAG, "Image preprocessing failed, using original", e);
+            return original;
+        }
+    }
+    
+    /**
+     * 计算 Otsu 自适应阈值
+     */
+    private int calculateOtsuThreshold(int[] grayPixels) {
+        // 计算灰度直方图
+        int[] histogram = new int[256];
+        for (int gray : grayPixels) {
+            histogram[gray]++;
+        }
+        
+        int total = grayPixels.length;
+        float sum = 0;
+        for (int i = 0; i < 256; i++) {
+            sum += i * histogram[i];
+        }
+        
+        float sumB = 0;
+        int wB = 0;
+        int wF = 0;
+        
+        float varMax = 0;
+        int threshold = 0;
+        
+        for (int i = 0; i < 256; i++) {
+            wB += histogram[i];
+            if (wB == 0) continue;
+            
+            wF = total - wB;
+            if (wF == 0) break;
+            
+            sumB += i * histogram[i];
+            
+            float mB = sumB / wB;
+            float mF = (sum - sumB) / wF;
+            
+            float varBetween = (float) wB * (float) wF * (mB - mF) * (mB - mF);
+            
+            if (varBetween > varMax) {
+                varMax = varBetween;
+                threshold = i;
+            }
+        }
+        
+        return threshold;
+    }
+    
+    /**
+     * 中值滤波去噪
+     */
+    private int[] medianFilter(int[] pixels, int width, int height) {
+        int[] result = new int[pixels.length];
+        
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int index = y * width + x;
+                
+                // 边缘像素直接复制
+                if (x == 0 || x == width - 1 || y == 0 || y == height - 1) {
+                    result[index] = pixels[index];
+                    continue;
+                }
+                
+                // 3x3 窗口中值滤波
+                int[] window = new int[9];
+                int k = 0;
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        int idx = (y + dy) * width + (x + dx);
+                        window[k++] = pixels[idx] & 0xFF;
+                    }
+                }
+                
+                // 排序找中值
+                java.util.Arrays.sort(window);
+                int median = window[4];
+                
+                result[index] = 0xFF000000 | (median << 16) | (median << 8) | median;
+            }
+        }
+        
+        return result;
     }
     
     /**
