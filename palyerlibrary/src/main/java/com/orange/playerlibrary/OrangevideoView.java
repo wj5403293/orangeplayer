@@ -2256,6 +2256,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 int newVolume = Math.max(0, Math.min(max, mGestureDownVolume + deltaV));
                 audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVolume, 0);
                 int volumePercent = (int) (mGestureDownVolume * 100 / max + deltaY * 3 * 100 / curHeight);
+                // 限制音量百分比在 0-100 之间
+                volumePercent = Math.max(0, Math.min(100, volumePercent));
                 showVolumeDialog(-deltaY, volumePercent);
             }
         } else if (mBrightness) {

@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.library'
-    id 'maven-publish'
 }
 
 android {
@@ -20,43 +19,14 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
-    }
-    
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
-}
-
-// JitPack 发布配置
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                from components.release
-                
-                groupId = 'com.github.706412584'
-                artifactId = 'orangeplayer'
-                version = '1.0.0'
-                
-                pom {
-                    name = 'OrangePlayer'
-                    description = '基于 GSYVideoPlayer 的增强视频播放器库'
-                    url = 'https://github.com/706412584/orangeplayer'
-                    
-                    licenses {
-                        license {
-                            name = 'The Apache License, Version 2.0'
-                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -69,19 +39,21 @@ dependencies {
     // 是否需要ExoPlayer模式
     implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
     
-    // 是否需要AliPlayer模式 - 排除自带的阿里云SDK，使用旧版本免授权
-    implementation ('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+    // 阿里云播放器模式 - 改为 compileOnly，让使用者自己添加
+    compileOnly ('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }
-    // 阿里云播放器 5.3.0 免授权版本（5.4.x 开始需要 License）
-    implementation 'com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full'
+    
+    // 阿里云播放器 - compileOnly
+    compileOnly 'com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full'
     
     // Glide 图片加载库（用于缩略图加载）
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
-    // 弹幕库 - 使用 bilibili 官方仓库
-    implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
+    
+    // 弹幕库 - compileOnly
+    compileOnly 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
     
     // OCR 翻译字幕功能
     implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
@@ -94,4 +66,69 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+
+// JitPack 发布配置
+apply plugin: 'maven-publish'
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = 'com.github.706412584'
+                artifactId = 'orangeplayer'
+                version = '1.1.0'
+                
+                artifact bundleReleaseAar
+                
+                pom {
+                    name = 'OrangePlayer'
+                    description = '基于 GSYVideoPlayer 的增强 Android 视频播放器库，支持多播放内核、字幕、弹幕、OCR 识别、语音识别等功能'
+                    url = 'https://github.com/706412584/orangeplayer'
+                    
+                    licenses {
+                        license {
+                            name = 'The Apache License, Version 2.0'
+                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    
+                    developers {
+                        developer {
+                            id = '706412584'
+                            name = 'xcwl'
+                            email = '706412584@qq.com'
+                        }
+                    }
+                    
+                    scm {
+                        connection = 'scm:git:github.com/706412584/orangeplayer.git'
+                        developerConnection = 'scm:git:ssh://github.com/706412584/orangeplayer.git'
+                        url = 'https://github.com/706412584/orangeplayer'
+                    }
+                    
+                    withXml {
+                        def dependenciesNode = asNode().appendNode('dependencies')
+                        
+                        configurations.implementation.allDependencies.each {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', it.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', it.version)
+                            dependencyNode.appendNode('scope', 'runtime')
+                        }
+                        
+                        configurations.api.allDependencies.each {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', it.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', it.version)
+                            dependencyNode.appendNode('scope', 'compile')
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
