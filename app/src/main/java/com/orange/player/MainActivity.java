@@ -129,6 +129,22 @@ public class MainActivity extends AppCompatActivity {
         Button btnHistory = findViewById(R.id.btn_history);
         btnHistory.setOnClickListener(v -> showPlayHistoryDialog());
 
+        // 竖屏全屏测试按钮
+        Button btnEnterPortraitFullscreen = findViewById(R.id.btn_enter_portrait_fullscreen);
+        Button btnExitPortraitFullscreen = findViewById(R.id.btn_exit_portrait_fullscreen);
+
+        btnEnterPortraitFullscreen.setOnClickListener(v -> {
+            log("📱 进入竖屏全屏");
+            mVideoView.startPortraitFullScreen();
+            log("   isPortraitFullScreen: " + mVideoView.isPortraitFullScreen());
+        });
+
+        btnExitPortraitFullscreen.setOnClickListener(v -> {
+            log("📱 退出竖屏全屏");
+            mVideoView.stopPortraitFullScreen();
+            log("   isPortraitFullScreen: " + mVideoView.isPortraitFullScreen());
+        });
+
         log("🍊 橘子播放器 SDK Demo 启动");
         log("基于 GSYVideoPlayer 开源框架");
     }
