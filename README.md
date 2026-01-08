@@ -128,9 +128,9 @@ allprojects {
 ```gradle
 dependencies {
     // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:v1.0.6'  // JitPack
+    implementation 'com.github.706412584:orangeplayer:v1.0.7'  // JitPack
     // 或
-    implementation 'io.github.706412584:orangeplayer:1.0.6'    // Maven Central
+    implementation 'io.github.706412584:orangeplayer:1.0.7'    // Maven Central
     
     // GSY 基础依赖（必需）
     implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
@@ -141,8 +141,7 @@ dependencies {
 ```
 
 > 💡 **提示**：
-> - JitPack 版本：`com.github.706412584:orangeplayer:v1.0.6`（需要添加 JitPack 仓库）
-> - Maven Central 版本：`io.github.706412584:orangeplayer:1.0.6`（推荐，无需额外仓库）
+> - JitPack 版本：`com.github.706412584:orangeplayer:v1.0.7`（需要添加 JitPack 仓库）
 > - 完整的依赖配置请查看 [安装指南](docs/INSTALLATION.md)
 
 ### 3. 布局文件
