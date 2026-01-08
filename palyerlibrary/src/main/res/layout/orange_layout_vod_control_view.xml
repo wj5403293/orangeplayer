@@ -289,10 +289,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:padding="@dimen/orange_control_button_padding"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="@dimen/orange_control_button_padding"
+                android:paddingBottom="@dimen/orange_control_button_padding"
                 android:text="@string/orange_skip_header_footer"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/orange_control_button_text_size" />
+                android:textSize="13sp"
+                android:minWidth="0dp" />
 
             <!-- 倍速按钮 -->
             <TextView
@@ -300,10 +304,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:padding="@dimen/orange_control_button_padding"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="@dimen/orange_control_button_padding"
+                android:paddingBottom="@dimen/orange_control_button_padding"
                 android:text="@string/orange_speed_control"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/orange_control_button_text_size" />
+                android:textSize="13sp"
+                android:minWidth="0dp" />
 
             <!-- 播放源按钮 -->
             <TextView
@@ -323,10 +331,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:padding="@dimen/orange_control_button_padding"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="@dimen/orange_control_button_padding"
+                android:paddingBottom="@dimen/orange_control_button_padding"
                 android:text="@string/orange_episode_select"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/orange_control_button_text_size" />
+                android:textSize="13sp"
+                android:minWidth="0dp" />
 
             <!-- 全屏按钮（全屏时显示在弹幕区） -->
             <ImageView

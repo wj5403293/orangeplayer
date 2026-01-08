@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         if (mVideoView.isFullScreen()) {
-            mVideoView.exitFullScreen();
+            mVideoView.stopFullScreen();
             return;
         }
         super.onBackPressed();
@@ -306,15 +306,25 @@ playlist.add(video2);
 // 设置播放列表
 mVideoView.getVideoController().setVideoList(playlist);
 
-// 播放指定索引
-mVideoView.getVideoController().playIndex(0);
+// 播放第一个视频（手动设置 URL）
+HashMap<String, Object> firstVideo = playlist.get(0);
+String url = (String) firstVideo.get("url");
+String title = (String) firstVideo.get("title");
+mVideoView.setUp(url, true, title);
+mVideoView.startPlayLogic();
 
-// 播放下一个
-mVideoView.getVideoController().playNext();
+// 播放下一个（通过 VideoEventManager）
+VideoEventManager eventManager = mVideoView.getVideoController().getVideoEventManager();
+if (eventManager != null) {
+    eventManager.playNextEpisode();
+}
 
 // 监听播放完成，自动播放下一个
 mVideoView.setOnPlayCompleteListener(() -> {
-    mVideoView.getVideoController().playNext();
+    VideoEventManager eventManager = mVideoView.getVideoController().getVideoEventManager();
+    if (eventManager != null) {
+        eventManager.playNextEpisode();
+    }
 });
 ```
 
@@ -369,7 +379,7 @@ if (DLNACastManager.isDLNAAvailable()) {
     DLNACastManager.getInstance().startCast(
         this,
         mVideoView.getUrl(),
-        mVideoView.getVideoController().getTitle()
+        mVideoView.getVideoController().getVideoTitle()
     );
     
     // 监听投屏状态
@@ -467,37 +477,42 @@ private void startOcrTranslate() {
 ## 示例 13：语音识别字幕
 
 ```java
-import com.orange.playerlibrary.speech.VoskAvailabilityChecker;
-import com.orange.playerlibrary.VideoEventManager;
+import com.orange.playerlibrary.speech.SpeechSubtitleManager;
+import com.orange.playerlibrary.speech.VoskModelManager;
 
-// 检查 Vosk 是否可用
-if (VoskAvailabilityChecker.isVoskAvailable()) {
-    // 检查模型文件
-    File modelDir = new File(getExternalFilesDir(null), 
-        "vosk-models/vosk-model-small-cn");
+// 检查语音识别是否支持
+if (SpeechSubtitleManager.isSupported()) {
+    // 检查是否已安装语言模型
+    VoskModelManager modelManager = new VoskModelManager(this);
     
-    if (!modelDir.exists()) {
+    if (!modelManager.isLanguageInstalled("zh-CN")) {
         // 提示用户下载模型
         new AlertDialog.Builder(this)
             .setTitle("需要下载语音模型")
-            .setMessage("首次使用需要下载约 42MB 的中文语音模型")
-            .setPositiveButton("下载", (dialog, which) -> {
-                downloadVoskModel();
+            .setMessage("首次使用需要下载中文语音模型\n" +
+                       "小型模型: 42MB\n" +
+                       "标准模型: 250MB\n" +
+                       "大型模型: 1.3GB")
+            .setPositiveButton("管理语言包", (dialog, which) -> {
+                // 打开语言包管理界面
+                // 用户可以通过播放器设置按钮 -> 语音识别翻译 -> 管理语言包
+                Toast.makeText(this, 
+                    "请点击播放器设置 -> 语音识别翻译 -> 管理语言包", 
+                    Toast.LENGTH_LONG).show();
             })
             .setNegativeButton("取消", null)
             .show();
     } else {
-        // 启动语音识别
-        VideoEventManager eventManager = mVideoView.getVideoController()
-            .getVideoEventManager();
-        if (eventManager != null) {
-            eventManager.startSpeechTranslate();
-        }
+        // 语音识别通过播放器 UI 启动
+        // 用户点击设置按钮 -> 语音识别翻译 -> 选择语言 -> 开始识别
+        Toast.makeText(this, 
+            "请点击播放器设置按钮，选择语音识别翻译功能", 
+            Toast.LENGTH_SHORT).show();
     }
 } else {
-    Toast.makeText(this, 
-        "语音识别需要 Android 10 或更高版本", 
-        Toast.LENGTH_SHORT).show();
+    // 显示不支持的原因
+    String reason = SpeechSubtitleManager.getUnsupportedReason();
+    Toast.makeText(this, "语音识别不可用: " + reason, Toast.LENGTH_LONG).show();
 }
 ```
 

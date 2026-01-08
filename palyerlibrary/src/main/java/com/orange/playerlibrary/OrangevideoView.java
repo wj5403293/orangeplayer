@@ -1408,6 +1408,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public void setAutoRotateOnFullscreen(boolean autoRotate) {
         this.mAutoRotateOnFullscreen = autoRotate;
+        
+        // 同步到 PlayerSettingsManager
+        PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+        if (settingsManager != null) {
+            settingsManager.setAutoRotateEnabled(autoRotate);
+        }
+        
+        // 同步到 CustomFullscreenHelper
+        if (mFullscreenHelper != null) {
+            mFullscreenHelper.setAutoRotateEnabled(autoRotate);
+        }
     }
 
     public boolean isAutoRotateOnFullscreen() {

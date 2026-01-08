@@ -145,6 +145,39 @@ public class MainActivity extends AppCompatActivity {
             log("   isPortraitFullScreen: " + mVideoView.isPortraitFullScreen());
         });
 
+        // 更多功能示例按钮
+        Button btnSpeedTest = findViewById(R.id.btn_speed_test);
+        Button btnSwitchPlayer = findViewById(R.id.btn_switch_player);
+        Button btnSubtitleTest = findViewById(R.id.btn_subtitle_test);
+        Button btnPipTest = findViewById(R.id.btn_pip_test);
+
+        btnSpeedTest.setOnClickListener(v -> showSpeedDialog());
+        btnSwitchPlayer.setOnClickListener(v -> showPlayerSwitchDialog());
+        btnSubtitleTest.setOnClickListener(v -> testSubtitle());
+        btnPipTest.setOnClickListener(v -> enterPictureInPicture());
+
+        // 选集和播放功能按钮
+        Button btnAddEpisodes = findViewById(R.id.btn_add_episodes);
+        Button btnShowPlaylist = findViewById(R.id.btn_show_playlist);
+        Button btnPlayNext = findViewById(R.id.btn_play_next);
+        Button btnPlayMode = findViewById(R.id.btn_play_mode);
+
+        btnAddEpisodes.setOnClickListener(v -> addEpisodes());
+        btnShowPlaylist.setOnClickListener(v -> showPlaylist());
+        btnPlayNext.setOnClickListener(v -> playNextEpisode());
+        btnPlayMode.setOnClickListener(v -> showPlayModeDialog());
+
+        // 投屏和下载功能按钮
+        Button btnCastScreen = findViewById(R.id.btn_cast_screen);
+        Button btnDownloadVideo = findViewById(R.id.btn_download_video);
+        Button btnClearEpisodes = findViewById(R.id.btn_clear_episodes);
+        Button btnTestFeature = findViewById(R.id.btn_test_feature);
+
+        btnCastScreen.setOnClickListener(v -> testCastScreen());
+        btnDownloadVideo.setOnClickListener(v -> testDownloadVideo());
+        btnClearEpisodes.setOnClickListener(v -> clearEpisodes());
+        btnTestFeature.setOnClickListener(v -> showMoreTestDialog());
+
         log("🍊 橘子播放器 SDK Demo 启动");
         log("基于 GSYVideoPlayer 开源框架");
     }
@@ -593,6 +626,445 @@ public class MainActivity extends AppCompatActivity {
             return String.format("%d:%02d:%02d", hours, minutes, seconds);
         }
         return String.format("%02d:%02d", minutes, seconds);
+    }
+
+    // ===== 更多功能示例 =====
+
+    /**
+     * 倍速测试
+     */
+    private void showSpeedDialog() {
+        String[] speeds = {"0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "2.0x", "3.0x"};
+        float[] speedValues = {0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 3.0f};
+        
+        new AlertDialog.Builder(this)
+            .setTitle("选择播放倍速")
+            .setItems(speeds, (dialog, which) -> {
+                float speed = speedValues[which];
+                mVideoView.setSpeed(speed);
+                log("⚡ 设置倍速: " + speeds[which]);
+            })
+            .show();
+    }
+
+    /**
+     * 切换播放器内核
+     */
+    private void showPlayerSwitchDialog() {
+        String[] players = {"系统播放器", "ExoPlayer", "IJK播放器"};
+        String[] engines = {
+            com.orange.playerlibrary.PlayerConstants.ENGINE_DEFAULT,
+            com.orange.playerlibrary.PlayerConstants.ENGINE_EXO,
+            com.orange.playerlibrary.PlayerConstants.ENGINE_IJK
+        };
+        
+        new AlertDialog.Builder(this)
+            .setTitle("选择播放器内核")
+            .setItems(players, (dialog, which) -> {
+                String engine = engines[which];
+                long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+                
+                // 切换播放器
+                mVideoView.selectPlayerFactory(engine);
+                mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
+                
+                // 从当前位置继续播放
+                if (currentPosition > 0) {
+                    mVideoView.setSeekOnStart(currentPosition);
+                }
+                
+                mVideoView.startPlayLogic();
+                log("🔄 切换播放器: " + players[which]);
+            })
+            .show();
+    }
+
+    /**
+     * 字幕测试
+     */
+    private void testSubtitle() {
+        // 示例字幕URL（需要替换为实际的字幕文件）
+        String subtitleUrl = "https://example.com/subtitle.srt";
+        
+        new AlertDialog.Builder(this)
+            .setTitle("字幕功能")
+            .setMessage("字幕功能需要提供 .srt 或 .ass 格式的字幕文件URL")
+            .setPositiveButton("加载示例字幕", (dialog, which) -> {
+                if (mController != null) {
+                    mController.loadSubtitle(subtitleUrl, 
+                        new com.orange.playerlibrary.subtitle.SubtitleManager.OnSubtitleLoadListener() {
+                            @Override
+                            public void onLoadSuccess(int count) {
+                                log("✓ 字幕加载成功，共 " + count + " 条");
+                                mController.startSubtitle();
+                            }
+                            
+                            @Override
+                            public void onLoadFailed(String error) {
+                                log("❌ 字幕加载失败: " + error);
+                            }
+                        });
+                }
+            })
+            .setNegativeButton("切换字幕显示", (dialog, which) -> {
+                if (mController != null) {
+                    mController.toggleSubtitle();
+                    boolean enabled = mController.isSubtitleEnabled();
+                    log("字幕: " + (enabled ? "显示" : "隐藏"));
+                }
+            })
+            .setNeutralButton("取消", null)
+            .show();
+    }
+
+    /**
+     * 进入画中画模式
+     */
+    private void enterPictureInPicture() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                android.app.PictureInPictureParams params = 
+                    new android.app.PictureInPictureParams.Builder()
+                        .setAspectRatio(new android.util.Rational(16, 9))
+                        .build();
+                enterPictureInPictureMode(params);
+                log("📺 进入画中画模式");
+            } catch (Exception e) {
+                log("❌ 进入画中画失败: " + e.getMessage());
+            }
+        } else {
+            log("❌ 画中画模式需要 Android 8.0+");
+        }
+    }
+
+    // ===== 选集功能 =====
+
+    /**
+     * 添加选集
+     */
+    private void addEpisodes() {
+        // 创建测试选集列表
+        ArrayList<HashMap<String, Object>> videoList = new ArrayList<>();
+        
+        // 添加多个测试视频
+        String[] videoUrls = {
+            "http://player.alicdn.com/video/aliyunmedia.mp4",
+            "https://media.w3.org/2010/05/sintel/trailer.mp4",
+            "http://vfx.mtime.cn/Video/2019/03/21/mp4/190321153853126488.mp4",
+            "http://vfx.mtime.cn/Video/2019/03/19/mp4/190319222227698228.mp4",
+            "http://vfx.mtime.cn/Video/2019/03/18/mp4/190318231014076505.mp4"
+        };
+        
+        for (int i = 0; i < videoUrls.length; i++) {
+            HashMap<String, Object> video = new HashMap<>();
+            video.put("name", "第" + (i + 1) + "集");
+            video.put("url", videoUrls[i]);
+            videoList.add(video);
+        }
+        
+        // 设置到控制器
+        mController.setVideoList(videoList);
+        log("✓ 添加选集: 共 " + videoList.size() + " 集");
+    }
+
+    /**
+     * 显示选集列表
+     */
+    private void showPlaylist() {
+        if (mController != null && mController.getVideoEventManager() != null) {
+            mController.getVideoEventManager().showPlaylistDialog();
+            log("📋 显示选集列表");
+        } else {
+            log("❌ 选集功能不可用");
+        }
+    }
+
+    /**
+     * 播放下一集
+     */
+    private void playNextEpisode() {
+        if (mController != null && mController.getVideoEventManager() != null) {
+            mController.getVideoEventManager().playNextEpisode();
+            log("⏭ 播放下一集");
+        } else {
+            log("❌ 下一集功能不可用");
+        }
+    }
+
+    /**
+     * 清空选集
+     */
+    private void clearEpisodes() {
+        if (mController != null) {
+            mController.removeVideoList();
+            log("🗑 清空选集列表");
+        }
+    }
+
+    /**
+     * 播放方式设置
+     */
+    private void showPlayModeDialog() {
+        String[] modes = {"顺序播放", "单集循环", "播放后暂停"};
+        String[] modeValues = {"sequential", "single_loop", "play_pause"};
+        
+        com.orange.playerlibrary.PlayerSettingsManager settings = 
+            com.orange.playerlibrary.PlayerSettingsManager.getInstance(this);
+        String currentMode = settings.getPlayMode();
+        
+        // 找到当前模式的索引
+        int currentIndex = 0;
+        for (int i = 0; i < modeValues.length; i++) {
+            if (modeValues[i].equals(currentMode)) {
+                currentIndex = i;
+                break;
+            }
+        }
+        
+        new AlertDialog.Builder(this)
+            .setTitle("选择播放方式")
+            .setSingleChoiceItems(modes, currentIndex, (dialog, which) -> {
+                String mode = modeValues[which];
+                settings.setPlayMode(mode);
+                log("🔄 设置播放方式: " + modes[which]);
+                dialog.dismiss();
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+
+    // ===== 投屏和下载功能 =====
+
+    /**
+     * 测试投屏功能
+     */
+    private void testCastScreen() {
+        // 检查 DLNA 是否可用
+        if (com.orange.playerlibrary.cast.DLNACastManager.isDLNAAvailable()) {
+            try {
+                com.orange.playerlibrary.cast.DLNACastManager.getInstance().startCast(
+                    this,
+                    mCurrentUrl,
+                    mCurrentTitle
+                );
+                log("📡 启动投屏功能");
+            } catch (Exception e) {
+                log("❌ 投屏失败: " + e.getMessage());
+            }
+        } else {
+            new AlertDialog.Builder(this)
+                .setTitle("投屏功能不可用")
+                .setMessage("投屏功能需要添加以下依赖：\n\n" +
+                           "implementation 'com.github.CarGuo.GSYVideoPlayer:gsyVideoPlayer-java:v8.6.0-release-jitpack'\n" +
+                           "implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.5.30'")
+                .setPositiveButton("确定", null)
+                .show();
+            log("❌ 投屏功能不可用（缺少依赖）");
+        }
+    }
+
+    /**
+     * 测试下载视频功能
+     */
+    private void testDownloadVideo() {
+        new AlertDialog.Builder(this)
+            .setTitle("下载视频")
+            .setMessage("当前视频：\n" + mCurrentTitle + "\n\n" +
+                       "URL: " + getShortUrl(mCurrentUrl) + "\n\n" +
+                       "下载功能需要自行实现，可以使用：\n" +
+                       "1. Android DownloadManager\n" +
+                       "2. OkHttp 下载\n" +
+                       "3. 第三方下载库")
+            .setPositiveButton("复制链接", (dialog, which) -> {
+                android.content.ClipboardManager clipboard = 
+                    (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                android.content.ClipData clip = 
+                    android.content.ClipData.newPlainText("video_url", mCurrentUrl);
+                clipboard.setPrimaryClip(clip);
+                log("✓ 视频链接已复制到剪贴板");
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+
+    /**
+     * 更多测试功能
+     */
+    private void showMoreTestDialog() {
+        String[] features = {
+            "测试循环播放",
+            "测试静音/恢复",
+            "测试亮度调节",
+            "测试音量调节",
+            "测试截图功能",
+            "测试播放信息"
+        };
+        
+        new AlertDialog.Builder(this)
+            .setTitle("更多测试功能")
+            .setItems(features, (dialog, which) -> {
+                switch (which) {
+                    case 0: // 循环播放
+                        boolean looping = !mVideoView.isLooping();
+                        mVideoView.setLooping(looping);
+                        log("🔁 循环播放: " + (looping ? "开启" : "关闭"));
+                        break;
+                    case 1: // 静音
+                        // 通过音量设置实现静音
+                        android.media.AudioManager audioManager = 
+                            (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+                        int currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                        if (currentVolume > 0) {
+                            audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 0, 0);
+                            log("🔇 已静音");
+                        } else {
+                            int maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                            audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, maxVolume / 2, 0);
+                            log("🔊 已恢复音量");
+                        }
+                        break;
+                    case 2: // 亮度调节
+                        showBrightnessDialog();
+                        break;
+                    case 3: // 音量调节
+                        showVolumeDialog();
+                        break;
+                    case 4: // 截图
+                        captureScreenshot();
+                        break;
+                    case 5: // 播放信息
+                        showPlaybackInfo();
+                        break;
+                }
+            })
+            .show();
+    }
+
+    /**
+     * 亮度调节对话框
+     */
+    private void showBrightnessDialog() {
+        View dialogView = new android.widget.LinearLayout(this);
+        ((android.widget.LinearLayout) dialogView).setOrientation(android.widget.LinearLayout.VERTICAL);
+        ((android.widget.LinearLayout) dialogView).setPadding(50, 30, 50, 30);
+        
+        android.widget.TextView title = new android.widget.TextView(this);
+        title.setText("调节亮度");
+        title.setTextSize(18);
+        title.setPadding(0, 0, 0, 20);
+        ((android.widget.LinearLayout) dialogView).addView(title);
+        
+        android.widget.SeekBar seekBar = new android.widget.SeekBar(this);
+        seekBar.setMax(100);
+        
+        // 获取当前亮度
+        float brightness = getWindow().getAttributes().screenBrightness;
+        if (brightness < 0) brightness = 0.5f;
+        seekBar.setProgress((int) (brightness * 100));
+        
+        seekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.screenBrightness = progress / 100f;
+                getWindow().setAttributes(lp);
+            }
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+        });
+        
+        ((android.widget.LinearLayout) dialogView).addView(seekBar);
+        
+        new AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("确定", null)
+            .show();
+    }
+
+    /**
+     * 音量调节对话框
+     */
+    private void showVolumeDialog() {
+        View dialogView = new android.widget.LinearLayout(this);
+        ((android.widget.LinearLayout) dialogView).setOrientation(android.widget.LinearLayout.VERTICAL);
+        ((android.widget.LinearLayout) dialogView).setPadding(50, 30, 50, 30);
+        
+        android.widget.TextView title = new android.widget.TextView(this);
+        title.setText("调节音量");
+        title.setTextSize(18);
+        title.setPadding(0, 0, 0, 20);
+        ((android.widget.LinearLayout) dialogView).addView(title);
+        
+        android.widget.SeekBar seekBar = new android.widget.SeekBar(this);
+        
+        android.media.AudioManager audioManager = 
+            (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+        int maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+        int currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+        
+        seekBar.setMax(maxVolume);
+        seekBar.setProgress(currentVolume);
+        
+        seekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, progress, 0);
+            }
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+        });
+        
+        ((android.widget.LinearLayout) dialogView).addView(seekBar);
+        
+        new AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("确定", null)
+            .show();
+    }
+
+    /**
+     * 截图功能
+     */
+    private void captureScreenshot() {
+        log("📷 截图功能需要自行实现");
+        log("   提示: 可以使用 TextureView.getBitmap() 或 SurfaceView 截图");
+        new AlertDialog.Builder(this)
+            .setTitle("截图功能")
+            .setMessage("截图功能需要根据播放器渲染方式实现：\n\n" +
+                       "1. TextureView: 使用 getBitmap()\n" +
+                       "2. SurfaceView: 使用 PixelCopy API\n" +
+                       "3. 或使用第三方截图库")
+            .setPositiveButton("确定", null)
+            .show();
+    }
+
+    /**
+     * 显示播放信息
+     */
+    private void showPlaybackInfo() {
+        long currentPos = mVideoView.getCurrentPositionWhenPlaying();
+        long duration = mVideoView.getDuration();
+        int bufferPercentage = mVideoView.getBuffterPoint();
+        
+        String info = "播放信息：\n\n" +
+                     "标题: " + mCurrentTitle + "\n" +
+                     "URL: " + getShortUrl(mCurrentUrl) + "\n\n" +
+                     "当前位置: " + formatTime(currentPos) + "\n" +
+                     "总时长: " + formatTime(duration) + "\n" +
+                     "缓冲进度: " + bufferPercentage + "%\n" +
+                     "播放状态: " + (mVideoView.isPlaying() ? "播放中" : "暂停") + "\n" +
+                     "全屏状态: " + (mVideoView.isFullScreen() ? "全屏" : "普通") + "\n" +
+                     "循环播放: " + (mVideoView.isLooping() ? "开启" : "关闭");
+        
+        new AlertDialog.Builder(this)
+            .setTitle("播放信息")
+            .setMessage(info)
+            .setPositiveButton("确定", null)
+            .show();
     }
 
     // ===== 播放历史适配器 =====
