@@ -382,12 +382,12 @@ public void onBackPressed() {
 
 ### 组件控制
 
-#### getController()
+#### getVideoController()
 
 获取播放器控制器。
 
 ```java
-OrangeVideoController getController()
+OrangeVideoController getVideoController()
 ```
 
 **返回值：** 控制器实例，如果未初始化返回 null
@@ -395,7 +395,7 @@ OrangeVideoController getController()
 **示例：**
 
 ```java
-OrangeVideoController controller = videoView.getController();
+OrangeVideoController controller = videoView.getVideoController();
 if (controller != null) {
     controller.setTitle("新标题");
 }
@@ -599,7 +599,7 @@ void loadSubtitle(String url, SubtitleManager.OnSubtitleLoadListener listener)
 **示例：**
 
 ```java
-OrangeVideoController controller = videoView.getController();
+OrangeVideoController controller = videoView.getVideoController();
 controller.loadSubtitle("https://example.com/subtitle.srt", 
     new SubtitleManager.OnSubtitleLoadListener() {
         @Override
@@ -922,7 +922,7 @@ void loadSubtitle(Uri uri, OnSubtitleLoadListener listener)
 **示例：**
 
 ```java
-SubtitleManager manager = videoView.getController().getSubtitleManager();
+SubtitleManager manager = videoView.getVideoController().getSubtitleManager();
 
 // 从 URL 加载
 manager.loadSubtitle("https://example.com/subtitle.srt", 

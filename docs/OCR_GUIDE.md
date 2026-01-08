@@ -242,7 +242,7 @@ if (OcrAvailabilityChecker.isOcrTranslateAvailable()) {
 ```java
 import com.orange.playerlibrary.VideoEventManager;
 
-VideoEventManager eventManager = videoView.getController().getVideoEventManager();
+VideoEventManager eventManager = videoView.getVideoController().getVideoEventManager();
 if (eventManager != null) {
     // 检查语言包
     LanguagePackManager manager = new LanguagePackManager(this);

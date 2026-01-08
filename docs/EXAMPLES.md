@@ -4,21 +4,24 @@
 
 ## 目录
 
-1. [基础播放器](#示例-1基础播放器)
-2. [带自定义请求头的播放](#示例-2带自定义请求头的播放)
-3. [播放状态监听](#示例-3播放状态监听)
-4. [播放进度监听](#示例-4播放进度监听)
-5. [播放完成监听](#示例-5播放完成监听)
-6. [倍速播放](#示例-6倍速播放)
-7. [字幕加载](#示例-7字幕加载)
-8. [弹幕功能](#示例-8弹幕功能)
-9. [播放列表](#示例-9播放列表)
-10. [画中画模式](#示例-10画中画模式)
-11. [投屏功能](#示例-11投屏功能)
-12. [OCR 字幕识别](#示例-12ocr-字幕识别)
-13. [语音识别字幕](#示例-13语音识别字幕)
-14. [播放器设置](#示例-14播放器设置)
-15. [错误处理](#示例-15错误处理)
+- [完整使用示例](#完整使用示例)
+  - [目录](#目录)
+  - [示例 1：基础播放器](#示例-1基础播放器)
+  - [示例 2：带自定义请求头的播放](#示例-2带自定义请求头的播放)
+  - [示例 3：播放状态监听](#示例-3播放状态监听)
+  - [示例 4：播放进度监听](#示例-4播放进度监听)
+  - [示例 5：播放完成监听](#示例-5播放完成监听)
+  - [示例 6：倍速播放](#示例-6倍速播放)
+  - [示例 7：字幕加载](#示例-7字幕加载)
+  - [示例 8：弹幕功能](#示例-8弹幕功能)
+  - [示例 9：播放列表](#示例-9播放列表)
+  - [示例 10：画中画模式](#示例-10画中画模式)
+  - [示例 11：投屏功能](#示例-11投屏功能)
+  - [示例 12：OCR 字幕识别](#示例-12ocr-字幕识别)
+  - [示例 13：语音识别字幕](#示例-13语音识别字幕)
+  - [示例 14：播放器设置](#示例-14播放器设置)
+  - [示例 15：错误处理](#示例-15错误处理)
+  - [更多资源](#更多资源)
 
 ---
 
@@ -224,7 +227,7 @@ new AlertDialog.Builder(this)
 import com.orange.playerlibrary.subtitle.SubtitleManager;
 
 // 获取字幕管理器
-SubtitleManager subtitleManager = mVideoView.getController().getSubtitleManager();
+SubtitleManager subtitleManager = mVideoView.getVideoController().getSubtitleManager();
 
 // 加载字幕文件
 subtitleManager.loadSubtitle("https://example.com/subtitle.srt", 
@@ -263,7 +266,7 @@ if (subtitleFile.exists()) {
 import com.orange.playerlibrary.danmaku.IDanmakuController;
 
 // 获取弹幕控制器
-IDanmakuController danmakuController = mVideoView.getController().getDanmakuController();
+IDanmakuController danmakuController = mVideoView.getVideoController().getDanmakuController();
 
 // 发送弹幕
 danmakuController.sendDanmaku("这是一条弹幕", 0xFFFFFFFF);  // 白色弹幕
@@ -301,17 +304,17 @@ video2.put("title", "视频 2");
 playlist.add(video2);
 
 // 设置播放列表
-mVideoView.getController().setVideoList(playlist);
+mVideoView.getVideoController().setVideoList(playlist);
 
 // 播放指定索引
-mVideoView.getController().playIndex(0);
+mVideoView.getVideoController().playIndex(0);
 
 // 播放下一个
-mVideoView.getController().playNext();
+mVideoView.getVideoController().playNext();
 
 // 监听播放完成，自动播放下一个
 mVideoView.setOnPlayCompleteListener(() -> {
-    mVideoView.getController().playNext();
+    mVideoView.getVideoController().playNext();
 });
 ```
 
@@ -345,10 +348,10 @@ public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
     
     if (isInPictureInPictureMode) {
         // 进入画中画模式，隐藏控制器
-        mVideoView.getController().hide();
+        mVideoView.getVideoController().hide();
     } else {
         // 退出画中画模式，显示控制器
-        mVideoView.getController().show();
+        mVideoView.getVideoController().show();
     }
 }
 ```
@@ -366,7 +369,7 @@ if (DLNACastManager.isDLNAAvailable()) {
     DLNACastManager.getInstance().startCast(
         this,
         mVideoView.getUrl(),
-        mVideoView.getController().getTitle()
+        mVideoView.getVideoController().getTitle()
     );
     
     // 监听投屏状态
@@ -485,7 +488,7 @@ if (VoskAvailabilityChecker.isVoskAvailable()) {
             .show();
     } else {
         // 启动语音识别
-        VideoEventManager eventManager = mVideoView.getController()
+        VideoEventManager eventManager = mVideoView.getVideoController()
             .getVideoEventManager();
         if (eventManager != null) {
             eventManager.startSpeechTranslate();

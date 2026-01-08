@@ -305,7 +305,7 @@ public void onBackPressed() {
 **3. 检查加载结果**
 
 ```java
-SubtitleManager manager = videoView.getController().getSubtitleManager();
+SubtitleManager manager = videoView.getVideoController().getSubtitleManager();
 manager.loadSubtitle(url, new SubtitleManager.OnSubtitleLoadListener() {
     @Override
     public void onLoadSuccess(int count) {
@@ -338,7 +338,7 @@ manager.setTextSize(18f);  // 18sp
 **1. 显示弹幕**
 
 ```java
-IDanmakuController danmaku = videoView.getController().getDanmakuController();
+IDanmakuController danmaku = videoView.getVideoController().getDanmakuController();
 danmaku.show();
 ```
 
@@ -647,9 +647,9 @@ public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
     super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
     
     if (isInPictureInPictureMode) {
-        videoView.getController().hide();
+        videoView.getVideoController().hide();
     } else {
-        videoView.getController().show();
+        videoView.getVideoController().show();
     }
 }
 ```
