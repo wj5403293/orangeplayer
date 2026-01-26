@@ -49,6 +49,9 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
     
     // 是否强制使用 TextureView 模式（禁用 SurfaceControl）
     private static boolean sForceTextureViewMode = false;
+    
+    // 当前视频是否为直播流
+    private boolean isLiveStream = false;
 
     private long lastTotalRxBytes = 0;
     private long lastTimeStamp = 0;
@@ -68,6 +71,45 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
     public static boolean isForceTextureViewMode() {
         return sForceTextureViewMode;
     }
+    
+    /**
+     * 检测 URL 是否为直播流
+     * 直播流协议：RTSP, RTMP, HLS (m3u8), FLV, WebRTC
+     */
+    private boolean isLiveStreamUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+        
+        String lowerUrl = url.toLowerCase();
+        
+        // RTSP 协议
+        if (lowerUrl.startsWith("rtsp://")) {
+            return true;
+        }
+        
+        // RTMP 协议
+        if (lowerUrl.startsWith("rtmp://") || lowerUrl.startsWith("rtmps://")) {
+            return true;
+        }
+        
+        // HLS 直播流（m3u8）
+        if (lowerUrl.contains(".m3u8")) {
+            return true;
+        }
+        
+        // FLV 直播流
+        if (lowerUrl.contains(".flv")) {
+            return true;
+        }
+        
+        // WebRTC
+        if (lowerUrl.startsWith("webrtc://")) {
+            return true;
+        }
+        
+        return false;
+    }
 
     @Override
     public IMediaPlayer getMediaPlayer() {
@@ -86,6 +128,11 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         }
         
         GSYModel gsyModel = (GSYModel) msg.obj;
+        
+        // 检测是否为直播流
+        isLiveStream = isLiveStreamUrl(gsyModel.getUrl());
+        android.util.Log.d(TAG, "initVideoPlayer: url=" + gsyModel.getUrl() + ", isLiveStream=" + isLiveStream);
+        
         try {
             mediaPlayer.setLooping(gsyModel.isLooping());
             mediaPlayer.setPreview(gsyModel.getMapHeadData() != null && gsyModel.getMapHeadData().size() > 0);
@@ -103,19 +150,22 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
                 mediaPlayer.setSpeed(gsyModel.getSpeed(), 1);
             }
             
-            // Android Q+ 使用 SurfaceControl 实现无缝切换（除非强制 TextureView 模式）
-            // 关键：在这里创建 SurfaceControl 并设置给 mediaPlayer
-            // mediaPlayer 始终使用同一个 videoSurface，通过 reparent 改变显示位置
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !sForceTextureViewMode) {
+            // Android Q+ 使用 SurfaceControl 实现无缝切换
+            // 关键修复：直播流强制使用 SurfaceControl，即使 OCR 开启也不例外
+            // 因为直播流没有缓冲，Surface 销毁会导致连接中断
+            boolean shouldUseSurfaceControl = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
+                                             (!sForceTextureViewMode || isLiveStream);
+            
+            if (shouldUseSurfaceControl) {
                 surfaceControl = new SurfaceControl.Builder()
                     .setName(SURFACE_CONTROL_NAME)
                     .setBufferSize(0, 0)
                     .build();
                 videoSurface = new Surface(surfaceControl);
                 mediaPlayer.setSurface(videoSurface);
-                android.util.Log.d(TAG, "initVideoPlayer: 使用 SurfaceControl 模式");
+                android.util.Log.d(TAG, "initVideoPlayer: 使用 SurfaceControl 模式 (isLiveStream=" + isLiveStream + ")");
             } else {
-                android.util.Log.d(TAG, "initVideoPlayer: 使用 TextureView 模式 (forceTextureView=" + sForceTextureViewMode + ")");
+                android.util.Log.d(TAG, "initVideoPlayer: 使用 TextureView 模式 (forceTextureView=" + sForceTextureViewMode + ", isLiveStream=" + isLiveStream + ")");
             }
         } catch (Exception e) {
             android.util.Log.e(TAG, "initVideoPlayer 异常: " + e.getMessage());

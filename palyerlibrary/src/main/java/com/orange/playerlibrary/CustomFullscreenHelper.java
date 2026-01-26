@@ -240,6 +240,12 @@ public class CustomFullscreenHelper {
                 if (mOriginalParent != null) {
                     mOriginalIndex = mOriginalParent.indexOfChild(mVideoView);
                     mOriginalLayoutParams = mVideoView.getLayoutParams();
+                    
+                    android.util.Log.d(TAG, "startFullScreen: 保存原始 LayoutParams: " + 
+                        mOriginalLayoutParams.width + "x" + mOriginalLayoutParams.height);
+                    android.util.Log.d(TAG, "startFullScreen: mVideoView 当前尺寸: " + 
+                        mVideoView.getWidth() + "x" + mVideoView.getHeight());
+                    
                     // 从原始父容器移除
                     mOriginalParent.removeView(mVideoView);
                 }
@@ -379,6 +385,19 @@ public class CustomFullscreenHelper {
             return;
         }
         
+        // 记录屏幕尺寸信息
+        android.util.DisplayMetrics dm = activity.getResources().getDisplayMetrics();
+        android.util.Log.d(TAG, "stopFullScreen: 屏幕尺寸 widthPixels=" + dm.widthPixels + ", heightPixels=" + dm.heightPixels);
+        android.util.Log.d(TAG, "stopFullScreen: DecorView 尺寸=" + decorView.getWidth() + "x" + decorView.getHeight());
+        
+        // 检查导航栏高度
+        int navigationBarHeight = 0;
+        int resourceId = activity.getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            navigationBarHeight = activity.getResources().getDimensionPixelSize(resourceId);
+            android.util.Log.d(TAG, "stopFullScreen: 导航栏高度=" + navigationBarHeight);
+        }
+        
         // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
         android.util.Log.d(TAG, "stopFullScreen: calling pauseOcrIfRunning");
         pauseOcrIfRunning();
@@ -423,7 +442,30 @@ public class CustomFullscreenHelper {
                 
                 // 5. 恢复到原始父容器
                 if (mOriginalParent != null && mOriginalLayoutParams != null) {
+                    android.util.Log.d(TAG, "stopFullScreen: 恢复原始 LayoutParams: " + 
+                        mOriginalLayoutParams.width + "x" + mOriginalLayoutParams.height);
                     mOriginalParent.addView(mVideoView, mOriginalIndex, mOriginalLayoutParams);
+                    
+                    // 关键修复：强制重新测量和布局
+                    // 因为根布局有 fitsSystemWindows=true，系统 UI 恢复后布局会变化
+                    // 需要强制 mVideoView 重新计算尺寸
+                    mVideoView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            // 强制父容器重新布局
+                            if (mOriginalParent != null) {
+                                mOriginalParent.requestLayout();
+                            }
+                            
+                            // 强制 mVideoView 重新测量
+                            mVideoView.requestLayout();
+                            
+                            android.util.Log.d(TAG, "stopFullScreen: 恢复后 mVideoView size=" + 
+                                mVideoView.getWidth() + "x" + mVideoView.getHeight());
+                            android.util.Log.d(TAG, "stopFullScreen: 恢复后 LayoutParams=" + 
+                                mVideoView.getLayoutParams().width + "x" + mVideoView.getLayoutParams().height);
+                        }
+                    });
                 }
                 
                 // 6. 通知状态变化
@@ -437,12 +479,25 @@ public class CustomFullscreenHelper {
                 }
                 
                 // 7. 触发渲染视图重新布局
+                android.util.Log.d(TAG, "stopFullScreen: 步骤7 - 触发渲染视图重新布局");
+                android.util.Log.d(TAG, "stopFullScreen: mVideoView size=" + mVideoView.getWidth() + "x" + mVideoView.getHeight());
+                if (mVideoView.getRenderProxy() != null) {
+                    android.util.Log.d(TAG, "stopFullScreen: RenderProxy size=" + 
+                        mVideoView.getRenderProxy().getWidth() + "x" + mVideoView.getRenderProxy().getHeight());
+                }
                 mVideoView.requestLayout();
                 
                 // 8. 延迟再次触发布局
                 mVideoView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
+                        android.util.Log.d(TAG, "stopFullScreen: 步骤8 (100ms延迟) - 再次触发布局");
+                        android.util.Log.d(TAG, "stopFullScreen: mVideoView size=" + mVideoView.getWidth() + "x" + mVideoView.getHeight());
+                        if (mVideoView.getRenderProxy() != null) {
+                            android.util.Log.d(TAG, "stopFullScreen: RenderProxy size=" + 
+                                mVideoView.getRenderProxy().getWidth() + "x" + mVideoView.getRenderProxy().getHeight());
+                        }
+                        
                         mVideoView.requestLayout();
                         if (mVideoView.getRenderProxy() != null) {
                             mVideoView.getRenderProxy().requestLayout();
