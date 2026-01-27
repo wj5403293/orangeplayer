@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://jitpack.io/#706412584/orangeplayer"><img src="https://jitpack.io/v/706412584/orangeplayer.svg" alt="JitPack"></a>
+  <a href="https://central.sonatype.com/artifact/io.github.706412584/orangeplayer"><img src="https://img.shields.io/maven-central/v/io.github.706412584/orangeplayer.svg" alt="Maven Central"></a>
   <a href="https://github.com/706412584/orangeplayer/actions/workflows/android.yml"><img src="https://github.com/706412584/orangeplayer/actions/workflows/android.yml/badge.svg" alt="Android CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://android-arsenal.com/api?level=21"><img src="https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat" alt="API"></a>
@@ -85,57 +85,67 @@
 
 ## 快速开始
 
-### 1. 添加仓库
+### 1. 添加依赖
 
-**使用 JitPack**
+**⚠️ 重要更新：我们已从 JitPack 迁移到 Maven Central**
 
-在项目根目录的 `settings.gradle` 中添加 JitPack 仓库：
+在 `app/build.gradle` 中添加：
 
 ```gradle
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }  // 添加 JitPack 仓库
-    }
+dependencies {
+    // OrangePlayer 核心库（Maven Central）
+    implementation 'io.github.706412584:orangeplayer:1.0.8'
+    
+    // 必需依赖
+    implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载
+    
+    // 播放器内核（至少选择一个）
+    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'      // IJK 播放器（推荐）
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0' // ExoPlayer
+    
+    // 可选依赖（按需添加）
+    implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'  // 弹幕功能
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'  // OCR 识别
+    implementation 'com.google.mlkit:translate:17.0.2'  // ML Kit 翻译
+    implementation 'com.alphacephei:vosk-android:0.3.47'  // 语音识别
+    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1'  // FFmpeg 解码器
 }
 ```
 
-或者在 `build.gradle` (Project) 中添加：
+**阿里云播放器（可选）：**
+
+```gradle
+dependencies {
+    // 阿里云播放器支持（排除内置版本，避免授权问题）
+    implementation('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+        exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
+        exclude group: 'com.alivc.conan', module: 'AlivcConan'
+    }
+    
+    // 使用 5.4.7.1 版本（无需授权）
+    implementation 'com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full'
+}
+```
+
+需要在项目根目录的 `build.gradle` 中添加阿里云 Maven 仓库：
 
 ```gradle
 allprojects {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://jitpack.io' }  // 添加 JitPack 仓库
+        maven { url 'https://maven.aliyun.com/repository/releases' }
     }
 }
 ```
 
-### 2. 添加依赖
-
-在 `app/build.gradle` 中添加：
-
-```gradle
-dependencies {
-    // OrangePlayer 核心库
-    implementation 'com.github.706412584:orangeplayer:1.0.7'  // JitPack
-    
-    // GSY 基础依赖（必需）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
-    
-    // ExoPlayer 播放内核（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
-}
-```
-
-> 💡 **提示**：
-> - JitPack 版本：`com.github.706412584:orangeplayer:1.0.7`（需要添加 JitPack 仓库）
+> 💡 **依赖说明**：
+> - **必需**：`orangeplayer` + `glide` + 至少一个播放器内核
+> - **播放器内核**：IJK（推荐，支持更多格式）、ExoPlayer（性能好）、系统播放器（无需额外依赖）、阿里云（商业级）
+> - **可选功能**：弹幕、OCR、语音识别、FFmpeg 解码器等按需添加
 > - 完整的依赖配置请查看 [安装指南](docs/INSTALLATION.md)
 
-### 3. 布局文件
+### 2. 布局文件
 
 ```xml
 <com.orange.playerlibrary.OrangevideoView
@@ -144,7 +154,7 @@ dependencies {
     android:layout_height="200dp" />
 ```
 
-### 4. 基本使用
+### 3. 基本使用
 
 ```java
 import com.orange.playerlibrary.OrangevideoView;
@@ -243,7 +253,27 @@ videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
 
 ---
 
-## 可选功能
+## 可选功能依赖
+
+OrangePlayer 采用模块化设计，所有高级功能都是可选的，按需添加即可。
+
+### 弹幕功能
+
+```gradle
+dependencies {
+    implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
+}
+```
+
+使用方法：
+
+```java
+// 启用弹幕
+videoView.setDanmakuEnabled(true);
+
+// 发送弹幕
+videoView.sendDanmaku("弹幕内容", textSize, textColor);
+```
 
 ### OCR 字幕翻译
 
@@ -270,6 +300,68 @@ dependencies {
 
 详细配置请查看 [语音识别指南](docs/SPEECH_RECOGNITION.md)。
 
+### FFmpeg 解码器
+
+增强的音视频解码支持，处理更多格式。
+
+```gradle
+dependencies {
+    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1'
+}
+```
+
+### ExoPlayer 内核
+
+Google 官方播放器，性能优秀。
+
+```gradle
+dependencies {
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+}
+```
+
+切换到 ExoPlayer：
+
+```java
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+```
+
+### 阿里云播放器
+
+商业级播放器，支持加密视频、更好的直播支持。
+
+```gradle
+// 在项目根目录 build.gradle 添加阿里云仓库
+allprojects {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/releases' }
+    }
+}
+
+// 在 app/build.gradle 添加依赖
+dependencies {
+    // 排除内置的阿里云播放器，避免授权问题
+    implementation('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+        exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
+        exclude group: 'com.alivc.conan', module: 'AlivcConan'
+    }
+    
+    // 使用指定版本的阿里云播放器（5.4.7.1 版本无需授权）
+    implementation 'com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full'
+}
+```
+
+> ⚠️ **重要提示**：
+> - `gsyvideoplayer-aliplay` 内置的阿里云播放器版本较新，需要授权才能播放
+> - 使用 `5.4.7.1-full` 版本可以免授权使用
+> - 如需使用最新版本，请到阿里云官网申请授权
+
+切换到阿里云播放器：
+
+```java
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
+```
+
 ### DLNA 投屏
 
 ```gradle
@@ -282,6 +374,19 @@ dependencies {
 详细配置请查看 [投屏功能指南](docs/CAST_GUIDE.md)。
 
 ---
+
+## 播放内核对比
+
+| 内核 | 优点 | 缺点 | 推荐场景 |
+|------|------|------|----------|
+| **IJK** | 格式支持最全，开源免费 | 包体积较大（~10MB） | 通用场景，格式复杂 |
+| **ExoPlayer** | 性能好，Google 官方 | 部分格式支持有限 | 性能要求高 |
+| **系统播放器** | 无额外依赖，包体积小 | 功能有限，兼容性差 | 简单场景 |
+| **阿里云** | 商业级，功能最强 | 收费，包体积大 | 商业项目，直播 |
+
+---
+
+## 可选功能
 
 ## 常见问题
 
