@@ -23,10 +23,10 @@ android {
     signingConfigs {
         release {
             // 如果有签名文件，取消注释以下配置
-            // storeFile file('smlieapp.jks')
-            // storePassword '123123'
-            // keyAlias 'smlieapp'
-            // keyPassword '123123'
+             storeFile file('smlieapp.jks')
+             storePassword '123123'
+             keyAlias 'smlieapp'
+             keyPassword '123123'
         }
     }
 
@@ -35,7 +35,7 @@ android {
             minifyEnabled true
             shrinkResources true
             // 暂时不使用签名配置
-            // signingConfig signingConfigs.release
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
