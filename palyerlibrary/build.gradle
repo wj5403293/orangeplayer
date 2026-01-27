@@ -110,6 +110,9 @@ afterEvaluate {
                                 dependencyNode.appendNode('scope', 'runtime')
                             }
                         }
+                        
+                        // 注意：compileOnly 依赖不会被添加到 POM 中
+                        // 这是有意为之，让用户可以按需添加可选依赖
                     }
                 }
             }
