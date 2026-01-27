@@ -64,6 +64,16 @@ dependencies {
     // 自定义播放器模块
     implementation project(':palyerlibrary')
     
+    // 播放器内核（必需）
+    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    
+    // 可选功能
+    implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
+    implementation 'com.google.mlkit:translate:17.0.2'
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+    
     // DLNA 投屏库 (UaoanDLNA)
     implementation 'com.github.uaoan:UaoanDLNA:1.0.1'
     implementation 'com.squareup.okhttp3:okhttp:4.9.0'
