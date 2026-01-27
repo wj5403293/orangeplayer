@@ -8,25 +8,25 @@ android {
 
     defaultConfig {
         applicationId "com.orange.player"
-        minSdk 21
+        minSdk 23  // FFmpeg 解码器需要 API 23+
         targetSdk 36
         versionCode 1
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
-        // 只保留 arm64-v8a 架构，大幅减少 APK 体积
-        // 如需支持旧设备，可添加 'armeabi-v7a'
+        // 编译全架构（支持所有设备）
         ndk {
-            abiFilters 'arm64-v8a'
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
     }
     signingConfigs {
         release {
-            storeFile file('smlieapp.jks')  // 签名文件路径
-            storePassword '123123'  // 密钥库密码
-            keyAlias 'smlieapp'            // 密钥别名
-            keyPassword '123123'      // 密钥密码
+            // 如果有签名文件，取消注释以下配置
+            // storeFile file('smlieapp.jks')
+            // storePassword '123123'
+            // keyAlias 'smlieapp'
+            // keyPassword '123123'
         }
     }
 
@@ -34,11 +34,14 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-            signingConfig signingConfigs.release
+            // 暂时不使用签名配置
+            // signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            minifyEnabled false
+            minifyEnabled true  // Debug 也启用代码压缩
+            shrinkResources true  // Debug 也启用资源压缩
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     compileOptions {
@@ -64,15 +67,26 @@ dependencies {
     // 自定义播放器模块
     implementation project(':palyerlibrary')
     
-    // 播放器内核（必需）
-    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'
+    // 播放器内核
+    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'      // IJK 播放器（默认）
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0' // ExoPlayer 内核
+    
+    // 阿里云播放器（排除内置版本，使用 5.4.7.1 免授权版本）
+    implementation('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+        exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
+        exclude group: 'com.alivc.conan', module: 'AlivcConan'
+    }
+    implementation 'com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full'
+    
+    // 必需依赖
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     
     // 可选功能
-    implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
-    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
-    implementation 'com.google.mlkit:translate:17.0.2'
-    implementation 'com.alphacephei:vosk-android:0.3.47'
+    implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'           // 弹幕
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'   // OCR 识别
+    implementation 'com.google.mlkit:translate:17.0.2'                        // ML Kit 翻译
+    implementation 'com.alphacephei:vosk-android:0.3.47'                      // 语音识别
+    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1'       // FFmpeg 解码器
     
     // DLNA 投屏库 (UaoanDLNA)
     implementation 'com.github.uaoan:UaoanDLNA:1.0.1'
