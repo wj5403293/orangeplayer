@@ -9,18 +9,20 @@ echo.
 
 REM Read credentials from gradle.properties
 for /f "tokens=1,2 delims==" %%a in (..\gradle.properties) do (
+    if "%%a"=="mavenCentralUsername" set USERNAME=%%b
+    if "%%a"=="mavenCentralPassword" set PASSWORD=%%b
     if "%%a"=="ossrhUsername" set USERNAME=%%b
     if "%%a"=="ossrhPassword" set PASSWORD=%%b
 )
 
 if "%USERNAME%"=="" (
-    echo [ERROR] ossrhUsername not found
+    echo [ERROR] mavenCentralUsername or ossrhUsername not found in gradle.properties
     pause
     exit /b 1
 )
 
 if "%PASSWORD%"=="" (
-    echo [ERROR] ossrhPassword not found
+    echo [ERROR] mavenCentralPassword or ossrhPassword not found in gradle.properties
     pause
     exit /b 1
 )
