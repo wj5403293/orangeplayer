@@ -14,7 +14,6 @@
 
 <p align="center">
   <a href="https://central.sonatype.com/artifact/io.github.706412584/orangeplayer"><img src="https://img.shields.io/maven-central/v/io.github.706412584/orangeplayer.svg" alt="Maven Central"></a>
-  <a href="https://github.com/706412584/orangeplayer/actions/workflows/android.yml"><img src="https://github.com/706412584/orangeplayer/actions/workflows/android.yml/badge.svg" alt="Android CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://android-arsenal.com/api?level=21"><img src="https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat" alt="API"></a>
   <a href="https://github.com/706412584/orangeplayer/stargazers"><img src="https://img.shields.io/github/stars/706412584/orangeplayer.svg?style=social&label=Star" alt="GitHub stars"></a>
@@ -94,7 +93,7 @@
 ```gradle
 dependencies {
     // OrangePlayer 核心库（Maven Central）
-    implementation 'io.github.706412584:orangeplayer:1.0.8'
+    implementation 'io.github.706412584:orangeplayer:1.0.9'
     
     // 必需依赖
     implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载
