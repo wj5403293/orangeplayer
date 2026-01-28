@@ -2,6 +2,28 @@
 
 所有值得注意的项目更改都将记录在此文件中。
 
+## [1.0.8] - 2026-01-28
+
+### 修复
+- 🐛 修复 ExoPlayer 播放 RTMP 直播流切换全屏时 Surface 释放导致的 NullPointerException 崩溃
+- 🐛 修复 IJK 播放器手动切换内核后横竖屏切换黑屏问题（渲染模式未正确设置）
+- 🐛 修复 Demo 主页内核切换与播放器设置弹窗内核选择不同步问题
+
+### 改进
+- 🎯 优化 ExoPlayer Surface 管理：直播流保持 Surface 引用，避免过早释放
+- 🎯 优化内核切换逻辑：Demo 主页切换内核现在会持久化到 SharedPreferences
+- 🎯 优化内核切换 UI：显示当前选中的内核（单选框）
+- 🎯 为 IJK 播放器设置 TextureView 渲染模式，提高横竖屏切换稳定性
+- 📝 新增 FAQ Q9：ExoPlayer 播放 RTMP 切换全屏报错的解决方案
+- 📝 添加播放器内核 RTMP 支持对比表
+
+### 技术细节
+- Surface 切换时添加延迟释放机制，确保新 Surface 设置成功后才释放旧 Surface
+- 所有 Surface 操作添加异常保护和 null 检查
+- 统一 MainActivity 和 VideoEventManager 的内核切换逻辑
+
+---
+
 ## [1.0.7] - 2026-01-08
 
 ### 修复

@@ -22,6 +22,9 @@ public class PlayerSettingsManager {
     private static final String KEY_DANMAKU_SPEED = "danmaku_speed";
     private static final String KEY_DANMAKU_ALPHA = "danmaku_alpha";
     
+    // 自动选择播放器内核设置
+    private static final String KEY_AUTO_SELECT_ENGINE = "auto_select_engine";
+    
     // 解码方式设置
     private static final String KEY_DECODE_MODE = "decode_mode";
     public static final String DECODE_HARDWARE = "hardware";  // 硬件解码
@@ -245,6 +248,34 @@ public class PlayerSettingsManager {
     
     public boolean isAutoRotateEnabled() {
         return mPreferences.getBoolean(KEY_AUTO_ROTATE, true); // 默认启用
+    }
+    
+    // ===== 自动选择播放器内核设置 =====
+    
+    /**
+     * 设置是否启用自动选择播放器内核
+     * 
+     * 启用后，播放器会根据视频 URL 协议自动选择最合适的内核：
+     * - RTSP 协议 → ExoPlayer（阿里云不支持）
+     * - RTMP 协议 → 阿里云（延迟低，性能好）
+     * - HLS (m3u8) → 阿里云（商业级优化）
+     * - HTTP/HTTPS → ExoPlayer（性能好）
+     * 
+     * 注意：自动选择前会检测相关依赖是否已导入
+     * 
+     * @param enabled true 启用，false 禁用
+     */
+    public void setAutoSelectEngine(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_AUTO_SELECT_ENGINE, enabled).apply();
+    }
+    
+    /**
+     * 是否启用自动选择播放器内核
+     * 
+     * @return true 启用，false 禁用（默认禁用）
+     */
+    public boolean isAutoSelectEngine() {
+        return mPreferences.getBoolean(KEY_AUTO_SELECT_ENGINE, false); // 默认禁用
     }
     
     /**

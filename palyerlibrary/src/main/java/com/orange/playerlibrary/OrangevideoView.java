@@ -328,6 +328,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     try {
                         PlayerFactory.setPlayManager(IjkPlayerManager.class);
                         android.util.Log.d(TAG, "initPlayerFactory: 使用 IJK 播放器");
+                        // IJK 播放器使用 TextureView 模式（更稳定）
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                     } catch (Exception e) {
                         android.util.Log.w(TAG, "initPlayerFactory: IJK 播放器初始化失败，回退到系统播放器", e);
                         fallbackToSystem = true;
@@ -809,6 +812,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
         saveVideoUrl(url);
+        // 自动选择最合适的播放器内核
+        autoSelectPlayerEngine(url);
         // 异步获取视频首帧作为封面
         getVideoFirstFrameAsync(url);
         boolean result = super.setUp(url, cacheWithPlay, title);
@@ -820,6 +825,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
         saveVideoUrl(url);
+        // 自动选择最合适的播放器内核
+        autoSelectPlayerEngine(url);
         boolean result = super.setUp(url, cacheWithPlay, cachePath, title);
         updateTitleView(title);
         return result;
@@ -828,9 +835,110 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
         saveVideoUrl(url);
+        // 自动选择最合适的播放器内核
+        autoSelectPlayerEngine(url);
         boolean result = super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
         updateTitleView(title);
         return result;
+    }
+    
+    /**
+     * 根据 URL 自动选择最合适的播放器内核
+     * 
+     * 选择规则：
+     * - RTSP 协议 → ExoPlayer（阿里云不支持）
+     * - RTMP 协议 → 阿里云（延迟低，性能好）
+     * - HLS (m3u8) → 阿里云（商业级优化）
+     * - HTTP/HTTPS → ExoPlayer（性能好）
+     * - 其他 → ExoPlayer
+     * 
+     * 注意：只有启用自动选择功能时才会执行
+     */
+    private void autoSelectPlayerEngine(String url) {
+        // 检查是否启用自动内核选择
+        if (!PlayerSettingsManager.getInstance(getContext()).isAutoSelectEngine()) {
+            return;
+        }
+        
+        if (url == null || url.isEmpty()) {
+            return;
+        }
+        
+        // 使用智能内核选择器
+        String recommendedEngine = com.orange.playerlibrary.utils.PlayerEngineSelector.selectEngine(url);
+        
+        // 检查推荐的内核是否可用
+        if (!isEngineAvailable(recommendedEngine)) {
+            android.util.Log.w(TAG, "推荐的播放器内核不可用: " + 
+                com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) + 
+                "，将使用当前内核");
+            return;
+        }
+        
+        // 只在需要时才切换内核（避免不必要的切换）
+        String currentEngine = getCurrentPlayerEngine();
+        if (!currentEngine.equals(recommendedEngine)) {
+            selectPlayerFactory(recommendedEngine);
+            android.util.Log.i(TAG, "自动切换播放器内核: " + 
+                com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) + 
+                " (协议: " + com.orange.playerlibrary.utils.PlayerEngineSelector.getProtocolType(url) + ")");
+        }
+    }
+    
+    /**
+     * 检查指定的播放器内核是否可用（依赖是否已导入）
+     */
+    private boolean isEngineAvailable(String engine) {
+        try {
+            if (PlayerConstants.ENGINE_EXO.equals(engine)) {
+                // 检查 ExoPlayer 依赖
+                Class.forName("com.orange.playerlibrary.exo.OrangeExoPlayerManager");
+                return true;
+            } else if (PlayerConstants.ENGINE_IJK.equals(engine)) {
+                // 检查 IJK 依赖
+                Class.forName("com.shuyu.gsyvideoplayer.player.IjkPlayerManager");
+                return true;
+            } else if (PlayerConstants.ENGINE_ALI.equals(engine)) {
+                // 检查阿里云播放器依赖
+                Class.forName("com.shuyu.aliplay.AliPlayerManager");
+                return true;
+            } else if (PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
+                // 系统播放器总是可用
+                return true;
+            } else {
+                return false;
+            }
+        } catch (ClassNotFoundException e) {
+            android.util.Log.w(TAG, "播放器内核不可用: " + 
+                com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(engine) + 
+                " (依赖未导入)");
+            return false;
+        }
+    }
+    
+    /**
+     * 获取当前使用的播放器内核
+     */
+    private String getCurrentPlayerEngine() {
+        IPlayerManager currentManager = GSYVideoManager.instance().getPlayer();
+        
+        if (currentManager == null) {
+            return PlayerConstants.ENGINE_EXO; // 默认 ExoPlayer
+        }
+        
+        String className = currentManager.getClass().getName();
+        
+        if (className.contains("OrangeExoPlayerManager")) {
+            return PlayerConstants.ENGINE_EXO;
+        } else if (className.contains("IjkPlayerManager")) {
+            return PlayerConstants.ENGINE_IJK;
+        } else if (className.contains("AliPlayerManager")) {
+            return PlayerConstants.ENGINE_ALI;
+        } else if (className.contains("SystemPlayerManager")) {
+            return PlayerConstants.ENGINE_DEFAULT;
+        }
+        
+        return PlayerConstants.ENGINE_EXO; // 默认
     }
 
     public void setUrl(String url) {
@@ -1437,6 +1545,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
                 PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                // IJK 播放器使用 TextureView 模式（更稳定）
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                 break;
             case PlayerConstants.ENGINE_EXO:
                 // 使用自定义的 OrangeExoPlayerManager，支持 SurfaceControl 无缝切换

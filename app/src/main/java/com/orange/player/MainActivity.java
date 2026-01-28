@@ -651,31 +651,68 @@ public class MainActivity extends AppCompatActivity {
      * 切换播放器内核
      */
     private void showPlayerSwitchDialog() {
-        String[] players = {"系统播放器", "ExoPlayer", "IJK播放器"};
+        String[] players = {"系统播放器", "ExoPlayer", "IJK播放器", "阿里云播放器"};
         String[] engines = {
             com.orange.playerlibrary.PlayerConstants.ENGINE_DEFAULT,
             com.orange.playerlibrary.PlayerConstants.ENGINE_EXO,
-            com.orange.playerlibrary.PlayerConstants.ENGINE_IJK
+            com.orange.playerlibrary.PlayerConstants.ENGINE_IJK,
+            com.orange.playerlibrary.PlayerConstants.ENGINE_ALI
         };
+        
+        // 获取当前播放器内核
+        com.orange.playerlibrary.PlayerSettingsManager settingsManager = 
+            com.orange.playerlibrary.PlayerSettingsManager.getInstance(this);
+        String currentEngine = settingsManager.getPlayerEngine();
+        
+        // 找到当前选中的索引
+        int currentIndex = 0;
+        for (int i = 0; i < engines.length; i++) {
+            if (engines[i].equals(currentEngine)) {
+                currentIndex = i;
+                break;
+            }
+        }
         
         new AlertDialog.Builder(this)
             .setTitle("选择播放器内核")
-            .setItems(players, (dialog, which) -> {
+            .setSingleChoiceItems(players, currentIndex, (dialog, which) -> {
                 String engine = engines[which];
-                long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
                 
-                // 切换播放器
+                // 如果选择的是当前内核，不需要切换
+                if (engine.equals(currentEngine)) {
+                    dialog.dismiss();
+                    return;
+                }
+                
+                long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
+                boolean wasPlaying = mVideoView.isPlaying();
+                
+                // 1. 保存播放器内核设置（持久化）
+                settingsManager.setPlayerEngine(engine);
+                
+                // 2. 完全释放旧播放器
+                mVideoView.release();
+                com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+                
+                // 3. 切换播放器工厂
                 mVideoView.selectPlayerFactory(engine);
+                
+                // 4. 重新设置视频
                 mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
                 
-                // 从当前位置继续播放
+                // 5. 从当前位置继续播放
                 if (currentPosition > 0) {
                     mVideoView.setSeekOnStart(currentPosition);
                 }
                 
-                mVideoView.startPlayLogic();
-                log("🔄 切换播放器: " + players[which]);
+                if (wasPlaying) {
+                    mVideoView.startPlayLogic();
+                }
+                
+                log("🔄 切换播放器: " + players[which] + " (已持久化)");
+                dialog.dismiss();
             })
+            .setNegativeButton("取消", null)
             .show();
     }
 

@@ -108,7 +108,7 @@ dependencies {
     implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'  // OCR 识别
     implementation 'com.google.mlkit:translate:17.0.2'  // ML Kit 翻译
     implementation 'com.alphacephei:vosk-android:0.3.47'  // 语音识别
-    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.8.0+1'  // FFmpeg 解码器
+    implementation 'androidx.media3:media3-decoder-ffmpeg:1.5.0'  // FFmpeg 解码器(可选)
 }
 ```
 
@@ -233,20 +233,83 @@ public class MainActivity extends AppCompatActivity {
 
 ## 播放内核切换
 
-OrangePlayer 支持 4 种播放内核，可在运行时动态切换。
+OrangePlayer 支持 4 种播放内核，并提供**智能自动选择**功能。
+
+### 自动内核选择（可选）⭐
+
+**从 v1.0.8 开始，OrangePlayer 提供智能内核选择功能，可根据视频 URL 协议自动选择最合适的播放器内核。**
+
+**启用自动选择：**
 
 ```java
-// 切换到 ExoPlayer（推荐）
+// 在 Application 或 Activity 中启用
+PlayerSettingsManager.getInstance(context).setAutoSelectEngine(true);
+
+// 之后直接使用 setUp，播放器会自动选择最合适的内核
+videoView.setUp("rtsp://192.168.1.6:8554/live", true, "RTSP 直播");
+videoView.startPlayLogic();
+
+// RTSP → 自动使用 ExoPlayer
+// RTMP → 自动使用阿里云（延迟低）
+// HLS  → 自动使用阿里云（性能好）
+// HTTP → 自动使用 ExoPlayer
+```
+
+**自动选择规则：**
+- **RTSP 协议** → ExoPlayer（阿里云不支持）
+- **RTMP 协议** → 阿里云（延迟极低 1-3秒）⭐
+- **HLS (m3u8)** → 阿里云（商业级优化）
+- **HTTP/HTTPS** → ExoPlayer（性能好）
+- **本地文件** → ExoPlayer
+
+**智能特性：**
+- ✅ 自动检测依赖是否已导入
+- ✅ 只在需要时才切换内核（避免不必要的切换）
+- ✅ 如果推荐的内核不可用，继续使用当前内核
+- ✅ 默认禁用，需要手动启用
+
+**禁用自动选择：**
+
+```java
+// 禁用后恢复手动选择模式
+PlayerSettingsManager.getInstance(context).setAutoSelectEngine(false);
+```
+
+### 手动切换内核（默认方式）
+
+如果不启用自动选择，或需要手动指定内核，可以在 `setUp` 之前调用：
+
+```java
+// 手动切换到 ExoPlayer
 videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
 
-// 切换到 IJK 播放器
+// 手动切换到 IJK 播放器
 videoView.selectPlayerFactory(PlayerConstants.ENGINE_IJK);
 
-// 切换到系统播放器
+// 手动切换到系统播放器
 videoView.selectPlayerFactory(PlayerConstants.ENGINE_DEFAULT);
 
-// 切换到阿里云播放器
+// 手动切换到阿里云播放器
 videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
+```
+
+### 使用智能选择器工具类（高级用法）
+
+如果需要在 `setUp` 之外使用智能选择功能：
+
+```java
+import com.orange.playerlibrary.utils.PlayerEngineSelector;
+
+// 获取推荐的内核
+String url = "rtsp://192.168.1.6:8554/live";
+int engine = PlayerEngineSelector.selectEngine(url);
+videoView.selectPlayerFactory(engine);
+
+// 打印内核支持情况（调试用）
+PlayerEngineSelector.printEngineSupportInfo(url);
+
+// 检查某个内核是否支持该 URL
+boolean supported = PlayerEngineSelector.isEngineSupported(url, PlayerConstants.ENGINE_ALI);
 ```
 
 详细对比和配置请查看 [播放内核指南](docs/PLAYER_ENGINES.md)。
@@ -300,15 +363,92 @@ dependencies {
 
 详细配置请查看 [语音识别指南](docs/SPEECH_RECOGNITION.md)。
 
-### FFmpeg 解码器
+### FFmpeg 解码器（可选）
 
-增强的音视频解码支持，处理更多格式。
+增强的音视频解码支持，处理更多编码格式。
 
 ```gradle
 dependencies {
-    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1'
+    // 方案 1：Google 官方 Media3 FFmpeg 解码器（推荐）
+    implementation 'androidx.media3:media3-decoder-ffmpeg:1.5.0'
+    
+    // 方案 2：Jellyfin 定制版 FFmpeg 解码器
+    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.8.0+1'
 }
 ```
+
+> ⚠️ **重要说明**：两个方案**二选一**即可，不要同时添加。
+
+**FFmpeg 解码器的作用：**
+
+`media3-decoder-ffmpeg` 和 `media3-ffmpeg-decoder` 都是**音视频解码器**（Decoder），不是协议处理器或解封装器。
+
+**它能做什么：**
+- ✅ **解码音视频编码格式**：
+  - 视频：H.264, H.265/HEVC, VP8, VP9, AV1, MPEG-2, MPEG-4 等
+  - 音频：AAC, MP3, Opus, Vorbis, FLAC, AC-3, DTS 等
+- ✅ **增强格式支持**：处理 Android 原生不支持的编码格式
+- ✅ **提高兼容性**：在不同设备上提供一致的解码能力
+- ✅ **软件解码**：在硬件解码失败时提供备选方案
+
+**它不能做什么：**
+- ❌ **不提供网络协议支持**（RTSP, RTMP, HLS 等协议由播放器内核处理）
+- ❌ **不提供解封装能力**（MP4, MKV, FLV 等容器格式由播放器内核处理）
+- ❌ **不能解决阿里云播放器不支持 RTSP 的问题**（这是协议层的限制，需要切换内核）
+
+**播放器架构说明：**
+
+```
+完整的视频播放流程：
+
+网络协议层 (Protocol)  ← 处理 RTSP/RTMP/HLS 等协议（播放器内核负责）
+    ↓
+解封装层 (Demuxer)     ← 处理 MP4/MKV/FLV 等容器（播放器内核负责）
+    ↓
+解码层 (Decoder)       ← FFmpeg 解码器在这里工作 ⭐
+    ↓
+渲染层 (Renderer)      ← 显示画面和播放声音
+```
+
+**使用场景：**
+- ✅ 播放包含特殊编码格式的视频（如 VP9, AV1, HEVC）
+- ✅ 在低端设备上提供软件解码支持
+- ✅ 确保在所有设备上的解码一致性
+- ✅ 播放包含 AC-3, DTS 等音频编码的视频
+
+**不适用场景：**
+- ❌ 解决协议不支持问题（如阿里云不支持 RTSP）→ 应该切换播放器内核
+- ❌ 添加新的网络协议支持 → 由播放器内核决定
+- ❌ 处理容器格式问题 → 由播放器内核决定
+
+**有无 FFmpeg 解码器的区别：**
+
+| 场景 | 无 FFmpeg 解码器 | 有 FFmpeg 解码器 |
+|------|----------------|----------------|
+| H.264 视频 | ✅ 硬件解码 | ✅ 硬件解码（优先）+ 软件解码（备选） |
+| H.265/HEVC | ✅ 硬件解码（部分设备） | ✅ 硬件解码 + 软件解码（兼容性更好） |
+| VP9 视频 | ⚠️ 部分设备不支持 | ✅ 软件解码（所有设备支持） |
+| AV1 视频 | ❌ 大部分设备不支持 | ✅ 软件解码（所有设备支持） |
+| AC-3/DTS 音频 | ❌ 不支持 | ✅ 软件解码 |
+| RTSP 协议 | 取决于播放器内核 | 取决于播放器内核（解码器不影响） |
+
+**推荐配置：**
+
+```gradle
+dependencies {
+    // 播放器内核（必需）
+    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    
+    // FFmpeg 解码器（可选，增强编码格式支持）
+    implementation 'androidx.media3:media3-decoder-ffmpeg:1.5.0'
+}
+```
+
+> 💡 **提示**：
+> - 如果只播放常见格式（H.264 + AAC），可以不添加 FFmpeg 解码器
+> - 如果需要播放 VP9, AV1, HEVC 或 AC-3/DTS 音频，建议添加
+> - 如果遇到协议不支持的问题（如阿里云无法播放 RTSP），应该切换播放器内核，而不是添加 FFmpeg 解码器
+> - 详见 [阿里云 FFmpeg 分析](docs/ALIYUN_FFMPEG_ANALYSIS.md)
 
 ### ExoPlayer 内核
 
@@ -377,12 +517,40 @@ dependencies {
 
 ## 播放内核对比
 
-| 内核 | 优点 | 缺点 | 推荐场景 |
-|------|------|------|----------|
-| **IJK** | 格式支持最全，开源免费 | 包体积较大（~10MB） | 通用场景，格式复杂 |
-| **ExoPlayer** | 性能好，Google 官方 | 部分格式支持有限 | 性能要求高 |
-| **系统播放器** | 无额外依赖，包体积小 | 功能有限，兼容性差 | 简单场景 |
-| **阿里云** | 商业级，功能最强 | 收费，包体积大 | 商业项目，直播 |
+| 内核 | 优点 | 缺点 | 推荐场景 | 支持协议 |
+|------|------|------|----------|----------|
+| **IJK** | 格式支持最全，开源免费 | 包体积较大（~10MB） | 通用场景，格式复杂 | RTSP, RTMP, HLS, HTTP, FLV |
+| **ExoPlayer** | 性能好，Google 官方，RTSP 支持完整 | 部分格式支持有限 | 性能要求高，RTSP 直播 | RTSP, HLS, DASH, HTTP |
+| **系统播放器** | 无额外依赖，包体积小 | 功能有限，兼容性差 | 简单场景 | 取决于设备 |
+| **阿里云** | **RTMP 延迟极低（1-3秒）**，商业级优化 | 收费，包体积大，**不支持 RTSP** | **RTMP 直播**，HLS 直播 | HLS, RTMP, FLV, HTTP |
+
+> ⚠️ **直播流播放建议**：
+> - **RTSP 直播**：使用 ExoPlayer 或 IJK（阿里云不支持）
+> - **RTMP 直播**：⭐ **强烈推荐阿里云**（延迟极低 1-3秒，商业级优化）
+>   - 阿里云 RTMP：1-3 秒延迟
+>   - IJK RTMP：3-5 秒延迟
+>   - HLS：10-30 秒延迟
+> - **HLS 直播 (m3u8)**：阿里云、ExoPlayer、IJK 均可
+> - **系统播放器**：不推荐用于直播（兼容性差）
+
+> 💡 **协议选择建议**：
+> - **超低延迟直播（1-3秒）**：RTMP + 阿里云 ⭐
+> - **RTSP 直播**：ExoPlayer 或 IJK
+> - **HLS 直播 (m3u8)**：阿里云、ExoPlayer、IJK 均可
+> - **点播视频 (MP4/HTTP)**：所有内核均支持
+
+> 🚀 **自动内核选择**：
+> 从 v1.0.8 开始，OrangePlayer 提供智能内核选择功能，可根据 URL 协议自动选择最合适的内核。
+> 
+> **启用方式：**
+> ```java
+> PlayerSettingsManager.getInstance(context).setAutoSelectEngine(true);
+> ```
+> 
+> **特性：**
+> - ✅ 自动检测依赖是否已导入
+> - ✅ 只在需要时才切换内核
+> - ✅ 默认禁用，需要手动启用
 
 ---
 

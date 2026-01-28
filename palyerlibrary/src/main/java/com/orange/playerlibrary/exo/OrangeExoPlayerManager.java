@@ -195,6 +195,8 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
      * 
      * 关键修复：TextureView 模式下横竖屏切换时，先切换到 PlaceholderSurface
      * 避免 MediaCodec 渲染到已销毁的 Surface 导致崩溃
+     * 
+     * RTMP 直播流修复：在 Surface 切换时保持 Surface 引用，避免过早释放
      */
     @Override
     public void showDisplay(final Message msg) {
@@ -204,7 +206,7 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         
         if (msg.obj == null) {
             // Surface 为 null（横竖屏切换时旧 Surface 被销毁）
-            android.util.Log.d(TAG, "showDisplay: Surface 为 null, 切换到 PlaceholderSurface");
+            android.util.Log.d(TAG, "showDisplay: Surface 为 null, 切换到 PlaceholderSurface (isLiveStream=" + isLiveStream + ")");
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null) {
                 reparent(null);
@@ -212,6 +214,9 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             
             // 关键：使用 PlaceholderSurface 而不是 null，避免 MediaCodec 错误
             // 这样 MediaCodec 可以继续渲染到 PlaceholderSurface，不会崩溃
+            // 
+            // RTMP 直播流特殊处理：不清空 surface 引用，避免 Surface.finalize() 被调用
+            // 因为 RTMP 流在 Surface 切换时如果 Surface 被释放，会导致连接中断
             if (dummySurface != null && dummySurface.isValid()) {
                 try {
                     mediaPlayer.setSurface(dummySurface);
@@ -220,6 +225,11 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
                     android.util.Log.e(TAG, "showDisplay: 切换到 PlaceholderSurface 失败: " + e.getMessage());
                 }
             }
+            
+            // 直播流不清空 surface 引用，避免 Surface 被 GC 回收导致 finalize() 崩溃
+            if (!isLiveStream) {
+                surface = null;
+            }
         } else {
             // 检查是否是 SurfaceView (Android Q+ 且有 SurfaceControl 时使用 reparent)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null && msg.obj instanceof SurfaceView) {
@@ -227,17 +237,33 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             } else if (msg.obj instanceof Surface) {
                 // TextureView 模式或低版本：直接设置 Surface
                 Surface holder = (Surface) msg.obj;
-                if (holder.isValid()) {
+                if (holder != null && holder.isValid()) {
+                    // 保存旧的 surface 引用（直播流需要保持引用避免被释放）
+                    Surface oldSurface = surface;
                     surface = holder;
+                    
                     try {
                         mediaPlayer.setSurface(holder);
                         android.util.Log.d(TAG, "showDisplay: 直接设置 Surface (TextureView 模式)");
+                        
+                        // 成功设置新 Surface 后，才释放旧 Surface（仅点播视频）
+                        // 直播流保持旧 Surface 引用，避免过早释放
+                        if (!isLiveStream && oldSurface != null && oldSurface != holder) {
+                            try {
+                                oldSurface.release();
+                                android.util.Log.d(TAG, "showDisplay: 已释放旧 Surface");
+                            } catch (Exception ex) {
+                                android.util.Log.w(TAG, "showDisplay: 释放旧 Surface 失败: " + ex.getMessage());
+                            }
+                        }
                     } catch (Exception e) {
                         android.util.Log.e(TAG, "showDisplay: 设置 Surface 失败: " + e.getMessage());
                         // 回退到 PlaceholderSurface
                         if (dummySurface != null && dummySurface.isValid()) {
                             mediaPlayer.setSurface(dummySurface);
                         }
+                        // 恢复旧 surface 引用
+                        surface = oldSurface;
                     }
                 } else {
                     android.util.Log.w(TAG, "showDisplay: Surface 无效, 使用 PlaceholderSurface");
@@ -249,15 +275,29 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
                 // TextureView 模式下收到 SurfaceView，获取其 Surface
                 SurfaceView sv = (SurfaceView) msg.obj;
                 if (sv.getHolder() != null && sv.getHolder().getSurface() != null && sv.getHolder().getSurface().isValid()) {
-                    surface = sv.getHolder().getSurface();
+                    Surface newSurface = sv.getHolder().getSurface();
+                    Surface oldSurface = surface;
+                    surface = newSurface;
+                    
                     try {
-                        mediaPlayer.setSurface(surface);
+                        mediaPlayer.setSurface(newSurface);
                         android.util.Log.d(TAG, "showDisplay: 从 SurfaceView 获取 Surface (TextureView 模式)");
+                        
+                        // 成功设置新 Surface 后，才释放旧 Surface（仅点播视频）
+                        if (!isLiveStream && oldSurface != null && oldSurface != newSurface) {
+                            try {
+                                oldSurface.release();
+                                android.util.Log.d(TAG, "showDisplay: 已释放旧 Surface");
+                            } catch (Exception ex) {
+                                android.util.Log.w(TAG, "showDisplay: 释放旧 Surface 失败: " + ex.getMessage());
+                            }
+                        }
                     } catch (Exception e) {
                         android.util.Log.e(TAG, "showDisplay: 从 SurfaceView 设置 Surface 失败: " + e.getMessage());
                         if (dummySurface != null && dummySurface.isValid()) {
                             mediaPlayer.setSurface(dummySurface);
                         }
+                        surface = oldSurface;
                     }
                 } else {
                     android.util.Log.w(TAG, "showDisplay: SurfaceView 的 Surface 无效, 使用 PlaceholderSurface");
@@ -430,33 +470,68 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
 
     @Override
     public void releaseSurface() {
-        if (surface != null) {
-            surface = null;
+        // 直播流不释放 surface 引用，避免 Surface.finalize() 崩溃
+        // 点播视频可以安全释放
+        if (surface != null && !isLiveStream) {
+            try {
+                surface.release();
+                android.util.Log.d(TAG, "releaseSurface: 已释放 Surface");
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "releaseSurface: 释放 Surface 失败: " + e.getMessage());
+            }
         }
+        surface = null;
     }
 
     @Override
     public void release() {
         if (mediaPlayer != null) {
-            mediaPlayer.setSurface(null);
-            mediaPlayer.release();
+            try {
+                mediaPlayer.setSurface(null);
+                mediaPlayer.release();
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "release: 释放 mediaPlayer 失败: " + e.getMessage());
+            }
             mediaPlayer = null;
         }
         if (dummySurface != null) {
-            dummySurface.release();
+            try {
+                dummySurface.release();
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "release: 释放 dummySurface 失败: " + e.getMessage());
+            }
             dummySurface = null;
         }
         // 释放 SurfaceControl
         if (surfaceControl != null) {
-            surfaceControl.release();
+            try {
+                surfaceControl.release();
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "release: 释放 surfaceControl 失败: " + e.getMessage());
+            }
             surfaceControl = null;
         }
         if (videoSurface != null) {
-            videoSurface.release();
+            try {
+                videoSurface.release();
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "release: 释放 videoSurface 失败: " + e.getMessage());
+            }
             videoSurface = null;
+        }
+        // 最后释放 surface
+        if (surface != null) {
+            try {
+                surface.release();
+                android.util.Log.d(TAG, "release: 已释放 surface");
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "release: 释放 surface 失败: " + e.getMessage());
+            }
+            surface = null;
         }
         lastTotalRxBytes = 0;
         lastTimeStamp = 0;
+        isLiveStream = false;
     }
 
     @Override

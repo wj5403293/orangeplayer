@@ -238,7 +238,248 @@ ExoPlayer 的缓冲策略更优：
 videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
 ```
 
-### Q7: 横竖屏切换后播放异常
+### Q7: 阿里云播放器无法播放 RTSP 直播流
+
+**错误信息：**
+```
+E AliFrameWork: [ffmpegDataSource] :open error
+E AliFrameWork: [avFormatDemuxer] :avformat_open_input error -1330794744,Protocol not found
+E AliFrameWork: ErrorCallback(537198593,Unsupported protocol)
+```
+
+**原因：** 阿里云播放器不支持 RTSP 协议
+
+**支持的协议：**
+- ✅ HLS (m3u8)
+- ✅ RTMP / RTMPS
+- ✅ FLV
+- ✅ HTTP / HTTPS
+- ❌ RTSP（不支持）
+
+**解决方案：**
+
+**方案一：切换到 ExoPlayer 内核（推荐）**
+
+```java
+// ExoPlayer 完整支持 RTSP 协议
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+videoView.setUp("rtsp://192.168.1.6:8554/live", true, "RTSP 直播");
+videoView.startPlayLogic();
+```
+
+**方案二：切换到 IJK 内核**
+
+```java
+// IJK 也支持 RTSP，但性能略低于 ExoPlayer
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_IJK);
+videoView.setUp("rtsp://192.168.1.6:8554/live", true, "RTSP 直播");
+videoView.startPlayLogic();
+```
+
+**方案三：使用阿里云支持的协议**
+
+如果必须使用阿里云播放器，请将直播流转换为 HLS 或 RTMP 格式：
+
+```java
+// 使用 HLS 格式
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
+videoView.setUp("https://example.com/live.m3u8", true, "HLS 直播");
+videoView.startPlayLogic();
+
+// 或使用 RTMP 格式
+videoView.setUp("rtmp://example.com/live/stream", true, "RTMP 直播");
+videoView.startPlayLogic();
+```
+
+**播放器内核协议支持对比：**
+
+| 内核 | RTSP | HLS | RTMP | FLV | HTTP |
+|------|------|-----|------|-----|------|
+| ExoPlayer | ✅ | ✅ | ❌ | ✅ | ✅ |
+| IJK | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 阿里云 | ❌ | ✅ | ✅ | ✅ | ✅ |
+| 系统播放器 | 取决于设备 | ✅ | ❌ | ❌ | ✅ |
+
+**推荐方案：**
+- **RTSP 直播**：使用 ExoPlayer 或 IJK
+- **HLS 直播**：阿里云、ExoPlayer、IJK 均可
+- **RTMP 直播**：阿里云或 IJK
+
+### Q8: IJK 播放器播放 RTSP/RTMP 直播流问题
+
+**问题描述：**
+- RTSP 直播流：播放失败，无画面无声音
+- RTMP 直播流：提示错误但有声音，画面停留在错误界面
+
+**可能原因：**
+1. **IJK so 库未正确加载**：IJK 播放器需要 native 库支持
+2. **RTSP/RTMP 协议支持问题**：IJK 的 RTSP/RTMP 实现可能存在兼容性问题
+3. **网络配置问题**：防火墙或网络策略阻止了 RTSP/RTMP 连接
+4. **视频编码格式不支持**：某些编码格式 IJK 可能无法解码
+
+**解决方案：**
+
+**方案一：切换到 ExoPlayer 内核（强烈推荐）**
+
+ExoPlayer 对 RTSP 协议的支持更完善，性能也更好：
+
+```java
+// 切换到 ExoPlayer
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+videoView.setUp("rtsp://192.168.1.6:8554/live", true, "RTSP 直播");
+videoView.startPlayLogic();
+```
+
+**方案二：使用智能内核选择器（自动选择最佳内核）**
+
+启用自动内核选择，播放器会根据协议自动选择最合适的内核：
+
+```java
+// 在 Application 或 Activity 中启用
+PlayerSettingsManager.getInstance(context).setAutoSelectEngine(true);
+
+// 之后直接播放，会自动选择 ExoPlayer（RTSP）或阿里云（RTMP）
+videoView.setUp("rtsp://192.168.1.6:8554/live", true, "RTSP 直播");
+videoView.startPlayLogic();
+```
+
+**方案三：检查 IJK so 库是否正确加载**
+
+如果必须使用 IJK，请确保 so 库已正确导入：
+
+```gradle
+dependencies {
+    // IJK 播放器
+    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'
+    
+    // 如果需要支持更多编码格式，添加扩展 so 库
+    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+}
+```
+
+检查 so 库是否加载成功：
+
+```java
+try {
+    System.loadLibrary("ijkffmpeg");
+    System.loadLibrary("ijksdl");
+    System.loadLibrary("ijkplayer");
+    Log.d(TAG, "IJK so 库加载成功");
+} catch (UnsatisfiedLinkError e) {
+    Log.e(TAG, "IJK so 库加载失败", e);
+}
+```
+
+**方案四：使用阿里云播放 RTMP（延迟最低）**
+
+如果是 RTMP 直播流，强烈推荐使用阿里云播放器（延迟仅 1-3 秒）：
+
+```java
+// 阿里云播放 RTMP 延迟极低
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_ALI);
+videoView.setUp("rtmp://example.com/live/stream", true, "RTMP 直播");
+videoView.startPlayLogic();
+```
+
+**播放器内核直播流支持对比：**
+
+| 协议 | ExoPlayer | IJK | 阿里云 | 推荐 |
+|------|-----------|-----|--------|------|
+| **RTSP** | ✅ 完整支持 | ⚠️ 部分支持 | ❌ 不支持 | **ExoPlayer** |
+| **RTMP** | ❌ 不支持 | ✅ 支持 | ✅ **延迟 1-3秒** | **阿里云** ⭐ |
+| **HLS** | ✅ 支持 | ✅ 支持 | ✅ 商业级优化 | 阿里云/ExoPlayer |
+| **FLV** | ✅ 支持 | ✅ 支持 | ✅ 支持 | 阿里云/IJK |
+
+**延迟对比：**
+- **阿里云 RTMP**：1-3 秒（商业级优化）⭐
+- **IJK RTMP**：3-5 秒
+- **HLS**：10-30 秒
+- **ExoPlayer RTSP**：1-5 秒
+
+**推荐方案总结：**
+- **RTSP 直播**：使用 ExoPlayer（完整支持，性能好）
+- **RTMP 直播**：使用阿里云（延迟极低，商业级优化）
+- **HLS 直播**：阿里云、ExoPlayer、IJK 均可
+- **启用智能选择器**：自动根据协议选择最佳内核
+
+**调试方法：**
+
+查看详细日志：
+
+```bash
+adb logcat -s "IjkMediaPlayer:V" "IJKMEDIA:V" "*:E"
+```
+
+常见错误信息：
+- `Protocol not found`：协议不支持
+- `Connection refused`：网络连接被拒绝
+- `Invalid data found`：数据格式错误
+
+### Q9: ExoPlayer 播放 RTMP 切换全屏报错
+
+**问题描述：**
+
+使用 ExoPlayer 播放 RTMP 直播流时，切换全屏会报错：
+
+```
+E System  : java.lang.NullPointerException: Null reference used for synchronization (monitor-enter)
+E System  :      at android.view.Surface.release(Surface.java:254)
+E System  :      at android.view.Surface.finalize(Surface.java:242)
+```
+
+但播放 RTSP 流时不会出现此问题。
+
+**原因分析：**
+
+RTMP 直播流在全屏切换时，Surface 管理不当导致：
+1. 旧 Surface 在新 Surface 设置前被过早释放
+2. Surface.finalize() 被 GC 调用时，Surface 已经被释放，导致 NullPointerException
+3. RTMP 流对 Surface 切换更敏感，RTSP 流相对稳定
+
+**解决方案：**
+
+**v1.0.4+ 版本已修复此问题**，修复内容：
+
+1. **Surface 引用保持**：直播流在切换时保持旧 Surface 引用，避免过早释放
+2. **延迟释放**：只有在新 Surface 成功设置后，才释放旧 Surface
+3. **异常保护**：所有 Surface 操作都添加了 try-catch 保护
+
+**如果仍然遇到问题，可以尝试：**
+
+**方案一：使用阿里云播放器（推荐）**
+
+阿里云播放器对 RTMP 支持最好，延迟极低（1-3秒）：
+
+```java
+PlayerSettingsManager.getInstance(context).setPlayerEngine(PlayerConstants.ENGINE_ALI);
+```
+
+**方案二：启用智能内核选择器**
+
+自动为 RTMP 流选择最佳播放器：
+
+```java
+videoView.enableAutoEngineSelection(true);
+```
+
+**方案三：使用 IJK 播放器**
+
+IJK 对 RTMP 支持较好（虽然可能有其他问题）：
+
+```java
+PlayerSettingsManager.getInstance(context).setPlayerEngine(PlayerConstants.ENGINE_IJK);
+```
+
+**播放器内核 RTMP 支持对比：**
+
+| 播放器 | RTMP 支持 | 延迟 | 稳定性 | 推荐度 |
+|--------|----------|------|--------|--------|
+| 阿里云 | ✅ 完整 | 1-3秒 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| IJK | ✅ 支持 | 3-5秒 | ⭐⭐⭐ | ⭐⭐⭐ |
+| ExoPlayer | ⚠️ 有限 | 2-4秒 | ⭐⭐ | ⭐⭐ |
+| 系统播放器 | ❌ 不支持 | - | - | ❌ |
+
+### Q10: 横竖屏切换后播放异常
 
 **可能原因：**
 1. Activity 配置不正确
@@ -285,7 +526,7 @@ public void onBackPressed() {
 
 ## 功能问题
 
-### Q8: 字幕不显示
+### Q11: 字幕不显示
 
 **可能原因：**
 1. 字幕文件格式不支持
@@ -326,7 +567,7 @@ manager.loadSubtitle(url, new SubtitleManager.OnSubtitleLoadListener() {
 manager.setTextSize(18f);  // 18sp
 ```
 
-### Q9: 弹幕不显示
+### Q11: 弹幕不显示
 
 **可能原因：**
 1. 弹幕被隐藏
@@ -357,7 +598,7 @@ settings.setDanmakuAlpha(0.8f);        // 透明度（0.0-1.0）
 danmaku.sendDanmaku("测试弹幕", 0xFFFFFFFF);
 ```
 
-### Q10: 语音识别无法启动
+### Q12: 语音识别无法启动
 
 **可能原因：**
 1. Android 版本低于 10
@@ -406,7 +647,7 @@ app/src/main/assets/
 
 详见 [语音识别指南](SPEECH_RECOGNITION.md)。
 
-### Q11: OCR 识别不准确
+### Q13: OCR 识别不准确
 
 **可能原因：**
 1. 字幕太小或太模糊
@@ -438,7 +679,7 @@ app/src/main/assets/
 
 ## 性能问题
 
-### Q12: 应用内存占用过高
+### Q14: 应用内存占用过高
 
 **可能原因：**
 1. 视频分辨率过高
@@ -476,7 +717,7 @@ LanguagePackManager manager = new LanguagePackManager(context);
 manager.deleteLanguage("unused_lang");
 ```
 
-### Q13: 应用启动慢
+### Q15: 应用启动慢
 
 **可能原因：**
 1. 语言包/模型加载慢
@@ -502,7 +743,7 @@ new Thread(() -> {
 
 只在需要时才初始化功能模块。
 
-### Q14: 播放时 CPU 占用高
+### Q16: 播放时 CPU 占用高
 
 **可能原因：**
 1. 使用软件解码
@@ -540,7 +781,7 @@ danmaku.hide();
 
 ## 其他问题
 
-### Q15: 如何自定义 UI
+### Q17: 如何自定义 UI
 
 **方案一：修改主题颜色**
 
@@ -580,7 +821,7 @@ public class MyVodControlView extends VodControlView {
 }
 ```
 
-### Q16: 如何保存播放进度
+### Q18: 如何保存播放进度
 
 OrangePlayer 自动保存播放进度，无需手动处理。
 
@@ -602,7 +843,7 @@ if (position > 0) {
 manager.deleteHistory(videoUrl);
 ```
 
-### Q17: 如何实现倍速播放
+### Q19: 如何实现倍速播放
 
 **设置倍速：**
 
@@ -621,7 +862,7 @@ PlayerSettingsManager settings = PlayerSettingsManager.getInstance(context);
 settings.setLongPressSpeed(2.0f);  // 长按 2 倍速
 ```
 
-### Q18: 如何实现画中画
+### Q20: 如何实现画中画
 
 **进入画中画：**
 
