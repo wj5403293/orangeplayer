@@ -88,6 +88,15 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             return true;
         }
         
+        // udp 协议
+        if (lowerUrl.startsWith("udp://")) {
+            return true;
+        }
+        // tcp 协议
+        if (lowerUrl.startsWith("tcp://")) {
+            return true;
+        }
+        
         // RTMP 协议
         if (lowerUrl.startsWith("rtmp://") || lowerUrl.startsWith("rtmps://")) {
             return true;
@@ -152,9 +161,13 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
             
             // Android Q+ 使用 SurfaceControl 实现无缝切换
             // 关键修复：直播流强制使用 SurfaceControl，即使 OCR 开启也不例外
-            // 因为直播流没有缓冲，Surface 销毁会导致连接中断
+            // 原因：
+            // 1. 直播流没有缓冲，Surface 销毁会导致连接中断
+            // 2. OCR 功能会设置 sForceTextureViewMode=true，但这会影响直播流
+            // 3. 直播流必须使用 SurfaceControl 才能在横竖屏切换时不崩溃
+            // 4. 点播视频可以根据 sForceTextureViewMode 决定是否使用 SurfaceControl
             boolean shouldUseSurfaceControl = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
-                                             (!sForceTextureViewMode || isLiveStream);
+                                             (!sForceTextureViewMode || isLiveStream);  // 直播流强制启用
             
             if (shouldUseSurfaceControl) {
                 surfaceControl = new SurfaceControl.Builder()
