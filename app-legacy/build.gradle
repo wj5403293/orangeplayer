@@ -71,6 +71,9 @@ dependencies {
     // MultiDex 支持（Android 4.4 必需）
     implementation 'androidx.multidex:multidex:2.0.1'
     
+    // Startup 库（必需）
+    implementation 'androidx.startup:startup-runtime:1.0.0'  // 支持 API 14+
+    
     // 自定义播放器模块
     implementation project(':palyerlibrary')
     

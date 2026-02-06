@@ -555,18 +555,26 @@ public class VideoEventManager {
         // 创建设置对话框视图
         View dialogView = View.inflate(mActivity, R.layout.setup_dialog, null);
         
+        // Android 4.4 需要在代码中设置透明背景
+        View layout = dialogView.findViewById(R.id.layout);
+        if (layout != null) {
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
+                // API 19 使用 ColorDrawable 并设置 alpha 为 0
+                android.graphics.drawable.ColorDrawable drawable = 
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK);
+                drawable.setAlpha(0);
+                layout.setBackground(drawable);
+            }
+            // 点击外部区域关闭对话框
+            layout.setOnClickListener(v -> mCurrentSetupDialog.dismiss());
+        }
+        
         // 创建设置对话框 - 始终显示在右侧
         mCurrentSetupDialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
         // 绑定所有设置项（使用 dialogView 而不是 mCurrentSetupDialog）
         bindSetupOptions(dialogView);
-        
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> mCurrentSetupDialog.dismiss());
-        }
     }
     
     /**

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- API 19 兼容版本：使用 selector 代替 ripple -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_selected="true">
         <shape android:shape="rectangle">
@@ -6,14 +7,16 @@
             <corners android:radius="16dp" />
         </shape>
     </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#66FFFFFF" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
     <item>
-        <ripple android:color="#40FFFFFF">
-            <item>
-                <shape android:shape="rectangle">
-                    <solid android:color="#33FFFFFF" />
-                    <corners android:radius="16dp" />
-                </shape>
-            </item>
-        </ripple>
+        <shape android:shape="rectangle">
+            <solid android:color="#33FFFFFF" />
+            <corners android:radius="16dp" />
+        </shape>
     </item>
 </selector>

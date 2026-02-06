@@ -213,7 +213,7 @@
                 android:contentDescription="@string/orange_next_episode_desc"
                 android:padding="6dp"
                 android:src="@drawable/ic_skip_next"
-                android:background="?android:attr/selectableItemBackgroundBorderless" />
+                android:background="?android:attr/selectableItemBackground" />
 
             <!-- 弹幕开关按钮 - 使用两个ImageView切换 -->
             <FrameLayout
@@ -228,7 +228,7 @@
                     android:src="@drawable/ic_danmu_on"
                     android:scaleType="fitCenter"
                     android:visibility="gone"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/orange_play_desc" />
                 
                 <ImageView
@@ -239,7 +239,7 @@
                     android:src="@drawable/ic_danmu_off"
                     android:scaleType="fitCenter"
                     android:visibility="visible"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/orange_play_desc" />
             </FrameLayout>
 
@@ -251,7 +251,7 @@
                 android:padding="6dp"
                 android:src="@mipmap/danmu_set"
                 android:scaleType="fitCenter"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:background="?android:attr/selectableItemBackground"
                 android:contentDescription="@string/orange_play_desc" />
 
             <!-- 弹幕输入框 -->
@@ -280,7 +280,7 @@
                 android:padding="6dp"
                 android:src="@drawable/ic_subtitle"
                 android:scaleType="fitCenter"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:background="?android:attr/selectableItemBackground"
                 android:contentDescription="@string/orange_subtitle_desc" />
 
             <!-- 片头/尾按钮 -->
@@ -288,7 +288,7 @@
                 android:id="@+id/film_header_footer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:background="?android:attr/selectableItemBackground"
                 android:paddingStart="6dp"
                 android:paddingEnd="6dp"
                 android:paddingTop="@dimen/orange_control_button_padding"
@@ -303,7 +303,7 @@
                 android:id="@+id/speed_control"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:background="?android:attr/selectableItemBackground"
                 android:paddingStart="6dp"
                 android:paddingEnd="6dp"
                 android:paddingTop="@dimen/orange_control_button_padding"
@@ -318,7 +318,7 @@
                 android:id="@+id/source_select"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:background="?android:attr/selectableItemBackground"
                 android:padding="@dimen/orange_control_button_padding"
                 android:text="@string/orange_source_select"
                 android:textColor="@android:color/white"
@@ -330,7 +330,7 @@
                 android:id="@+id/episode_select"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:background="?android:attr/selectableItemBackground"
                 android:paddingStart="6dp"
                 android:paddingEnd="6dp"
                 android:paddingTop="@dimen/orange_control_button_padding"

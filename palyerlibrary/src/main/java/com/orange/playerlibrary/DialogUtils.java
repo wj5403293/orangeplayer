@@ -90,9 +90,16 @@ public class DialogUtils {
                                           DialogPosition position,
                                           Float widthRatio,
                                           Float heightRatio) {
-        AlertDialog dialog = new AlertDialog.Builder(context)
-            .setView(view)
-            .create();
+        // Android 4.4 需要使用透明主题来避免白色背景
+        AlertDialog.Builder builder;
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
+            // API 19 使用自定义透明主题
+            builder = new AlertDialog.Builder(context, R.style.TransparentDialog);
+        } else {
+            builder = new AlertDialog.Builder(context);
+        }
+        
+        AlertDialog dialog = builder.setView(view).create();
         
         // 在 show() 之前设置这些属性
         dialog.setCancelable(true);
@@ -119,7 +126,16 @@ public class DialogUtils {
         // 弹窗窗口始终占满全屏，点击外部区域由布局内部处理
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         window.setGravity(Gravity.CENTER);
-        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        
+        // Android 4.4 需要使用 BitmapDrawable 来实现真正的透明背景
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.setBackgroundDrawable(new android.graphics.drawable.BitmapDrawable());
+            // 禁用 dim 效果，避免黑色背景
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        } else {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+        
         window.setWindowAnimations(getAnimationStyle(position));
         
         setImmersiveMode(window);
