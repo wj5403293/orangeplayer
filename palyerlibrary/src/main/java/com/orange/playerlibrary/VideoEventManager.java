@@ -552,19 +552,17 @@ public class VideoEventManager {
         Log.d(TAG, "showSetupDialog() called");
         hideController(); // 隐藏播放器UI
         
-        // Android 4.4 使用自定义 View 覆盖层，避免 Dialog 透明度问题
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
-            showSetupDialogAsView();
-            return;
-        }
-        
         // 创建设置对话框视图
         View dialogView = View.inflate(mActivity, R.layout.setup_dialog, null);
         
         // 点击外部区域关闭对话框
         View layout = dialogView.findViewById(R.id.layout);
         if (layout != null) {
-            layout.setOnClickListener(v -> mCurrentSetupDialog.dismiss());
+            layout.setOnClickListener(v -> {
+                if (mCurrentSetupDialog != null) {
+                    mCurrentSetupDialog.dismiss();
+                }
+            });
         }
         
         // 创建设置对话框 - 始终显示在右侧
@@ -572,41 +570,6 @@ public class VideoEventManager {
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
         // 绑定所有设置项（使用 dialogView 而不是 mCurrentSetupDialog）
-        bindSetupOptions(dialogView);
-    }
-    
-    /**
-     * Android 4.4 使用自定义 View 覆盖层显示设置面板
-     */
-    private void showSetupDialogAsView() {
-        // 获取 DecorView（Activity 的根视图）
-        android.view.ViewGroup decorView = (android.view.ViewGroup) mActivity.getWindow().getDecorView();
-        
-        // 创建设置对话框视图
-        View dialogView = View.inflate(mActivity, R.layout.setup_dialog, null);
-        
-        // 设置布局参数
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        );
-        dialogView.setLayoutParams(params);
-        
-        // 添加到 DecorView
-        decorView.addView(dialogView);
-        
-        // 保存引用以便后续关闭
-        final View setupOverlay = dialogView;
-        
-        // 点击外部区域关闭
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> {
-                decorView.removeView(setupOverlay);
-            });
-        }
-        
-        // 绑定所有设置项
         bindSetupOptions(dialogView);
     }
     

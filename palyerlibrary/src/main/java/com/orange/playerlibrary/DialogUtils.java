@@ -90,15 +90,13 @@ public class DialogUtils {
                                           DialogPosition position,
                                           Float widthRatio,
                                           Float heightRatio) {
-        // Android 4.4 需要使用透明主题来避免白色背景
-        AlertDialog.Builder builder;
+        // Android 4.4 使用自定义 View 覆盖层，避免 Dialog 透明度问题
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
-            // API 19 使用自定义透明主题
-            builder = new AlertDialog.Builder(context, R.style.TransparentDialog);
-        } else {
-            builder = new AlertDialog.Builder(context);
+            return createDialogAsView(context, view, position, widthRatio, heightRatio);
         }
         
+        // Android 5.0+ 使用标准 AlertDialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
         AlertDialog dialog = builder.setView(view).create();
         
         // 在 show() 之前设置这些属性
@@ -111,6 +109,47 @@ public class DialogUtils {
         dialog.setOnDismissListener(d -> removeBlurEffect(context));
         
         return dialog;
+    }
+    
+    /**
+     * Android 4.4 使用自定义 View 覆盖层创建"对话框"
+     */
+    private static AlertDialog createDialogAsView(Activity context,
+                                                 View view,
+                                                 DialogPosition position,
+                                                 Float widthRatio,
+                                                 Float heightRatio) {
+        // 获取 DecorView（Activity 的根视图）
+        android.view.ViewGroup decorView = (android.view.ViewGroup) context.getWindow().getDecorView();
+        
+        // 设置布局参数
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        );
+        view.setLayoutParams(params);
+        
+        // 添加到 DecorView
+        decorView.addView(view);
+        
+        // 创建一个假的 AlertDialog 对象用于返回
+        // 这样调用者可以使用 dismiss() 方法
+        AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.TransparentDialog);
+        AlertDialog fakeDialog = builder.create();
+        
+        // 重写 dismiss 方法，移除 View
+        fakeDialog.setOnDismissListener(d -> {
+            decorView.removeView(view);
+            removeBlurEffect(context);
+        });
+        
+        // 查找布局中的根元素（通常是 id 为 layout 的 FrameLayout）
+        View layout = view.findViewById(R.id.layout);
+        if (layout != null) {
+            layout.setOnClickListener(v -> fakeDialog.dismiss());
+        }
+        
+        return fakeDialog;
     }
     
     /**
