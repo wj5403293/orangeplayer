@@ -522,11 +522,106 @@ public void onBackPressed() {
 }
 ```
 
+### Q11: 本地 HTTP 代理播放失败（AndroidVideoCache）
+
+**问题描述：**
+使用本地 HTTP 代理（如 AndroidVideoCache）播放视频时失败，所有播放器引擎（IJK、ExoPlayer、系统播放器）都无法播放。日志显示：
+```
+curl: (8) Invalid Content-Length: value
+E IJKMEDIA: Failed to open file 'http://127.0.0.1:xxxx/...' or configure filtergraph
+```
+
+**原因：** 本地 HTTP 代理服务器返回的 Content-Length 头无效或缺失
+
+**解决方案：**
+
+**方案一：升级视频缓存库（推荐）**
+
+```gradle
+dependencies {
+    // 使用最新版本
+    implementation 'com.danikula:videocache:2.7.1'
+    
+    // 或使用 GSYVideoPlayer 内置缓存
+    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+}
+```
+
+**方案二：直接播放原始 URL**
+
+```java
+// 不使用本地代理
+String originalUrl = "https://example.com/video.m3u8";
+videoView.setUp(originalUrl, true, title);
+```
+
+**方案三：使用本地文件路径**
+
+如果文件已完全下载：
+```java
+String localPath = "/storage/emulated/0/path/to/video.mp4";
+videoView.setUp(localPath, true, title);
+```
+
+**诊断方法：**
+
+```bash
+# 测试代理服务器响应
+adb shell "curl -I http://127.0.0.1:xxxx/path/to/file"
+
+# 查看是否返回有效的 Content-Length
+```
+
+**技术细节：**
+- 详见：[docs/fixes/local_http_proxy_content_length_fix.md](fixes/local_http_proxy_content_length_fix.md)
+- 问题影响所有播放器引擎，不是播放器本身的问题
+- 根本原因是 HTTP 代理服务器配置问题
+
+### Q12: IJK 播放器无法播放本地文件（file:// 协议）
+
+**问题描述：**
+使用 IJK 播放器播放 `file://` 协议的本地文件时失败，日志显示：
+```
+E IJKMEDIA: Protocol 'file' not on whitelist
+```
+
+**原因：** IJK 播放器默认的协议白名单不包含 `file` 协议
+
+**解决方案：**
+
+OrangePlayer v1.0.9+ 已修复此问题，使用自定义的 `OrangeIjkPlayerManager` 自动添加 `file` 协议到白名单。
+
+**如果使用旧版本，请升级到最新版：**
+
+```gradle
+dependencies {
+    implementation 'com.github.706412584:orangeplayer:v1.0.9+'
+}
+```
+
+**临时解决方案（旧版本）：**
+切换到 ExoPlayer 或系统播放器播放本地文件：
+
+```java
+// 切换到 ExoPlayer
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_EXO);
+
+// 或切换到系统播放器
+videoView.selectPlayerFactory(PlayerConstants.ENGINE_DEFAULT);
+```
+
+**注意：** 如果你的 URL 是 `http://127.0.0.1:xxxx/...`，这不是 file:// 协议问题，请参考 Q11。
+
+**技术细节：**
+- 修复文件：`OrangeIjkPlayerManager.java`
+- 添加的协议：`file,http,https,tls,rtp,tcp,udp,crypto,httpproxy,concat,subfile`
+- 详见：[docs/fixes/ijk_local_file_fix.md](fixes/ijk_local_file_fix.md)
+
 ---
 
 ## 功能问题
 
-### Q11: 字幕不显示
+### Q13: 字幕不显示
 
 **可能原因：**
 1. 字幕文件格式不支持
@@ -567,7 +662,7 @@ manager.loadSubtitle(url, new SubtitleManager.OnSubtitleLoadListener() {
 manager.setTextSize(18f);  // 18sp
 ```
 
-### Q11: 弹幕不显示
+### Q14: 弹幕不显示
 
 **可能原因：**
 1. 弹幕被隐藏
@@ -598,7 +693,7 @@ settings.setDanmakuAlpha(0.8f);        // 透明度（0.0-1.0）
 danmaku.sendDanmaku("测试弹幕", 0xFFFFFFFF);
 ```
 
-### Q12: 语音识别无法启动
+### Q15: 语音识别无法启动
 
 **可能原因：**
 1. Android 版本低于 10
@@ -647,7 +742,7 @@ app/src/main/assets/
 
 详见 [语音识别指南](SPEECH_RECOGNITION.md)。
 
-### Q13: OCR 识别不准确
+### Q16: OCR 识别不准确
 
 **可能原因：**
 1. 字幕太小或太模糊
@@ -679,7 +774,7 @@ app/src/main/assets/
 
 ## 性能问题
 
-### Q14: 应用内存占用过高
+### Q17: 应用内存占用过高
 
 **可能原因：**
 1. 视频分辨率过高
@@ -717,7 +812,7 @@ LanguagePackManager manager = new LanguagePackManager(context);
 manager.deleteLanguage("unused_lang");
 ```
 
-### Q15: 应用启动慢
+### Q18: 应用启动慢
 
 **可能原因：**
 1. 语言包/模型加载慢
@@ -743,7 +838,7 @@ new Thread(() -> {
 
 只在需要时才初始化功能模块。
 
-### Q16: 播放时 CPU 占用高
+### Q19: 播放时 CPU 占用高
 
 **可能原因：**
 1. 使用软件解码
@@ -781,7 +876,7 @@ danmaku.hide();
 
 ## 其他问题
 
-### Q17: 如何自定义 UI
+### Q20: 如何自定义 UI
 
 **方案一：修改主题颜色**
 
@@ -821,7 +916,7 @@ public class MyVodControlView extends VodControlView {
 }
 ```
 
-### Q18: 如何保存播放进度
+### Q21: 如何保存播放进度
 
 OrangePlayer 自动保存播放进度，无需手动处理。
 
@@ -843,7 +938,7 @@ if (position > 0) {
 manager.deleteHistory(videoUrl);
 ```
 
-### Q19: 如何实现倍速播放
+### Q22: 如何实现倍速播放
 
 **设置倍速：**
 
@@ -862,7 +957,7 @@ PlayerSettingsManager settings = PlayerSettingsManager.getInstance(context);
 settings.setLongPressSpeed(2.0f);  // 长按 2 倍速
 ```
 
-### Q20: 如何实现画中画
+### Q23: 如何实现画中画
 
 **进入画中画：**
 
@@ -926,3 +1021,130 @@ public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
 
 4. **查看示例代码**
    - Demo 应用：https://github.com/706412584/orangeplayer/tree/main/app
+
+
+### Q24: 支持的最低 Android 版本是多少？
+
+**当前配置：**
+- 播放器库 (palyerlibrary): minSdk 21 (Android 5.0)
+- Demo 应用 (app): minSdk 23 (Android 6.0)
+
+**推荐配置：**
+```gradle
+android {
+    defaultConfig {
+        minSdk 21  // Android 5.0 Lollipop
+        targetSdk 36
+    }
+}
+```
+
+**为什么不支持 Android 4.0？**
+
+1. **播放器内核限制**
+   - GSYVideoPlayer: 需要 API 16+
+   - IJK 播放器: 需要 API 16+
+   - ExoPlayer: 需要 API 21+
+   - 系统播放器: 支持 API 1+（功能有限）
+
+2. **AI 功能限制**
+   - OCR (Tesseract): 需要 API 21+
+   - 语音识别 (Vosk): 需要 API 21+
+   - ML Kit 翻译: 需要 API 19+
+
+3. **市场占有率**
+   - Android 4.0: < 0.1%
+   - Android 5.0+: 99%+
+
+4. **Google Play 要求**
+   - 2021 年起要求 minSdk 21+
+
+**如果必须支持 Android 4.0：**
+
+只能使用系统播放器，功能严重受限：
+- ❌ 无法使用 IJK/ExoPlayer
+- ❌ 无 OCR 字幕识别
+- ❌ 无语音识别
+- ❌ 无画中画
+- ✅ 可以使用系统播放器
+- ✅ 可以使用弹幕
+
+**详细分析：**
+- 查看 [Android 4.0 兼容性分析](ANDROID_4_COMPATIBILITY.md)
+- 运行检查脚本：`scripts\check_min_sdk.bat`
+
+**版本覆盖率 (2024)：**
+
+| Android 版本 | API Level | 市场占有率 |
+|-------------|-----------|-----------|
+| 4.0-4.0.4 | 14-15 | < 0.1% |
+| 4.1-4.3 | 16-18 | < 0.5% |
+| 4.4 | 19 | ~0.5% |
+| 5.0-5.1 | 21-22 | ~2% |
+| 6.0+ | 23+ | ~97% |
+
+**结论：** 保持 minSdk 21，覆盖 99%+ 设备，支持所有现代功能。
+
+### Q25: 可以降低到 Android 4.4 (API 19) 吗？
+
+**可以，但需要调整：**
+
+```gradle
+android {
+    defaultConfig {
+        minSdk 19  // Android 4.4 KitKat
+    }
+}
+```
+
+**需要移除的功能：**
+- ❌ ExoPlayer 播放器（需要 API 21+）
+- ❌ 阿里云播放器（需要 API 21+）
+- ❌ OCR 字幕识别（需要 API 21+）
+- ❌ 语音识别（需要 API 29+）
+- ❌ FFmpeg 解码器（需要 API 21+）
+- ❌ SurfaceControl 无缝切换（需要 API 29+）
+
+**可以保留的功能：**
+- ✅ IJK 播放器（支持 API 16+）
+- ✅ 系统播放器（支持所有版本）
+- ✅ 弹幕（支持 API 14+）
+- ✅ 基础播放控制
+- ✅ 字幕显示
+- ✅ 倍速播放
+- ✅ DLNA 投屏
+
+**快速配置：**
+
+1. 运行配置脚本：
+```bash
+scripts\configure_android_44.bat
+```
+
+2. 手动移除不兼容的依赖（脚本会提示）
+
+3. 在代码中添加版本检查：
+```java
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+    // 使用 ExoPlayer
+} else {
+    // 降级到 IJK 或系统播放器
+}
+```
+
+**详细指南：**
+- 查看 [Android 4.4 支持指南](ANDROID_4.4_SUPPORT.md)
+- 包含完整的配置步骤和代码示例
+
+**覆盖率：** 99.5%+ 设备（相比 minSdk 21 的 99%）
+
+**权衡考虑：**
+- 仅增加 0.5% 覆盖率
+- 功能受限
+- 维护成本增加
+- 需要充分测试
+
+**推荐：** 
+- 一般应用：保持 minSdk 21
+- 企业/教育应用：可以考虑 minSdk 19
+- 特殊需求：可以发布两个版本（标准版和兼容版）

@@ -84,6 +84,11 @@
 
 ## 快速开始
 
+### 系统要求
+
+- **Android 4.0+ (API 14+)** - 从 v1.1.0 开始支持 Android 4.0 及以上版本
+- **Android 5.0+ (API 21+)** - 推荐使用，支持所有功能（包括 ExoPlayer 和 AI 功能）
+
 ### 1. 添加依赖
 
 **⚠️ 重要更新：我们已从 JitPack 迁移到 Maven Central**
@@ -93,7 +98,7 @@
 ```gradle
 dependencies {
     // OrangePlayer 核心库（Maven Central）
-    implementation 'io.github.706412584:orangeplayer:1.0.9'
+    implementation 'io.github.706412584:orangeplayer:1.1.0'
     
     // 必需依赖
     implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载

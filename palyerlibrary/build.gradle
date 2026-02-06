@@ -2,12 +2,14 @@ plugins {
     id 'com.android.library'
 }
 
+import org.gradle.api.artifacts.ProjectDependency
+
 android {
     namespace 'com.orange.playerlibrary'
     compileSdk 36
 
     defaultConfig {
-        minSdk 21
+        minSdk 14  // Android 4.0 ICS - 兼容 app-legacy 模块
         targetSdk 36
 
         consumerProguardFiles "consumer-rules.pro"
@@ -31,33 +33,41 @@ android {
 }
 
 dependencies {
-    // AndroidX 基础库 - compileOnly（用户项目通常已包含）
-    compileOnly 'androidx.appcompat:appcompat:1.7.1'
+    // AndroidX 基础库 - 使用兼容 API 14 的版本
+    api 'androidx.appcompat:appcompat:1.3.1'  // 改为 api，让使用者也能访问
+    api 'androidx.recyclerview:recyclerview:1.2.1'  // RecyclerView（API 14+）
     
-    // GSYVideoPlayer 核心依赖 - compileOnly（用户按需选择播放器内核）
-    compileOnly 'io.github.carguo:gsyvideoplayer:11.3.0'
+    // Glide 图片加载库（用于缩略图加载）- 兼容 API 14
+    implementation 'com.github.bumptech.glide:glide:4.12.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
     
-    // ExoPlayer 模式 - compileOnly（用户按需添加）
+    // GSYVideoPlayer 核心依赖 - 使用本地源码模块（支持 API 14）
+    api project(':gsyVideoPlayer-base')
+    api project(':gsyVideoPlayer-proxy_cache')
+    api project(':gsyVideoPlayer-java')
+    
+    // Native so 文件模块 - compileOnly（让用户按需选择架构）
+    compileOnly project(':gsyVideoPlayer-armv7a')
+    compileOnly project(':gsyVideoPlayer-armv64')
+    compileOnly project(':gsyVideoPlayer-x86')
+    compileOnly project(':gsyVideoPlayer-x86_64')
+    
+    // ExoPlayer 支持 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
-    
-    // Glide 图片加载库（用于缩略图加载）
-    implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
     
     // 弹幕库 - compileOnly（用户按需添加）
     compileOnly 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
     
-    // OCR 翻译字幕功能 - compileOnly（用户按需添加）
+    // DLNA 投屏 - compileOnly（需要 API 19+，用户按需添加）
+    compileOnly 'com.github.uaoan:UaoanDLNA:1.0.1'
+    compileOnly 'com.squareup.okhttp3:okhttp:3.12.13'
+    
+    // OCR 翻译字幕功能 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
     compileOnly 'com.google.mlkit:translate:17.0.2'
     
-    // Vosk 离线语音识别 - compileOnly（用户按需添加）
+    // Vosk 离线语音识别 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly 'com.alphacephei:vosk-android:0.3.47'
-    
-    // 测试依赖
-    //testImplementation 'junit:junit:4.13.2'
-    //androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    //androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
 
@@ -90,7 +100,14 @@ afterEvaluate {
                         
                         // 添加 api 依赖（compile scope）
                         configurations.api.allDependencies.each {
-                            if (it.group != null && it.name != null && it.version != null) {
+                            if (it instanceof ProjectDependency) {
+                                // 项目依赖使用我们的 groupId 和 version
+                                def dependencyNode = dependenciesNode.appendNode('dependency')
+                                dependencyNode.appendNode('groupId', pomGroupId)
+                                dependencyNode.appendNode('artifactId', it.name)
+                                dependencyNode.appendNode('version', pomVersion)
+                                dependencyNode.appendNode('scope', 'compile')
+                            } else if (it.group != null && it.name != null && it.version != null) {
                                 def dependencyNode = dependenciesNode.appendNode('dependency')
                                 dependencyNode.appendNode('groupId', it.group)
                                 dependencyNode.appendNode('artifactId', it.name)
@@ -101,8 +118,14 @@ afterEvaluate {
                         
                         // 添加 implementation 依赖（runtime scope）
                         configurations.implementation.allDependencies.each {
-                            // 排除项目依赖，因为它们会单独发布
-                            if (it.group != null && it.name != null && it.version != null) {
+                            if (it instanceof ProjectDependency) {
+                                // 项目依赖使用我们的 groupId 和 version
+                                def dependencyNode = dependenciesNode.appendNode('dependency')
+                                dependencyNode.appendNode('groupId', pomGroupId)
+                                dependencyNode.appendNode('artifactId', it.name)
+                                dependencyNode.appendNode('version', pomVersion)
+                                dependencyNode.appendNode('scope', 'runtime')
+                            } else if (it.group != null && it.name != null && it.version != null) {
                                 def dependencyNode = dependenciesNode.appendNode('dependency')
                                 dependencyNode.appendNode('groupId', it.group)
                                 dependencyNode.appendNode('artifactId', it.name)

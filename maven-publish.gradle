@@ -15,7 +15,7 @@ ext {
     
     // POM 信息
     pomGroupId = 'io.github.706412584'
-    pomVersion = '1.0.9'
+    pomVersion = '1.1.0'
     pomUrl = 'https://github.com/706412584/orangeplayer'
     pomScmUrl = 'https://github.com/706412584/orangeplayer.git'
     pomScmConnection = 'scm:git:git://github.com/706412584/orangeplayer.git'
@@ -31,7 +31,7 @@ ext {
 // 通用 POM 配置方法
 ext.configurePom = { pom ->
     pom.name = 'OrangePlayer'
-    pom.description = '基于 GSYVideoPlayer 的增强 Android 视频播放器库，支持多播放内核、字幕、弹幕、OCR 识别、语音识别等功能'
+    pom.description = '基于 GSYVideoPlayer 的增强 Android 视频播放器库，支持 Android 4.0+ (API 14+)，包含多播放内核、字幕、弹幕、OCR 识别、语音识别等功能'
     pom.url = pomUrl
     pom.licenses {
         license {

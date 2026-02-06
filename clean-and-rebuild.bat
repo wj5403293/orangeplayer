@@ -1,0 +1,109 @@
+@echo off
+REM 清理所有旧的构建产物并重新构建
+
+echo ========================================
+echo 清理并重新构建所有模块
+echo ========================================
+echo.
+
+echo [1/3] 清理所有构建产物...
+echo.
+
+REM 清理 Gradle 缓存
+echo   清理 Gradle 构建缓存...
+call gradlew.bat clean
+if errorlevel 1 goto ERROR
+
+REM 删除所有 build/repo 目录
+echo   删除所有本地仓库目录...
+if exist "palyerlibrary\build\repo" rmdir /s /q "palyerlibrary\build\repo"
+for %%m in (base proxy_cache java armv7a armv64 x86 x86_64) do (
+    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo" (
+        echo     - gsyVideoPlayer-%%m\build\repo
+        rmdir /s /q "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo"
+    )
+)
+
+REM 删除旧的 bundle 文件
+echo   删除旧的 bundle 文件...
+if exist "maven-central\bundle.zip" del /q "maven-central\bundle.zip"
+if exist "maven-central\bundle-test.zip" del /q "maven-central\bundle-test.zip"
+
+echo.
+echo [2/3] 重新发布所有模块到本地仓库...
+echo.
+
+echo   [1/8] palyerlibrary...
+call gradlew.bat :palyerlibrary:publishMavenPublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [2/8] gsyVideoPlayer-base...
+call gradlew.bat :gsyVideoPlayer-base:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [3/8] gsyVideoPlayer-proxy_cache...
+call gradlew.bat :gsyVideoPlayer-proxy_cache:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [4/8] gsyVideoPlayer-java...
+call gradlew.bat :gsyVideoPlayer-java:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [5/8] gsyVideoPlayer-armv7a...
+call gradlew.bat :gsyVideoPlayer-armv7a:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [6/8] gsyVideoPlayer-armv64...
+call gradlew.bat :gsyVideoPlayer-armv64:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [7/8] gsyVideoPlayer-x86...
+call gradlew.bat :gsyVideoPlayer-x86:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [8/8] gsyVideoPlayer-x86_64...
+call gradlew.bat :gsyVideoPlayer-x86_64:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo.
+echo [SUCCESS] 所有模块已发布到本地仓库
+echo.
+
+echo [3/3] 验证版本号...
+echo.
+
+REM 检查 palyerlibrary 版本
+if exist "palyerlibrary\build\repo\io\github\706412584\orangeplayer\1.1.0" (
+    echo   ✓ orangeplayer 1.1.0
+) else (
+    echo   ✗ orangeplayer 1.1.0 未找到
+    goto ERROR
+)
+
+REM 检查 GSYVideoPlayer 模块版本
+for %%m in (base proxy_cache java armv7a armv64 x86 x86_64) do (
+    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io\github\706412584\gsyVideoPlayer-%%m\1.1.0" (
+        echo   ✓ gsyVideoPlayer-%%m 1.1.0
+    ) else (
+        echo   ✗ gsyVideoPlayer-%%m 1.1.0 未找到
+        goto ERROR
+    )
+)
+
+echo.
+echo ========================================
+echo 清理并重新构建成功！
+echo ========================================
+echo.
+echo 所有模块版本: 1.1.0
+echo.
+echo 下一步: 运行 test-publish-all.bat 创建 bundle
+echo.
+pause
+exit /b 0
+
+:ERROR
+echo.
+echo [ERROR] 操作失败
+pause
+exit /b 1

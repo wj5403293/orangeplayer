@@ -323,69 +323,87 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // 根据设置切换播放器核心
         switch (engine) {
             case PlayerConstants.ENGINE_IJK:
-                // 检查 IJK so 库是否可用
-                if (isIjkPlayerAvailable()) {
-                    try {
-                        PlayerFactory.setPlayManager(IjkPlayerManager.class);
-                        android.util.Log.d(TAG, "initPlayerFactory: 使用 IJK 播放器");
-                        // IJK 播放器使用 TextureView 模式（更稳定）
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                    } catch (Exception e) {
-                        android.util.Log.w(TAG, "initPlayerFactory: IJK 播放器初始化失败，回退到系统播放器", e);
+                // IJK 播放器需要 Android 4.1+ (API 16)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    // 检查 IJK so 库是否可用
+                    if (isIjkPlayerAvailable()) {
+                        try {
+                            PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeIjkPlayerManager.class);
+                            android.util.Log.d(TAG, "initPlayerFactory: 使用 Orange IJK 播放器（支持本地文件）");
+                            // IJK 播放器使用 TextureView 模式（更稳定）
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                        } catch (Exception e) {
+                            android.util.Log.w(TAG, "initPlayerFactory: IJK 播放器初始化失败，回退到系统播放器", e);
+                            fallbackToSystem = true;
+                        }
+                    } else {
+                        android.util.Log.w(TAG, "initPlayerFactory: IJK so 库未找到，回退到系统播放器");
                         fallbackToSystem = true;
                     }
                 } else {
-                    android.util.Log.w(TAG, "initPlayerFactory: IJK so 库未找到，回退到系统播放器");
+                    android.util.Log.w(TAG, "initPlayerFactory: Android 版本过低（需要 4.1+），不支持 IJK 播放器，回退到系统播放器");
                     fallbackToSystem = true;
                 }
                 break;
                 
             case PlayerConstants.ENGINE_EXO:
-                // 使用自定义的 OrangeExoPlayerManager，支持 SurfaceControl 无缝切换
-                // 解决横竖屏切换时 MediaCodec IllegalStateException 问题
-                try {
-                    PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
-                    android.util.Log.d(TAG, "initPlayerFactory: 使用 ExoPlayer");
-                    // ExoPlayer 需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
-                    // 设置渲染类型为 SurfaceView (Android Q+)
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                        // 禁用 TextureView 模式，使用 SurfaceControl
-                        com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
-                    } else {
-                        // 低版本 Android 使用 TextureView
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                        com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
-                    }
-                } catch (Exception e) {
-                    android.util.Log.w(TAG, "initPlayerFactory: ExoPlayer 初始化失败", e);
-                    // 回退到 GSY 原生 Exo2PlayerManager
+                // ExoPlayer 需要 Android 5.0+ (API 21)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    // 使用自定义的 OrangeExoPlayerManager，支持 SurfaceControl 无缝切换
+                    // 解决横竖屏切换时 MediaCodec IllegalStateException 问题
                     try {
-                        @SuppressWarnings("unchecked")
-                        Class<? extends IPlayerManager> exoClass = 
-                            (Class<? extends IPlayerManager>) Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
-                        PlayerFactory.setPlayManager(exoClass);
-                        android.util.Log.d(TAG, "initPlayerFactory: 回退到 GSY Exo2PlayerManager");
-                    } catch (ClassNotFoundException ex) {
-                        android.util.Log.w(TAG, "initPlayerFactory: Exo2PlayerManager 未找到，回退到系统播放器", ex);
-                        fallbackToSystem = true;
+                        PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
+                        android.util.Log.d(TAG, "initPlayerFactory: 使用 ExoPlayer");
+                        // ExoPlayer 需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
+                        // 设置渲染类型为 SurfaceView (Android Q+)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+                            // 禁用 TextureView 模式，使用 SurfaceControl
+                            com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
+                        } else {
+                            // 低版本 Android 使用 TextureView
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                            com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.w(TAG, "initPlayerFactory: ExoPlayer 初始化失败", e);
+                        // 回退到 GSY 原生 Exo2PlayerManager
+                        try {
+                            @SuppressWarnings("unchecked")
+                            Class<? extends IPlayerManager> exoClass = 
+                                (Class<? extends IPlayerManager>) Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
+                            PlayerFactory.setPlayManager(exoClass);
+                            android.util.Log.d(TAG, "initPlayerFactory: 回退到 GSY Exo2PlayerManager");
+                        } catch (ClassNotFoundException ex) {
+                            android.util.Log.w(TAG, "initPlayerFactory: Exo2PlayerManager 未找到，回退到系统播放器", ex);
+                            fallbackToSystem = true;
+                        }
                     }
+                } else {
+                    android.util.Log.w(TAG, "initPlayerFactory: Android 版本过低（需要 5.0+），不支持 ExoPlayer，回退到系统播放器");
+                    fallbackToSystem = true;
                 }
                 break;
                 
             case PlayerConstants.ENGINE_ALI:
-                // GSY AliPlayer 类名: com.shuyu.aliplay.AliPlayerManager
-                try {
-                    @SuppressWarnings("unchecked")
-                    Class<? extends IPlayerManager> aliClass = 
-                        (Class<? extends IPlayerManager>) Class.forName("com.shuyu.aliplay.AliPlayerManager");
-                    PlayerFactory.setPlayManager(aliClass);
-                    android.util.Log.d(TAG, "initPlayerFactory: 使用阿里云播放器");
-                } catch (ClassNotFoundException e) {
-                    android.util.Log.w(TAG, "initPlayerFactory: 阿里云播放器未找到，回退到系统播放器", e);
+                // 阿里云播放器需要 Android 5.0+ (API 21)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    // GSY AliPlayer 类名: com.shuyu.aliplay.AliPlayerManager
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Class<? extends IPlayerManager> aliClass = 
+                            (Class<? extends IPlayerManager>) Class.forName("com.shuyu.aliplay.AliPlayerManager");
+                        PlayerFactory.setPlayManager(aliClass);
+                        android.util.Log.d(TAG, "initPlayerFactory: 使用阿里云播放器");
+                    } catch (ClassNotFoundException e) {
+                        android.util.Log.w(TAG, "initPlayerFactory: 阿里云播放器未找到，回退到系统播放器", e);
+                        fallbackToSystem = true;
+                    }
+                } else {
+                    android.util.Log.w(TAG, "initPlayerFactory: Android 版本过低（需要 5.0+），不支持阿里云播放器，回退到系统播放器");
                     fallbackToSystem = true;
                 }
                 break;
@@ -1544,7 +1562,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // 2. 设置新的播放器工厂
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
-                PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeIjkPlayerManager.class);
                 // IJK 播放器使用 TextureView 模式（更稳定）
                 com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                     com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
@@ -1575,7 +1593,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         Class<?> exoClass = Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
                         PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) exoClass);
                     } catch (ClassNotFoundException ex) {
-                        PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                        PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeIjkPlayerManager.class);
                     }
                 }
                 break;
@@ -1585,7 +1603,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     Class<?> aliClass = Class.forName("com.shuyu.aliplay.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
                 } catch (ClassNotFoundException e) {
-                    PlayerFactory.setPlayManager(IjkPlayerManager.class);
+                    PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeIjkPlayerManager.class);
                 }
                 break;
             case PlayerConstants.ENGINE_DEFAULT:
