@@ -555,17 +555,8 @@ public class VideoEventManager {
         // 创建设置对话框视图
         View dialogView = View.inflate(mActivity, R.layout.setup_dialog, null);
         
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> {
-                if (mCurrentSetupDialog != null) {
-                    mCurrentSetupDialog.dismiss();
-                }
-            });
-        }
-        
         // 创建设置对话框 - 始终显示在右侧
+        // DialogUtils 会自动处理点击外部区域关闭的逻辑
         mCurrentSetupDialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         

@@ -143,8 +143,12 @@ public class DialogUtils {
             removeBlurEffect(context);
         });
         
-        // 不在这里设置点击监听器，让调用者自己设置
-        // 这样可以避免冲突
+        // 查找布局中的根元素（通常是 id 为 layout 的 FrameLayout）
+        // 设置点击监听器以关闭弹窗
+        View layout = view.findViewById(R.id.layout);
+        if (layout != null) {
+            layout.setOnClickListener(v -> fakeDialog.dismiss());
+        }
         
         return fakeDialog;
     }
