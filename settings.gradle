@@ -26,6 +26,32 @@ dependencyResolutionManagement {
     }
 }
 
+// 使用本地 GSYVideoPlayer 源码模块（有预编译的 so 文件）
+// 基础模块（必需）
+include ':gsyVideoPlayer-base'
+include ':gsyVideoPlayer-proxy_cache'
+// Java 层模块
+include ':gsyVideoPlayer-java'
+// 播放器内核模块
+include ':gsyVideoPlayer-exo_player2'  // ExoPlayer 内核
+include ':gsyVideoPlayer-aliplay'      // 阿里云播放器内核
+// Native so 文件模块
+include ':gsyVideoPlayer-armv7a'
+include ':gsyVideoPlayer-armv64'
+include ':gsyVideoPlayer-x86'
+include ':gsyVideoPlayer-x86_64'
+
+project(':gsyVideoPlayer-base').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-base')
+project(':gsyVideoPlayer-proxy_cache').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-proxy_cache')
+project(':gsyVideoPlayer-java').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-java')
+project(':gsyVideoPlayer-exo_player2').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-exo_player2')
+project(':gsyVideoPlayer-aliplay').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-aliplay')
+project(':gsyVideoPlayer-armv7a').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-armv7a')
+project(':gsyVideoPlayer-armv64').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-armv64')
+project(':gsyVideoPlayer-x86').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-x86')
+project(':gsyVideoPlayer-x86_64').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-x86_64')
+
 rootProject.name = "橘子播放器"
 include ':app'
+include ':app-legacy'  // Android 4.4 兼容版本
 include ':palyerlibrary'

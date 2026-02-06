@@ -67,12 +67,22 @@ dependencies {
     // 自定义播放器模块
     implementation project(':palyerlibrary')
     
-    // 播放器内核
-    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'      // IJK 播放器（默认）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0' // ExoPlayer 内核
+    // 播放器内核 - 使用本地 GSYVideoPlayer 模块
+    // Java 层实现（必需！包含播放器核心逻辑）
+    implementation project(':gsyVideoPlayer-java')
     
-    // 阿里云播放器（排除内置版本，使用 5.4.7.1 免授权版本）
-    implementation('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+    // Native so 文件（按需选择架构）
+    implementation project(':gsyVideoPlayer-armv7a')  // ARM 32位架构
+    implementation project(':gsyVideoPlayer-armv64')  // ARM 64位架构
+    implementation project(':gsyVideoPlayer-x86')     // x86 32位架构
+    implementation project(':gsyVideoPlayer-x86_64')  // x86 64位架构
+    
+    // ExoPlayer 内核（可选，需要 API 21+）- 使用本地模块
+    implementation project(':gsyVideoPlayer-exo_player2')
+    
+    // 阿里云播放器内核（可选）- 使用本地模块
+    implementation(project(':gsyVideoPlayer-aliplay')) {
+        // 排除内置的阿里云播放器 SDK，使用 5.4.7.1 免授权版本
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }
