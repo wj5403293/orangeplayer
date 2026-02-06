@@ -368,12 +368,6 @@ public class VideoEventManager {
             // 始终显示在右侧
             final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                     DialogUtils.DialogPosition.RIGHT, null, null);
-                        
-            // 点击外部区域关闭对话框
-            View layout = dialogView.findViewById(R.id.layout);
-            if (layout != null) {
-                layout.setOnClickListener(v -> dialog.dismiss());
-                            }
             
             // 设置倍速选项
             setupSpeedOptions(dialogView, dialog);
@@ -934,12 +928,6 @@ public class VideoEventManager {
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> dialog.dismiss());
-        }
-        
         // 设置定时关闭选项
         setupTimerOptions(dialogView, dialog);
     }
@@ -1288,12 +1276,6 @@ public class VideoEventManager {
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> dialog.dismiss());
-        }
-        
         // 设置画面比例选项
         setupScreenScaleOptions(dialogView, dialog);
     }
@@ -1376,12 +1358,6 @@ public class VideoEventManager {
         // 始终显示在右侧
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> dialog.dismiss());
-        }
-        
         // 设置长按倍速选项
         setupLongPressSpeedOptions(dialogView, dialog);
     }
@@ -1665,12 +1641,6 @@ public class VideoEventManager {
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> dialog.dismiss());
-        }
-        
         // 设置跳过片头选项
         setupSkipOpeningOptions(dialogView, dialog);
     }
@@ -1743,12 +1713,6 @@ public class VideoEventManager {
         // 始终显示在右侧
         final AlertDialog dialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
-        
-        // 点击外部区域关闭对话框
-        View layout = dialogView.findViewById(R.id.layout);
-        if (layout != null) {
-            layout.setOnClickListener(v -> dialog.dismiss());
-        }
         
         // 设置跳过片尾选项
         setupSkipEndingOptions(dialogView, dialog);

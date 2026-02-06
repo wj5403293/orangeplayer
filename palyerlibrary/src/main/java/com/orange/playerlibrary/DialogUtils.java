@@ -90,29 +90,17 @@ public class DialogUtils {
                                           DialogPosition position,
                                           Float widthRatio,
                                           Float heightRatio) {
-        // Android 4.4 使用自定义 View 覆盖层，避免 Dialog 透明度问题
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
-            return createDialogAsView(context, view, position, widthRatio, heightRatio);
-        }
-        
-        // Android 5.0+ 使用标准 AlertDialog
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        AlertDialog dialog = builder.setView(view).create();
-        
-        // 在 show() 之前设置这些属性
-        dialog.setCancelable(true);
-        dialog.setCanceledOnTouchOutside(true);
-        
-        dialog.show();
-        setupWindow(dialog.getWindow(), position, widthRatio, heightRatio, context);
-        
-        dialog.setOnDismissListener(d -> removeBlurEffect(context));
-        
-        return dialog;
+        // 统一使用自定义 View 覆盖层方式，确保所有版本行为一致
+        // 优点：
+        // 1. 点击外部区域关闭功能在所有版本上行为一致
+        // 2. 避免 Android 4.4 的 Dialog 透明度问题
+        // 3. 避免 AlertDialog 的窗口大小和位置限制
+        return createDialogAsView(context, view, position, widthRatio, heightRatio);
     }
     
     /**
-     * Android 4.4 使用自定义 View 覆盖层创建"对话框"
+     * 使用自定义 View 覆盖层创建"对话框"
+     * 统一在所有 Android 版本上使用此方式，确保行为一致
      */
     private static AlertDialog createDialogAsView(Activity context,
                                                  View view,
@@ -132,22 +120,39 @@ public class DialogUtils {
         // 添加到 DecorView
         decorView.addView(view);
         
-        // 创建一个假的 AlertDialog 对象用于返回
-        // 这样调用者可以使用 dismiss() 方法
-        AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.TransparentDialog);
-        AlertDialog fakeDialog = builder.create();
-        
-        // 重写 dismiss 方法，移除 View
-        fakeDialog.setOnDismissListener(d -> {
-            decorView.removeView(view);
-            removeBlurEffect(context);
-        });
+        // 创建一个自定义的 AlertDialog 子类，重写 dismiss() 方法
+        AlertDialog fakeDialog = new AlertDialog(context, R.style.TransparentDialog) {
+            private boolean isDismissed = false;
+            
+            @Override
+            public void dismiss() {
+                if (!isDismissed) {
+                    isDismissed = true;
+                    decorView.removeView(view);
+                    removeBlurEffect(context);
+                    // 调用父类的 dismiss，触发 OnDismissListener
+                    try {
+                        super.dismiss();
+                    } catch (Exception e) {
+                        // 忽略异常，因为对话框可能没有被 show()
+                    }
+                }
+            }
+        };
         
         // 查找布局中的根元素（通常是 id 为 layout 的 FrameLayout）
         // 设置点击监听器以关闭弹窗
         View layout = view.findViewById(R.id.layout);
         if (layout != null) {
             layout.setOnClickListener(v -> fakeDialog.dismiss());
+        }
+        
+        // 查找内容面板，设置点击监听器消费事件（防止传递到根布局）
+        View contentLayout = view.findViewById(R.id.content_layout);
+        if (contentLayout != null) {
+            contentLayout.setOnClickListener(v -> {
+                // 不做任何事情，只是消费点击事件
+            });
         }
         
         return fakeDialog;

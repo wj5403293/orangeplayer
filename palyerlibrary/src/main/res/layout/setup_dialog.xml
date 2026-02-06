@@ -16,7 +16,9 @@
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:paddingTop="16dp"
-        android:paddingBottom="16dp">
+        android:paddingBottom="16dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
