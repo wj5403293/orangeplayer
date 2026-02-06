@@ -104,8 +104,8 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载
     
     // 播放器内核（至少选择一个）
-    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'      // IJK 播放器（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0' // ExoPlayer
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'      // IJK 播放器（推荐）
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0' // ExoPlayer
     
     // 可选依赖（按需添加）
     implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'  // 弹幕功能
@@ -121,7 +121,7 @@ dependencies {
 ```gradle
 dependencies {
     // 阿里云播放器支持（排除内置版本，避免授权问题）
-    implementation('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }
@@ -441,7 +441,7 @@ dependencies {
 ```gradle
 dependencies {
     // 播放器内核（必需）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
     
     // FFmpeg 解码器（可选，增强编码格式支持）
     implementation 'androidx.media3:media3-decoder-ffmpeg:1.5.0'
@@ -460,7 +460,7 @@ Google 官方播放器，性能优秀。
 
 ```gradle
 dependencies {
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
 }
 ```
 
@@ -485,7 +485,7 @@ allprojects {
 // 在 app/build.gradle 添加依赖
 dependencies {
     // 排除内置的阿里云播放器，避免授权问题
-    implementation('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }

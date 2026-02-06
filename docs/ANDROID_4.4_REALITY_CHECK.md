@@ -1,4 +1,4 @@
-# Android 4.4 兼容性 - 现实检查
+﻿# Android 4.4 兼容性 - 现实检查
 
 ## 结论：不推荐支持 Android 4.4
 
@@ -33,7 +33,7 @@
 
 ```
 uses-sdk:minSdkVersion 19 cannot be smaller than version 21 declared in library
-[io.github.carguo:gsyvideoplayer:11.3.0]
+[io.github.706412584:gsyVideoPlayer:1.1.0]
 ```
 
 ### 问题分析

@@ -1,4 +1,4 @@
-# 播放内核切换指南
+﻿# 播放内核切换指南
 
 OrangePlayer 支持 4 种播放内核，可根据需求选择或在运行时动态切换。
 
@@ -23,16 +23,16 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:1.0.7'
     
     // GSY 基础库（必需）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // ExoPlayer 内核（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     
     // IJK 内核（可选）
-    // implementation 'io.github.carguo:gsyvideoplayer-ijkplayer:11.3.0'
+    // implementation 'io.github.706412584:gsyVideoPlayer-ijkplayer:1.1.0'
     
     // 阿里云内核（可选）
-    // implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    // implementation 'io.github.706412584:gsyVideoPlayer-aliplay:1.1.0'
 }
 ```
 
@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
 
 ```gradle
 dependencies {
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
 }
 ```
 
@@ -131,7 +131,7 @@ mVideoView.startPlayLogic();
 
 ```gradle
 dependencies {
-    implementation 'io.github.carguo:gsyvideoplayer-ijkplayer:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-ijkplayer:1.1.0'
 }
 ```
 
@@ -193,7 +193,7 @@ mVideoView.startPlayLogic();
 
 ```gradle
 dependencies {
-    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-aliplay:1.1.0'
 }
 ```
 

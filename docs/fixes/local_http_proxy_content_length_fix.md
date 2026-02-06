@@ -1,4 +1,4 @@
-# 本地 HTTP 代理服务器 Content-Length 问题修复
+﻿# 本地 HTTP 代理服务器 Content-Length 问题修复
 
 ## 问题描述
 
@@ -77,7 +77,7 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
 }
 ```
 

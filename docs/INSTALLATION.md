@@ -1,4 +1,4 @@
-# 安装指南
+﻿# 安装指南
 
 完整的 OrangePlayer 安装和依赖配置指南。
 
@@ -50,7 +50,7 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // GSY 基础依赖（会自动引入子依赖）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
 }
 ```
 
@@ -65,12 +65,12 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // GSY 基础依赖
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // GSY 子依赖（手动添加）
-    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyijkjava:1.0.0'
 }
 ```
 
@@ -93,15 +93,15 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // GSY 基础依赖
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // ExoPlayer 播放内核
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     
     // 如果构建工具不支持传递依赖，还需要手动添加：
-    // implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    // implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    // implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    // implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
+    // implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    // implementation 'io.github.706412584:gsyijkjava:1.0.0'
     // implementation 'androidx.media3:media3-exoplayer:1.8.0'
     // implementation 'androidx.media3:media3-ui:1.8.0'
 }
@@ -118,11 +118,11 @@ IJK 内核需要额外添加 so 库依赖：
 ```gradle
 dependencies {
     // IJK 播放器 so 库（按需添加对应 CPU 架构）
-    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'   // arm64-v8a（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'  // armeabi-v7a
-    implementation 'io.github.carguo:gsyvideoplayer-armv5:11.3.0'   // armeabi（旧设备）
-    implementation 'io.github.carguo:gsyvideoplayer-x86:11.3.0'     // x86 模拟器
-    implementation 'io.github.carguo:gsyvideoplayer-x64:11.3.0'     // x86_64 模拟器
+    implementation 'io.github.706412584:gsyVideoPlayer-arm64:1.1.0'   // arm64-v8a（推荐）
+    implementation 'io.github.706412584:gsyVideoPlayer-armv7a:1.1.0'  // armeabi-v7a
+    implementation 'io.github.706412584:gsyVideoPlayer-armv5:1.1.0'   // armeabi（旧设备）
+    implementation 'io.github.706412584:gsyVideoPlayer-x86:1.1.0'     // x86 模拟器
+    implementation 'io.github.706412584:gsyVideoPlayer-x64:1.1.0'     // x86_64 模拟器
 }
 ```
 
@@ -136,7 +136,7 @@ dependencies {
 dependencies {
     // 扩展编码支持（支持 mpeg 编码和更多协议，支持 16k Page Size）
     // 注意：会增加包体积
-    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-ex_so:1.1.0'
 }
 ```
 
@@ -147,7 +147,7 @@ dependencies {
 ```gradle
 dependencies {
     // 阿里云播放器模式（需要 License）
-    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-aliplay:1.1.0'
 }
 ```
 
@@ -285,19 +285,19 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // === GSY 基础依赖（必需）===
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // === 播放内核（按需选择）===
     
     // ExoPlayer 模式（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     
     // 阿里云播放器模式（需要 License）
-    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-aliplay:1.1.0'
     
     // IJK 播放器 so 库（根据目标设备选择）
-    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-arm64:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-armv7a:1.1.0'
     
     // === 可选功能 ===
     
@@ -325,27 +325,27 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // === GSY 基础依赖（必需）===
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // GSY 子依赖（手动添加）
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
+    implementation 'io.github.706412584:gsyijkjava:1.0.0'
     
     // === 播放内核（按需选择）===
     
     // ExoPlayer 模式（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     implementation 'androidx.media3:media3-exoplayer:1.8.0'
     implementation 'androidx.media3:media3-ui:1.8.0'
     implementation 'androidx.media3:media3-common:1.8.0'
     
     // 阿里云播放器模式（需要 License）
-    implementation 'io.github.carguo:gsyvideoplayer-aliplay:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-aliplay:1.1.0'
     
     // IJK 播放器 so 库（根据目标设备选择）
-    implementation 'io.github.carguo:gsyvideoplayer-arm64:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-armv7a:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-arm64:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-armv7a:1.1.0'
     
     // === AndroidX 基础库（通常已包含）===
     implementation 'androidx.appcompat:appcompat:1.7.1'

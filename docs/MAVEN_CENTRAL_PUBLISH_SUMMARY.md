@@ -1,4 +1,4 @@
-# Maven Central 发布总结
+﻿# Maven Central 发布总结
 
 ## 问题与解决方案
 
@@ -44,7 +44,7 @@ afterEvaluate {
 - POM 文件中包含 Maven Central 上不存在的依赖：
   - `com.github.bilibili:DanmakuFlameMaster` (JitPack 依赖)
   - `com.aliyun.sdk.android:AliyunPlayer` (阿里云私有仓库)
-  - `io.github.carguo:gsyvideoplayer-aliplay` (依赖上述两个库)
+  - `io.github.706412584:gsyVideoPlayer-aliplay` (依赖上述两个库)
 
 **解决方案**：
 将这些依赖改为 `compileOnly`，不传递给使用者：
@@ -52,11 +52,11 @@ afterEvaluate {
 ```gradle
 dependencies {
     // 核心依赖（会传递）
-    api 'io.github.carguo:gsyvideoplayer:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    api 'io.github.706412584:gsyVideoPlayer:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     
     // 可选依赖（不传递，让使用者自己添加）
-    compileOnly ('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+    compileOnly ('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }
@@ -147,11 +147,11 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     
     // GSYVideoPlayer 核心依赖
-    api 'io.github.carguo:gsyvideoplayer:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    api 'io.github.706412584:gsyVideoPlayer:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     
     // 可选依赖（compileOnly）
-    compileOnly ('io.github.carguo:gsyvideoplayer-aliplay:11.3.0') {
+    compileOnly ('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }

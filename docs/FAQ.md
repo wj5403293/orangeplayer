@@ -1,4 +1,4 @@
-# 常见问题
+﻿# 常见问题
 
 OrangePlayer 常见问题解答。
 
@@ -33,10 +33,10 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // GSY 最小依赖（系统播放器必需）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyijkjava:1.0.0'
 }
 ```
 
@@ -48,15 +48,15 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.3'
     
     // GSY 基础依赖（必需！）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // GSY 子依赖（如果构建工具不自动解析传递依赖）
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-base:11.3.0'
-    implementation 'io.github.carguo:gsyijkjava:1.0.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
+    implementation 'io.github.706412584:gsyijkjava:1.0.0'
     
     // ExoPlayer 播放内核
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
     
     // ExoPlayer 依赖（Media3）
     implementation 'androidx.media3:media3-exoplayer:1.8.0'
@@ -141,7 +141,7 @@ videoView.startPlayLogic();
 
 ```gradle
 dependencies {
-    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-ex_so:1.1.0'
 }
 ```
 
@@ -350,10 +350,10 @@ videoView.startPlayLogic();
 ```gradle
 dependencies {
     // IJK 播放器
-    implementation 'io.github.carguo:gsyvideoplayer:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer:1.1.0'
     
     // 如果需要支持更多编码格式，添加扩展 so 库
-    implementation 'io.github.carguo:gsyvideoplayer-ex_so:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-ex_so:1.1.0'
 }
 ```
 
@@ -543,7 +543,7 @@ dependencies {
     implementation 'com.danikula:videocache:2.7.1'
     
     // 或使用 GSYVideoPlayer 内置缓存
-    implementation 'io.github.carguo:gsyvideoplayer-androidvideocache:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
 }
 ```
 

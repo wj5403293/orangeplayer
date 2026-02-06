@@ -1,4 +1,4 @@
-# Reddit Post Template
+﻿# Reddit Post Template
 
 ## Title
 [Open Source] OrangePlayer - Feature-rich Android video player library with danmaku, subtitles, OCR, and speech recognition
@@ -28,8 +28,8 @@ OrangePlayer is built on top of GSYVideoPlayer and adds a bunch of useful featur
 ```gradle
 dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.5'
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
 }
 ```
 

@@ -1,4 +1,4 @@
-# 文章模板：OrangePlayer - 功能完整的 Android 视频播放器开源项目
+﻿# 文章模板：OrangePlayer - 功能完整的 Android 视频播放器开源项目
 
 > 适用于：掘金、CSDN、博客园、SegmentFault、知乎
 
@@ -44,10 +44,10 @@ dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.5'
     
     // GSY 基础依赖（必需）
-    implementation 'io.github.carguo:gsyvideoplayer-java:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // ExoPlayer 播放内核（推荐）
-    implementation 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
 }
 ```
 

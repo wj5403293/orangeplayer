@@ -1,4 +1,4 @@
-# Android 4.0 兼容性分析
+﻿# Android 4.0 兼容性分析
 
 ## 当前状态
 
@@ -39,7 +39,7 @@ com.google.android.material:material:1.13.0
 
 #### GSYVideoPlayer
 ```gradle
-io.github.carguo:gsyvideoplayer:11.3.0
+io.github.706412584:gsyVideoPlayer:1.1.0
 ```
 - **最低要求**: API 16 (Android 4.1)
 - ❌ **不兼容 Android 4.0**
@@ -47,7 +47,7 @@ io.github.carguo:gsyvideoplayer:11.3.0
 
 #### IJK 播放器
 ```gradle
-io.github.carguo:gsyvideoplayer:11.3.0
+io.github.706412584:gsyVideoPlayer:1.1.0
 ```
 - **最低要求**: API 16
 - ❌ **不兼容 Android 4.0**
@@ -57,7 +57,7 @@ io.github.carguo:gsyvideoplayer:11.3.0
 
 #### ExoPlayer
 ```gradle
-io.github.carguo:gsyvideoplayer-exo2:11.3.0
+io.github.706412584:gsyVideoPlayer-exo2:1.1.0
 ```
 - **最低要求**: API 21 (Android 5.0)
 - ❌ **不兼容 Android 4.0**
