@@ -53,19 +53,21 @@ del temp_token.txt
 
 echo Choose operation:
 echo.
-echo 1. Quick Publish (Recommended) - Build and upload palyerlibrary
-echo 2. Full Publish - Clean, build, and upload palyerlibrary
-echo 3. Check deployment status
-echo 4. Check Maven Central sync status
-echo 5. Clear all deployments
+echo 1. Quick Publish (Recommended) - Build and upload palyerlibrary only
+echo 2. Full Publish - Clean, build, and upload palyerlibrary only
+echo 3. Publish All Modules - Upload all 10 modules (palyerlibrary + GSYVideoPlayer modules)
+echo 4. Check deployment status
+echo 5. Check Maven Central sync status
+echo 6. Clear all deployments
 echo.
-set /p CHOICE="Enter option (1-5): "
+set /p CHOICE="Enter option (1-6): "
 
 if "%CHOICE%"=="1" goto QUICK_PUBLISH
 if "%CHOICE%"=="2" goto FULL_PUBLISH
-if "%CHOICE%"=="3" goto CHECK_STATUS
-if "%CHOICE%"=="4" goto CHECK_MAVEN
-if "%CHOICE%"=="5" goto CLEAR_DEPLOYMENTS
+if "%CHOICE%"=="3" goto PUBLISH_ALL_MODULES
+if "%CHOICE%"=="4" goto CHECK_STATUS
+if "%CHOICE%"=="5" goto CHECK_MAVEN
+if "%CHOICE%"=="6" goto CLEAR_DEPLOYMENTS
 
 echo Invalid option
 pause
@@ -208,6 +210,156 @@ echo.
 cd ..
 pause
 exit /b 0
+
+:PUBLISH_ALL_MODULES
+echo.
+echo ========================================
+echo Publish All Modules
+echo ========================================
+echo.
+echo This will publish 10 modules:
+echo   1. palyerlibrary (OrangePlayer core)
+echo   2. gsyVideoPlayer-base
+echo   3. gsyVideoPlayer-proxy_cache
+echo   4. gsyVideoPlayer-java
+echo   5. gsyVideoPlayer-exo_player2 (ExoPlayer kernel)
+echo   6. gsyVideoPlayer-aliplay (AliPlayer kernel)
+echo   7. gsyVideoPlayer-armv7a (ARM 32-bit)
+echo   8. gsyVideoPlayer-armv64 (ARM 64-bit)
+echo   9. gsyVideoPlayer-x86 (x86 32-bit)
+echo   10. gsyVideoPlayer-x86_64 (x86 64-bit)
+echo.
+set /p CONFIRM="Continue? (Y/N): "
+
+if /i not "%CONFIRM%"=="Y" (
+    echo Cancelled
+    pause
+    exit /b 0
+)
+
+echo.
+echo [1/4] Publishing all modules to local repository...
+cd ..
+
+echo   [1/10] Publishing palyerlibrary...
+call gradlew.bat :palyerlibrary:publishMavenPublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [2/10] Publishing gsyVideoPlayer-base...
+call gradlew.bat :gsyVideoPlayer-base:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [3/10] Publishing gsyVideoPlayer-proxy_cache...
+call gradlew.bat :gsyVideoPlayer-proxy_cache:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [4/10] Publishing gsyVideoPlayer-java...
+call gradlew.bat :gsyVideoPlayer-java:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [5/10] Publishing gsyVideoPlayer-exo_player2...
+call gradlew.bat :gsyVideoPlayer-exo_player2:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [6/10] Publishing gsyVideoPlayer-aliplay...
+call gradlew.bat :gsyVideoPlayer-aliplay:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [7/10] Publishing gsyVideoPlayer-armv7a...
+call gradlew.bat :gsyVideoPlayer-armv7a:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [8/10] Publishing gsyVideoPlayer-armv64...
+call gradlew.bat :gsyVideoPlayer-armv64:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [9/10] Publishing gsyVideoPlayer-x86...
+call gradlew.bat :gsyVideoPlayer-x86:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [10/10] Publishing gsyVideoPlayer-x86_64...
+call gradlew.bat :gsyVideoPlayer-x86_64:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo.
+echo [SUCCESS] All modules published to local repository
+echo.
+
+echo [2/4] Collecting artifacts from all modules...
+if exist "temp_bundle_build" rmdir /s /q temp_bundle_build
+mkdir temp_bundle_build
+
+REM Copy palyerlibrary artifacts
+echo   Copying palyerlibrary...
+if exist "palyerlibrary\build\repo\io" (
+    xcopy /E /I /Y "palyerlibrary\build\repo\io" "temp_bundle_build\io"
+)
+
+REM Copy GSYVideoPlayer module artifacts from each module's build/repo
+echo   Copying GSYVideoPlayer modules...
+for %%m in (base proxy_cache java exo_player2 aliplay armv7a armv64 x86 x86_64) do (
+    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io" (
+        echo     - gsyVideoPlayer-%%m
+        xcopy /E /I /Y "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io" "temp_bundle_build\io"
+    )
+)
+
+echo.
+echo [3/4] Creating Bundle...
+cd temp_bundle_build
+powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+cd ..
+rmdir /s /q temp_bundle_build
+
+if not exist "maven-central\bundle.zip" (
+    echo [ERROR] Bundle creation failed
+    pause
+    exit /b 1
+)
+
+echo [SUCCESS] Bundle created
+powershell -Command "Get-Item maven-central\bundle.zip | Select-Object Name, @{Name='Size(MB)';Expression={[math]::Round($_.Length/1MB,2)}}"
+
+echo.
+echo [4/4] Uploading to Central Portal...
+cd maven-central
+curl -X POST -H "Authorization: Bearer %AUTH_TOKEN%" -F "bundle=@bundle.zip" "https://central.sonatype.com/api/v1/publisher/upload?name=orangeplayer-all-%VERSION%&publishingType=USER_MANAGED" > deployment_response.json
+
+echo.
+echo [SUCCESS] Upload complete!
+echo.
+echo Deployment ID:
+type deployment_response.json
+echo.
+echo.
+echo Published modules (10):
+echo   - orangeplayer:%VERSION%
+echo   - gsyVideoPlayer-base:%VERSION%
+echo   - gsyVideoPlayer-proxy_cache:%VERSION%
+echo   - gsyVideoPlayer-java:%VERSION%
+echo   - gsyVideoPlayer-exo_player2:%VERSION%
+echo   - gsyVideoPlayer-aliplay:%VERSION%
+echo   - gsyVideoPlayer-armv7a:%VERSION%
+echo   - gsyVideoPlayer-armv64:%VERSION%
+echo   - gsyVideoPlayer-x86:%VERSION%
+echo   - gsyVideoPlayer-x86_64:%VERSION%
+echo.
+echo Next steps:
+echo   1. Visit https://central.sonatype.com/publishing/deployments
+echo   2. Wait for validation (about 5-10 minutes for all modules)
+echo   3. Click "Publish" to release all modules
+echo.
+
+cd ..
+pause
+exit /b 0
+
+:PUBLISH_ERROR
+echo.
+echo [ERROR] Publish failed
+cd ..
+pause
+exit /b 1
 
 :CHECK_STATUS
 echo.
