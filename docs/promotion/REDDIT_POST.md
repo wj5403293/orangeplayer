@@ -29,7 +29,7 @@ OrangePlayer is built on top of GSYVideoPlayer and adds a bunch of useful featur
 dependencies {
     implementation 'com.github.706412584:orangeplayer:v1.0.5'
     implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
 }
 ```
 

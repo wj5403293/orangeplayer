@@ -33,7 +33,7 @@
 
 ```
 uses-sdk:minSdkVersion 19 cannot be smaller than version 21 declared in library
-[io.github.706412584:gsyVideoPlayer:1.1.0]
+[io.github.706412584:gsyVideoPlayer-java:1.1.0]
 ```
 
 ### 问题分析

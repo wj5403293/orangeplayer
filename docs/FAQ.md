@@ -35,7 +35,7 @@ dependencies {
     // GSY 最小依赖（系统播放器必需）
     implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
-    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-proxy_cache:1.1.0'
     implementation 'io.github.706412584:gsyijkjava:1.0.0'
 }
 ```
@@ -51,12 +51,12 @@ dependencies {
     implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // GSY 子依赖（如果构建工具不自动解析传递依赖）
-    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-proxy_cache:1.1.0'
     implementation 'io.github.706412584:gsyVideoPlayer-base:1.1.0'
     implementation 'io.github.706412584:gsyijkjava:1.0.0'
     
     // ExoPlayer 播放内核
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
     
     // ExoPlayer 依赖（Media3）
     implementation 'androidx.media3:media3-exoplayer:1.8.0'
@@ -350,7 +350,7 @@ videoView.startPlayLogic();
 ```gradle
 dependencies {
     // IJK 播放器
-    implementation 'io.github.706412584:gsyVideoPlayer:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // 如果需要支持更多编码格式，添加扩展 so 库
     implementation 'io.github.706412584:gsyVideoPlayer-ex_so:1.1.0'
@@ -543,7 +543,7 @@ dependencies {
     implementation 'com.danikula:videocache:2.7.1'
     
     // 或使用 GSYVideoPlayer 内置缓存
-    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-proxy_cache:1.1.0'
 }
 ```
 

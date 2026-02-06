@@ -60,13 +60,13 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     
     // GSYVideoPlayer - 使用兼容版本
-    compileOnly 'io.github.706412584:gsyVideoPlayer:1.1.0'
+    compileOnly 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // IJK 播放器 - 兼容 API 16+
-    compileOnly 'io.github.706412584:gsyVideoPlayer:1.1.0'
+    compileOnly 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // ExoPlayer - 移除或使用旧版本
-    // compileOnly 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'  // 需要 API 21+
+    // compileOnly 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'  // 需要 API 21+
     
     // 弹幕（兼容 API 14）
     compileOnly 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
@@ -109,8 +109,8 @@ dependencies {
     implementation project(':palyerlibrary')
     
     // 播放器内核 - 仅使用兼容 API 19 的
-    implementation 'io.github.706412584:gsyVideoPlayer:1.1.0'      // IJK 播放器
-    // implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'  // 移除 ExoPlayer
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'      // IJK 播放器
+    // implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'  // 移除 ExoPlayer
     
     // 移除阿里云播放器（需要 API 21+）
     // implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0')

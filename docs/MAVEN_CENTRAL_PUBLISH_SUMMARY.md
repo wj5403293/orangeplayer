@@ -52,8 +52,8 @@ afterEvaluate {
 ```gradle
 dependencies {
     // 核心依赖（会传递）
-    api 'io.github.706412584:gsyVideoPlayer:1.1.0'
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    api 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
     
     // 可选依赖（不传递，让使用者自己添加）
     compileOnly ('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
@@ -147,8 +147,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     
     // GSYVideoPlayer 核心依赖
-    api 'io.github.706412584:gsyVideoPlayer:1.1.0'
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    api 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
     
     // 可选依赖（compileOnly）
     compileOnly ('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {

@@ -47,7 +47,7 @@ dependencies {
     implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // ExoPlayer 播放内核（推荐）
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
 }
 ```
 

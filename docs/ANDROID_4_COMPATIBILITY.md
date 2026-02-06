@@ -39,7 +39,7 @@ com.google.android.material:material:1.13.0
 
 #### GSYVideoPlayer
 ```gradle
-io.github.706412584:gsyVideoPlayer:1.1.0
+io.github.706412584:gsyVideoPlayer-java:1.1.0
 ```
 - **最低要求**: API 16 (Android 4.1)
 - ❌ **不兼容 Android 4.0**
@@ -47,7 +47,7 @@ io.github.706412584:gsyVideoPlayer:1.1.0
 
 #### IJK 播放器
 ```gradle
-io.github.706412584:gsyVideoPlayer:1.1.0
+io.github.706412584:gsyVideoPlayer-java:1.1.0
 ```
 - **最低要求**: API 16
 - ❌ **不兼容 Android 4.0**
@@ -57,7 +57,7 @@ io.github.706412584:gsyVideoPlayer:1.1.0
 
 #### ExoPlayer
 ```gradle
-io.github.706412584:gsyVideoPlayer-exo2:1.1.0
+io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0
 ```
 - **最低要求**: API 21 (Android 5.0)
 - ❌ **不兼容 Android 4.0**

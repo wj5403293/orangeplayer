@@ -26,10 +26,10 @@ dependencies {
     implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // ExoPlayer 内核（推荐）
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
     
     // IJK 内核（可选）
-    // implementation 'io.github.706412584:gsyVideoPlayer-ijkplayer:1.1.0'
+    // implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
     
     // 阿里云内核（可选）
     // implementation 'io.github.706412584:gsyVideoPlayer-aliplay:1.1.0'
@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
 
 ```gradle
 dependencies {
-    implementation 'io.github.706412584:gsyVideoPlayer-exo2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
 }
 ```
 
@@ -131,7 +131,7 @@ mVideoView.startPlayLogic();
 
 ```gradle
 dependencies {
-    implementation 'io.github.706412584:gsyVideoPlayer-ijkplayer:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'
 }
 ```
 

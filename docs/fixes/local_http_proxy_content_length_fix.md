@@ -77,7 +77,7 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'io.github.706412584:gsyVideoPlayer-androidvideocache:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-proxy_cache:1.1.0'
 }
 ```
 
