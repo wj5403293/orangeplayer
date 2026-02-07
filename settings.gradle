@@ -54,4 +54,5 @@ project(':gsyVideoPlayer-x86_64').projectDir = new File(rootDir, 'GSYVideoPlayer
 rootProject.name = "橘子播放器"
 include ':app'
 include ':app-legacy'  // Android 4.4 兼容版本
+include ':app-tv'      // Android TV 版本
 include ':palyerlibrary'

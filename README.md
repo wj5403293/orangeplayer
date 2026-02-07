@@ -56,6 +56,7 @@
 | 📺 投屏 | DLNA 投屏支持 |
 | 🖼️ 画中画 | PiP 小窗模式 |
 | 📸 截图 | 视频截图保存 |
+| 📺 Android TV | 完整的 TV 适配，遥控器支持 |
 
 ---
 
@@ -71,6 +72,7 @@
   - [OCR 字幕翻译](docs/OCR_GUIDE.md) - 硬字幕识别与翻译
   - [语音识别字幕](docs/SPEECH_RECOGNITION.md) - 实时语音转字幕
   - [投屏功能](docs/CAST_GUIDE.md) - DLNA 投屏配置
+  - [Android TV 适配](docs/TV_QUICK_START.md) - TV 平台快速集成
 
 - **开发文档**
   - [API 文档](docs/API.md) - 完整的 API 参考
