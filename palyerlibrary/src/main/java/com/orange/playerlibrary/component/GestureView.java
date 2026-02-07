@@ -26,8 +26,6 @@ import com.shuyu.gsyvideoplayer.utils.CommonUtil;
 /**
  * 手势提示视图
  * 显示音量、亮度、进度调节的提示
- * 
- * 注意：TV 模式下会自动禁用
  */
 public class GestureView extends FrameLayout implements IControlComponent {
     
@@ -39,7 +37,6 @@ public class GestureView extends FrameLayout implements IControlComponent {
     private final ImageView mIcon;
     private final ProgressBar mProgressPercent;
     private final TextView mTextPercent;
-    private boolean mIsTvMode = false;
     
     public GestureView(@NonNull Context context) {
         this(context, null);
@@ -51,19 +48,6 @@ public class GestureView extends FrameLayout implements IControlComponent {
     
     public GestureView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        
-        // 检测 TV 模式
-        mIsTvMode = OrangePlayerConfig.isTvMode(context);
-        
-        // TV 模式下直接隐藏，不加载布局
-        if (mIsTvMode) {
-            setVisibility(GONE);
-            mIcon = null;
-            mProgressPercent = null;
-            mTextPercent = null;
-            mCenterContainer = null;
-            return;
-        }
         
         // 不要隐藏整个 GestureView，让它始终可见，由内部的 mCenterContainer 控制显示
         LayoutInflater.from(getContext()).inflate(R.layout.orange_layout_gesture_view, this, true);
@@ -86,28 +70,16 @@ public class GestureView extends FrameLayout implements IControlComponent {
     
     @Override
     public void onVisibilityChanged(boolean isVisible, Animation anim) {
-        // TV 模式下不处理
-        if (mIsTvMode) {
-            return;
-        }
         // 不需要处理
     }
     
     @Override
     public void onPlayerStateChanged(int playerState) {
-        // TV 模式下不处理
-        if (mIsTvMode) {
-            return;
-        }
         // 不需要处理
     }
     
     @Override
     public void onPlayStateChanged(int playState) {
-        // TV 模式下不处理
-        if (mIsTvMode) {
-            return;
-        }
         // GestureView 本身保持可见，由内部 mCenterContainer 控制手势提示的显示
         // 不需要根据播放状态隐藏整个视图
     }
@@ -128,8 +100,7 @@ public class GestureView extends FrameLayout implements IControlComponent {
      * 开始滑动
      */
     public void onStartSlide() {
-        // TV 模式下不处理
-        if (mIsTvMode || mCenterContainer == null) {
+        if (mCenterContainer == null) {
             return;
         }
         if (mControlWrapper != null) {
@@ -143,8 +114,7 @@ public class GestureView extends FrameLayout implements IControlComponent {
      * 停止滑动
      */
     public void onStopSlide() {
-        // TV 模式下不处理
-        if (mIsTvMode || mCenterContainer == null) {
+        if (mCenterContainer == null) {
             return;
         }
         mCenterContainer.animate()
@@ -167,8 +137,7 @@ public class GestureView extends FrameLayout implements IControlComponent {
      * @param duration 总时长（毫秒）
      */
     public void onPositionChange(int seekPosition, int currentPosition, int duration) {
-        // TV 模式下不处理
-        if (mIsTvMode || mProgressPercent == null || mIcon == null || mTextPercent == null) {
+        if (mProgressPercent == null || mIcon == null || mTextPercent == null) {
             return;
         }
         mProgressPercent.setVisibility(GONE);
@@ -189,8 +158,7 @@ public class GestureView extends FrameLayout implements IControlComponent {
      * @param percent 亮度百分比 (0-100)
      */
     public void onBrightnessChange(int percent) {
-        // TV 模式下不处理
-        if (mIsTvMode || mProgressPercent == null || mIcon == null || mTextPercent == null) {
+        if (mProgressPercent == null || mIcon == null || mTextPercent == null) {
             return;
         }
         mProgressPercent.setVisibility(VISIBLE);
@@ -204,8 +172,7 @@ public class GestureView extends FrameLayout implements IControlComponent {
      * @param percent 音量百分比 (0-100)
      */
     public void onVolumeChange(int percent) {
-        // TV 模式下不处理
-        if (mIsTvMode || mProgressPercent == null || mIcon == null || mTextPercent == null) {
+        if (mProgressPercent == null || mIcon == null || mTextPercent == null) {
             return;
         }
         mProgressPercent.setVisibility(VISIBLE);
