@@ -1,13 +1,13 @@
-// Maven Central 发布配置
-// 参考: https://central.sonatype.com/
+// Maven Central publishing configuration
+// Reference: https://central.sonatype.com/
 
 ext {
-    // 从 gradle.properties 或环境变量读取
+    // Read from gradle.properties or environment variables
     PUBLISH_GROUP_ID = 'io.github.706412584'
-    PUBLISH_VERSION = '1.1.1'  // 更新到最新版本
+    PUBLISH_VERSION = '1.1.1'  // Updated to latest version
     PUBLISH_ARTIFACT_ID = 'orangeplayer'
 }
 
-// 注意：新版 Sonatype Central 使用不同的发布方式
-// 暂时使用传统的 maven-publish 插件直接发布
-// 如果需要使用 Nexus Publishing Plugin，需要配置 OSSRH 账号
+// Note: New Sonatype Central uses different publishing method
+// Currently using traditional maven-publish plugin for direct publishing
+// If you need to use Nexus Publishing Plugin, configure OSSRH account

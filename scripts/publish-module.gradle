@@ -1,5 +1,5 @@
-// 模块发布配置
-// 在需要发布的模块的 build.gradle 中引入: apply from: "${rootDir}/scripts/publish-module.gradle"
+// Module publishing configuration
+// Include in module's build.gradle: apply from: "${rootDir}/scripts/publish-module.gradle"
 
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
@@ -17,7 +17,7 @@ task androidSourcesJar(type: Jar) {
 
 task androidJavadocsJar(type: Jar) {
     archiveClassifier.set('javadoc')
-    // Android 库通常不生成 Javadoc，使用空 jar
+    // Android libraries typically don't generate Javadoc, use empty jar
 }
 
 artifacts {
@@ -32,23 +32,23 @@ afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
-                // 组件配置
+                // Component configuration
                 if (project.plugins.findPlugin("com.android.library")) {
                     from components.findByName("release")
                 } else {
                     from components.java
                 }
 
-                // Maven 坐标
+                // Maven coordinates
                 groupId PUBLISH_GROUP_ID
                 artifactId PUBLISH_ARTIFACT_ID
                 version PUBLISH_VERSION
 
-                // 附加源码和文档
+                // Attach sources and documentation
                 artifact androidSourcesJar
                 artifact androidJavadocsJar
 
-                // POM 配置
+                // POM configuration
                 pom {
                     name = 'OrangePlayer'
                     description = 'Enhanced Android video player library based on GSYVideoPlayer, supports multiple player engines, subtitles, danmaku, OCR recognition, speech recognition and more'

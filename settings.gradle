@@ -14,28 +14,28 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // 使用阿里云镜像加速
+        // Use Aliyun mirror for faster downloads in China
         maven { url 'https://maven.aliyun.com/repository/public' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         google()
         mavenCentral()
-        // GSYVideoPlayer jitpack 备用仓库
+        // GSYVideoPlayer jitpack fallback repository
         maven { url 'https://jitpack.io' }
-        // 阿里云播放器 SDK 仓库
+        // Aliyun Player SDK repository
         maven { url 'https://maven.aliyun.com/repository/releases' }
     }
 }
 
-// 使用本地 GSYVideoPlayer 源码模块（有预编译的 so 文件）
-// 基础模块（必需）
+// Use local GSYVideoPlayer source modules (with precompiled so files)
+// Base modules (required)
 include ':gsyVideoPlayer-base'
 include ':gsyVideoPlayer-proxy_cache'
-// Java 层模块
+// Java layer modules
 include ':gsyVideoPlayer-java'
-// 播放器内核模块
-include ':gsyVideoPlayer-exo_player2'  // ExoPlayer 内核
-include ':gsyVideoPlayer-aliplay'      // 阿里云播放器内核
-// Native so 文件模块
+// Player engine modules
+include ':gsyVideoPlayer-exo_player2'  // ExoPlayer engine
+include ':gsyVideoPlayer-aliplay'      // Aliyun Player engine
+// Native so file modules
 include ':gsyVideoPlayer-armv7a'
 include ':gsyVideoPlayer-armv64'
 include ':gsyVideoPlayer-x86'
@@ -51,8 +51,8 @@ project(':gsyVideoPlayer-armv64').projectDir = new File(rootDir, 'GSYVideoPlayer
 project(':gsyVideoPlayer-x86').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-x86')
 project(':gsyVideoPlayer-x86_64').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-x86_64')
 
-rootProject.name = "橘子播放器"
+rootProject.name = "OrangePlayer"
 include ':app'
-include ':app-legacy'  // Android 4.4 兼容版本
-include ':app-tv'      // Android TV 版本
+include ':app-legacy'  // Android 4.4 compatible version
+include ':app-tv'      // Android TV version
 include ':palyerlibrary'
