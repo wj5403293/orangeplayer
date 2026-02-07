@@ -13,9 +13,9 @@ ext {
     signingPassword = project.findProperty('signing.password') ?: System.getenv('SIGNING_PASSWORD') ?: ''
     signingSecretKeyRingFile = project.findProperty('signing.secretKeyRingFile') ?: System.getenv('SIGNING_SECRET_KEY_RING_FILE') ?: ''
     
-    // POM 信息
+    // POM 信息 - 统一版本号为 1.1.1
     pomGroupId = 'io.github.706412584'
-    pomVersion = '1.1.1'
+    pomVersion = '1.1.1'  // 所有模块统一使用此版本号
     pomUrl = 'https://github.com/706412584/orangeplayer'
     pomScmUrl = 'https://github.com/706412584/orangeplayer.git'
     pomScmConnection = 'scm:git:git://github.com/706412584/orangeplayer.git'
