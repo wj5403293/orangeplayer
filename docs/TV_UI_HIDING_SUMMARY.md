@@ -65,9 +65,15 @@ public void onPlayerStateChanged(int playerState) {
 }
 ```
 
+### 3. GestureView（手势组件）
+
+**TV 模式行为**: ✅ **正常启用**
+
+手势组件在 TV 模式下**不会被禁用**，用户可以正常使用触摸手势控制音量、亮度和进度。
+
 ## 保留的 UI 元素
 
-以下控制元素在 TV 模式下**正常显示**:
+以下控制元素在 TV 模式下**正常显示和工作**:
 
 ### 播放控制
 - 播放/暂停按钮
@@ -88,6 +94,12 @@ public void onPlayerStateChanged(int playerState) {
 - 系统时间
 - 电池状态
 - 设置按钮
+
+### 手势控制
+- ✅ 音量调节手势
+- ✅ 亮度调节手势
+- ✅ 进度调节手势
+- ✅ 手势提示显示
 
 ## TV 应用集成
 
@@ -173,6 +185,7 @@ boolean isTvMode = OrangePlayerConfig.isTvMode(context);
 ✅ 播放控制正常  
 ✅ 进度条正常  
 ✅ 倍速控制正常  
+✅ 手势控制正常（音量、亮度、进度）  
 ✅ 遥控器导航正常  
 
 ## 提交记录
@@ -192,6 +205,16 @@ TV模式下自动隐藏的UI:
 - 全屏弹幕区(VodControlView)
 
 其他控制组件(播放、进度、倍速等)保持正常显示
+
+commit 00e1358
+docs(tv): 添加TV模式UI隐藏功能总结文档
+
+commit ffec4a7
+fix(tv): 恢复TV模式下的手势组件和控制器显示
+
+- GestureView: 移除TV模式禁用逻辑，手势在TV模式下也可正常使用
+- 修复控制器组件不显示的问题
+- TV模式下保留所有播放控制功能
 ```
 
 ## 相关文档
