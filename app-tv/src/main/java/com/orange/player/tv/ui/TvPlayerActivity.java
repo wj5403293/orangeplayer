@@ -61,13 +61,35 @@ public class TvPlayerActivity extends AppCompatActivity {
             @Override
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
+                android.util.Log.d("TvPlayerActivity", "onPrepared: 视频准备完成");
                 Toast.makeText(TvPlayerActivity.this, "开始播放", Toast.LENGTH_SHORT).show();
             }
             
             @Override
             public void onPlayError(String url, Object... objects) {
                 super.onPlayError(url, objects);
+                android.util.Log.e("TvPlayerActivity", "onPlayError: 播放出错");
                 Toast.makeText(TvPlayerActivity.this, "播放出错，请检查网络连接", Toast.LENGTH_LONG).show();
+            }
+            
+            @Override
+            public void onAutoComplete(String url, Object... objects) {
+                super.onAutoComplete(url, objects);
+                android.util.Log.d("TvPlayerActivity", "onAutoComplete: 播放完成");
+            }
+        });
+        
+        // 添加状态监听，用于调试
+        videoPlayer.addOnStateChangeListener(new com.orange.playerlibrary.interfaces.OnStateChangeListener() {
+            @Override
+            public void onPlayStateChanged(int playState) {
+                android.util.Log.d("TvPlayerActivity", "播放状态变化: " + playState);
+            }
+            
+            @Override
+            public void onPlayerStateChanged(int playerState) {
+                android.util.Log.d("TvPlayerActivity", "播放器状态变化: " + playerState + 
+                    " (0=NORMAL, 1=FULLSCREEN)");
             }
         });
     }
