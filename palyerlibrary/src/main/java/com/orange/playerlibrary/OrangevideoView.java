@@ -111,6 +111,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public interface DebugLogCallback {
         void onLog(String msg);
     }
+    
+    /**
+     * 兼容 API 16+ 的 isAttachedToWindow 方法
+     * API 19+ 使用 View.isAttachedToWindow()
+     * API 16-18 使用 View.getWindowToken() != null
+     */
+    private static boolean isViewAttachedToWindow(View view) {
+        if (view == null) {
+            return false;
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            return view.isAttachedToWindow();
+        } else {
+            return view.getWindowToken() != null;
+        }
+    }
 
     public OrangevideoView(Context context) {
         super(context);
@@ -3368,7 +3384,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public void startPlayLogic() {
         // 检查 PrepareView 是否已附加到窗口
-        if (mPrepareView != null && !mPrepareView.isAttachedToWindow()) {
+        // 使用兼容方法支持 API 16+
+        if (mPrepareView != null && !isViewAttachedToWindow(mPrepareView)) {
             // 延迟到下一帧，等待组件附加到窗口
             post(new Runnable() {
                 @Override

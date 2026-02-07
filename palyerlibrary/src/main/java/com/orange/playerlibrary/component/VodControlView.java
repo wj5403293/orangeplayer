@@ -378,7 +378,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         mProgressRunnable = new Runnable() {
             @Override
             public void run() {
-                if (mControlWrapper != null && isAttachedToWindow() && !mIsDragging) {
+                if (mControlWrapper != null && getWindowToken() != null && !mIsDragging) {
                     int duration = (int) mControlWrapper.getDuration();
                     int position = (int) mControlWrapper.getCurrentPosition();
                     if (duration > 0) {
@@ -793,7 +793,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     @Override
     public void onPlayStateChanged(int playState) {
         // 如果当前实例没有附加到窗口，跳过UI更新（全屏模式下旧实例会收到回调但不应该更新）
-        if (!isAttachedToWindow()) {
+        if (getWindowToken() == null) {
             return;
         }
         
@@ -851,7 +851,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     @Override
     public void onPlayerStateChanged(int playerState) {
         // 如果当前实例没有附加到窗口，跳过UI更新
-        if (!isAttachedToWindow()) {
+        if (getWindowToken() == null) {
             return;
         }
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN) {
@@ -900,7 +900,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (mIsDragging) return;
         
         // 如果不在窗口中，跳过更新
-        if (!isAttachedToWindow()) {
+        if (getWindowToken() == null) {
             return;
         }
 

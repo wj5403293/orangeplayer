@@ -3449,7 +3449,7 @@ public class VideoEventManager {
         }
         
         Log.d(TAG, "showOcrScanRegionEditor: playerContainer=" + playerContainer + 
-            ", isAttached=" + playerContainer.isAttachedToWindow());
+            ", isAttached=" + (playerContainer.getWindowToken() != null));
         
         // 每次都重新查找 OcrScanRegionView，避免使用旧实例
         com.orange.playerlibrary.ocr.OcrScanRegionView scanRegionView = 
@@ -3469,7 +3469,7 @@ public class VideoEventManager {
         } else {
             Log.d(TAG, "showOcrScanRegionEditor: found existing OcrScanRegionView, " +
                 "visibility=" + scanRegionView.getVisibility() + 
-                ", isAttached=" + scanRegionView.isAttachedToWindow());
+                ", isAttached=" + (scanRegionView.getWindowToken() != null));
         }
         
         // 设置视频尺寸

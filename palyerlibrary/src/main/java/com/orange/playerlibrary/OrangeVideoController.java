@@ -515,7 +515,7 @@ public class OrangeVideoController extends OrangeStandardVideoController {
         // 方案一：通过 VideoView 获取 TitleView（可能是旧实例）
         if (mVideoView != null) {
             com.orange.playerlibrary.component.TitleView titleView = mVideoView.getTitleView();
-            if (titleView != null && titleView.isAttachedToWindow()) {
+            if (titleView != null && titleView.getWindowToken() != null) {
                 titleView.setTitle(title);
                 return;
             }
@@ -531,7 +531,7 @@ public class OrangeVideoController extends OrangeStandardVideoController {
                     if (child instanceof com.orange.playerlibrary.component.TitleView) {
                         com.orange.playerlibrary.component.TitleView titleView = 
                             (com.orange.playerlibrary.component.TitleView) child;
-                        if (titleView.isAttachedToWindow()) {
+                        if (titleView.getWindowToken() != null) {
                             titleView.setTitle(title);
                             return;
                         }

@@ -151,7 +151,7 @@ public class PrepareView extends FrameLayout implements IControlComponent {
         // 添加日志追踪
         android.util.Log.d(TAG, "PrepareView.onPlayStateChanged: playState=" + playState + 
             ", visibility=" + getVisibility() + 
-            ", isAttachedToWindow=" + isAttachedToWindow() +
+            ", isAttachedToWindow=" + (getWindowToken() != null) +
             ", size=" + getWidth() + "x" + getHeight());
         
         switch (playState) {

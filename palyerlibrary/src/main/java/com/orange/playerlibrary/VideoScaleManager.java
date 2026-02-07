@@ -52,7 +52,7 @@ public class VideoScaleManager {
         android.util.Log.d(TAG, "========================================");
         android.util.Log.d(TAG, "applyScaleType: scaleType=" + scaleType);
         android.util.Log.d(TAG, "applyScaleType: mVideoView size=" + mVideoView.getWidth() + "x" + mVideoView.getHeight());
-        android.util.Log.d(TAG, "applyScaleType: mVideoView isAttachedToWindow=" + mVideoView.isAttachedToWindow());
+        android.util.Log.d(TAG, "applyScaleType: mVideoView isAttachedToWindow=" + (mVideoView.getWindowToken() != null));
         if (mVideoView.getRenderProxy() != null) {
             android.util.Log.d(TAG, "applyScaleType: RenderProxy size=" + 
                 mVideoView.getRenderProxy().getWidth() + "x" + mVideoView.getRenderProxy().getHeight());

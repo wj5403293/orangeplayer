@@ -145,7 +145,7 @@ public class SubtitleManager {
         // 延迟检查附加状态
         mHandler.postDelayed(() -> {
             if (mSubtitleView != null) {
-                Log.d(TAG, "reattachToPlayer (delayed check): isAttachedToWindow=" + mSubtitleView.isAttachedToWindow() 
+                Log.d(TAG, "reattachToPlayer (delayed check): isAttachedToWindow=" + (mSubtitleView.getWindowToken() != null)
                     + ", size=" + mSubtitleView.getWidth() + "x" + mSubtitleView.getHeight());
             }
         }, 500);
@@ -553,7 +553,7 @@ public class SubtitleManager {
         }
         
         // 调试日志：检查 SubtitleView 状态
-        boolean isAttached = mSubtitleView.isAttachedToWindow();
+        boolean isAttached = mSubtitleView.getWindowToken() != null;
         int width = mSubtitleView.getWidth();
         int height = mSubtitleView.getHeight();
         android.view.ViewParent parent = mSubtitleView.getParent();
