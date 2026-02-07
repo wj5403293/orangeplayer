@@ -100,15 +100,15 @@
 
 ```gradle
 dependencies {
-    // OrangePlayer 核心库（Maven Central）
-    implementation 'io.github.706412584:orangeplayer:1.1.1'
+    // OrangePlayer 核心库（Maven Central）- 请使用最新版本
+    implementation 'io.github.706412584:orangeplayer:+'
     
     // 必需依赖
     implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载
     
-    // 播放器内核（至少选择一个）
-    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.1'      // IJK 播放器（推荐）
-    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.1' // ExoPlayer
+    // 播放器内核（至少选择一个）- 请使用最新版本
+    implementation 'io.github.706412584:gsyVideoPlayer-java:+'      // IJK 播放器（推荐）
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:+' // ExoPlayer
     
     // 可选依赖（按需添加）
     implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'  // 弹幕功能
@@ -119,12 +119,28 @@ dependencies {
 }
 ```
 
+> 📦 **可用的播放器内核组件**（所有组件请使用最新版本）：
+> - `gsyVideoPlayer-java` - IJK 播放器（推荐，支持更多格式）
+> - `gsyVideoPlayer-exo_player2` - ExoPlayer（性能好，RTSP 支持完整）
+> - `gsyVideoPlayer-aliplay` - 阿里云播放器（商业级，RTMP 延迟低）
+> - `gsyVideoPlayer-base` - 播放器基础库
+> - `gsyVideoPlayer-proxy_cache` - 代理缓存支持
+> - `gsyVideoPlayer-armv7a` - ARMv7a 架构 so 库
+> - `gsyVideoPlayer-armv64` - ARM64 架构 so 库
+> - `gsyVideoPlayer-x86` - x86 架构 so 库
+> - `gsyVideoPlayer-x86_64` - x86_64 架构 so 库
+>
+> 💡 **版本说明**：
+> - 使用 `+` 可自动获取最新版本
+> - 或访问 [Maven Central](https://central.sonatype.com/artifact/io.github.706412584/orangeplayer) 查看最新版本号
+> - 当前最新版本：[![Maven Central](https://img.shields.io/maven-central/v/io.github.706412584/orangeplayer.svg)](https://central.sonatype.com/artifact/io.github.706412584/orangeplayer)
+
 **阿里云播放器（可选）：**
 
 ```gradle
 dependencies {
-    // 阿里云播放器支持（排除内置版本，避免授权问题）
-    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.1') {
+    // 阿里云播放器支持（排除内置版本，避免授权问题）- 请使用最新版本
+    implementation('io.github.706412584:gsyVideoPlayer-aliplay:+') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }
