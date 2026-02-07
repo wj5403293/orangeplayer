@@ -90,7 +90,7 @@ echo Bundle 文件:
 powershell -Command "Get-Item maven-central\bundle-test.zip | Select-Object Name, @{Name='Size(MB)';Expression={[math]::Round($_.Length/1MB,2)}}"
 echo.
 echo 包含的模块:
-powershell -Command "$zip = [System.IO.Compression.ZipFile]::OpenRead('maven-central\bundle-test.zip'); $zip.Entries | Where-Object {$_.FullName -like '*/1.1.0/*.aar' -or $_.FullName -like '*/1.1.0/*.pom'} | Select-Object FullName | Format-Table -AutoSize; $zip.Dispose()"
+powershell -Command "$zip = [System.IO.Compression.ZipFile]::OpenRead('maven-central\bundle-test.zip'); $zip.Entries | Where-Object {$_.FullName -like '*/1.1.1/*.aar' -or $_.FullName -like '*/1.1.1/*.pom'} | Select-Object FullName | Format-Table -AutoSize; $zip.Dispose()"
 echo.
 echo 清理临时文件...
 rmdir /s /q temp_bundle_build

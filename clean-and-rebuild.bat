@@ -73,19 +73,19 @@ echo [3/3] 验证版本号...
 echo.
 
 REM 检查 palyerlibrary 版本
-if exist "palyerlibrary\build\repo\io\github\706412584\orangeplayer\1.1.0" (
-    echo   ✓ orangeplayer 1.1.0
+if exist "palyerlibrary\build\repo\io\github\706412584\orangeplayer\1.1.1" (
+    echo   ✓ orangeplayer 1.1.1
 ) else (
-    echo   ✗ orangeplayer 1.1.0 未找到
+    echo   ✗ orangeplayer 1.1.1 未找到
     goto ERROR
 )
 
 REM 检查 GSYVideoPlayer 模块版本
 for %%m in (base proxy_cache java armv7a armv64 x86 x86_64) do (
-    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io\github\706412584\gsyVideoPlayer-%%m\1.1.0" (
-        echo   ✓ gsyVideoPlayer-%%m 1.1.0
+    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io\github\706412584\gsyVideoPlayer-%%m\1.1.1" (
+        echo   ✓ gsyVideoPlayer-%%m 1.1.1
     ) else (
-        echo   ✗ gsyVideoPlayer-%%m 1.1.0 未找到
+        echo   ✗ gsyVideoPlayer-%%m 1.1.1 未找到
         goto ERROR
     )
 )
@@ -95,7 +95,7 @@ echo ========================================
 echo 清理并重新构建成功！
 echo ========================================
 echo.
-echo 所有模块版本: 1.1.0
+echo 所有模块版本: 1.1.1
 echo.
 echo 下一步: 运行 test-publish-all.bat 创建 bundle
 echo.
