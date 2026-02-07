@@ -47,13 +47,23 @@ public class TvPlayerActivity extends AppCompatActivity {
     private void initViews() {
         videoPlayer = findViewById(R.id.video_player);
         
+        // 检查 TV 模式
+        boolean isTvMode = com.orange.playerlibrary.OrangePlayerConfig.isTvMode(this);
+        android.util.Log.d("TvPlayerActivity", "TV 模式检测: " + isTvMode);
+        
         // 创建并设置控制器
         com.orange.playerlibrary.OrangeVideoController controller = 
             new com.orange.playerlibrary.OrangeVideoController(this);
         videoPlayer.setVideoController(controller);
         
-        // 添加默认控制组件
-        controller.addDefaultControlComponent(videoTitle != null ? videoTitle : "视频播放", false);
+        // 注意：不需要调用 addDefaultControlComponent()
+        // 因为 OrangevideoView.initOrangeComponents() 已经创建了所有组件
+        // 只需要设置标题
+        if (videoPlayer.getTitleView() != null) {
+            videoPlayer.getTitleView().setTitle(videoTitle != null ? videoTitle : "视频播放");
+        }
+        
+        android.util.Log.d("TvPlayerActivity", "控制器已初始化");
     }
     
     private void setupPlayer() {
