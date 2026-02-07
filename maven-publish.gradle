@@ -1,21 +1,21 @@
-// Maven Central 发布配置
+// Maven Central publishing configuration
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
-// 从 gradle.properties 或环境变量读取凭证
+// Read credentials from gradle.properties or environment variables
 ext {
-    // Maven Central 凭证
+    // Maven Central credentials
     ossrhUsername = project.findProperty('ossrhUsername') ?: System.getenv('OSSRH_USERNAME') ?: ''
     ossrhPassword = project.findProperty('ossrhPassword') ?: System.getenv('OSSRH_PASSWORD') ?: ''
     
-    // 签名密钥
+    // Signing keys
     signingKeyId = project.findProperty('signing.keyId') ?: System.getenv('SIGNING_KEY_ID') ?: ''
     signingPassword = project.findProperty('signing.password') ?: System.getenv('SIGNING_PASSWORD') ?: ''
     signingSecretKeyRingFile = project.findProperty('signing.secretKeyRingFile') ?: System.getenv('SIGNING_SECRET_KEY_RING_FILE') ?: ''
     
-    // POM 信息 - 统一版本号为 1.1.1
+    // POM information - unified version 1.1.1
     pomGroupId = 'io.github.706412584'
-    pomVersion = '1.1.1'  // 所有模块统一使用此版本号
+    pomVersion = '1.1.1'
     pomUrl = 'https://github.com/706412584/orangeplayer'
     pomScmUrl = 'https://github.com/706412584/orangeplayer.git'
     pomScmConnection = 'scm:git:git://github.com/706412584/orangeplayer.git'
@@ -28,7 +28,7 @@ ext {
     pomDeveloperEmail = '706412584@qq.com'
 }
 
-// 通用 POM 配置方法
+// Common POM configuration method
 ext.configurePom = { pom ->
     pom.name = 'OrangePlayer'
     pom.description = 'Enhanced Android video player library based on GSYVideoPlayer, supports Android 4.0+ (API 14+), includes multiple player engines, subtitles, danmaku, OCR recognition, speech recognition and more'
@@ -54,7 +54,7 @@ ext.configurePom = { pom ->
     }
 }
 
-// 配置发布仓库
+// Configure publishing repositories
 publishing {
     repositories {
         maven {
@@ -63,7 +63,7 @@ publishing {
         }
         maven {
             name = 'sonatype'
-            // 新的 Central Portal OSSRH Staging API 兼容服务
+            // New Central Portal OSSRH Staging API compatible service
             def releasesRepoUrl = 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/'
             def snapshotsRepoUrl = 'https://ossrh-staging-api.central.sonatype.com/content/repositories/snapshots/'
             url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
@@ -75,16 +75,16 @@ publishing {
     }
 }
 
-// 配置签名
+// Configure signing
 signing {
-    // 检测是否在 JitPack 环境中
+    // Detect if running in JitPack environment
     def isJitPack = System.getenv('JITPACK') == 'true'
     if (!isJitPack && signingKeyId && signingPassword && signingSecretKeyRingFile) {
-        // 只在非 JitPack 环境且有签名配置时才启用签名
+        // Only enable signing in non-JitPack environment with signing configuration
         required = true
         sign publishing.publications
     } else {
-        // JitPack 环境或没有签名配置时禁用签名
+        // Disable signing in JitPack environment or without signing configuration
         required = false
     }
 }
