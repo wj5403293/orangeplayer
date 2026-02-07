@@ -131,13 +131,17 @@ public class TitleView extends FrameLayout implements IControlComponent {
             mLive.setVisibility(GONE);
         }
         
-        // TV 模式下隐藏投屏和小窗按钮
+        // TV 模式下隐藏投屏和小窗按钮，但保留设置按钮
         if (mIsTvMode) {
             if (mCast != null) {
                 mCast.setVisibility(GONE);
             }
             if (mWindow != null) {
                 mWindow.setVisibility(GONE);
+            }
+            // TV 模式下显示设置按钮
+            if (mSettings != null) {
+                mSettings.setVisibility(VISIBLE);
             }
         } else {
             // 默认显示设置和投屏按钮（全屏时可见）

@@ -801,12 +801,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     public void onPlayStateChanged(int playState) {
         // 如果当前实例没有附加到窗口，跳过UI更新（全屏模式下旧实例会收到回调但不应该更新）
         if (getWindowToken() == null) {
-            android.util.Log.d("VodControlView", "onPlayStateChanged: 未附加到窗口，跳过 playState=" + playState);
             return;
         }
-        
-        android.util.Log.d("VodControlView", "onPlayStateChanged: playState=" + playState + 
-            ", isTvMode=" + mIsTvMode + ", visibility=" + getVisibility());
         
         mLastStateChangeTime = System.currentTimeMillis();
         switch (playState) {
@@ -814,33 +810,28 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             case PlayerConstants.STATE_PREPARING:
             case PlayerConstants.STATE_PREPARED:
             case 8:
-                android.util.Log.d("VodControlView", "设置 GONE (准备/错误状态)");
                 setVisibility(GONE);
                 break;
 
             case PlayerConstants.STATE_IDLE:
             case PlayerConstants.STATE_PLAYBACK_COMPLETED:
-                android.util.Log.d("VodControlView", "设置 GONE (空闲/完成状态)");
                 setVisibility(GONE);
                 resetProgress();
                 break;
 
             case PlayerConstants.STATE_PLAYING:
-                android.util.Log.d("VodControlView", "设置 VISIBLE (播放状态)");
                 setVisibility(VISIBLE);
                 updatePlayButtonState(true);
                 updateBottomProgressVisibility();
                 break;
 
             case PlayerConstants.STATE_PAUSED:
-                android.util.Log.d("VodControlView", "设置 VISIBLE (暂停状态)");
                 setVisibility(VISIBLE);
                 updatePlayButtonState(false);
                 break;
 
             case PlayerConstants.STATE_BUFFERING:
             case PlayerConstants.STATE_BUFFERED:
-                android.util.Log.d("VodControlView", "设置 VISIBLE (缓冲状态)");
                 setVisibility(VISIBLE);
                 if (mControlWrapper != null) {
                     updatePlayButtonState(mControlWrapper.isPlaying());

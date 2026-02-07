@@ -2902,23 +2902,44 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     @Override
     protected void setStateAndUi(int state) {
-        String stateName = getStateName(state);
-        android.util.Log.d(TAG, "========================================");
-        android.util.Log.d(TAG, "setStateAndUi: " + stateName + " (" + state + ")");
-        android.util.Log.d(TAG, "  当前状态: " + getStateName(mCurrentState) + " (" + mCurrentState + ")");
-        android.util.Log.d(TAG, "  URL: " + mOriginUrl);
-        android.util.Log.d(TAG, "  缓冲进度: " + getBuffterPoint() + "%");
-        android.util.Log.d(TAG, "  播放位置: " + getCurrentPositionWhenPlaying() + "ms / " + getDuration() + "ms");
-        android.util.Log.d(TAG, "  LoadingProgressBar: " + (mLoadingProgressBar != null ? 
-            (mLoadingProgressBar.getVisibility() == VISIBLE ? "VISIBLE" : "INVISIBLE") : "null"));
-        android.util.Log.d(TAG, "========================================");
-        
         // 记录进入 PREPARING 状态的时间
         if (state == CURRENT_STATE_PREPAREING && mCurrentState != CURRENT_STATE_PREPAREING) {
             mPreparingStartTime = System.currentTimeMillis();
         }
         
         super.setStateAndUi(state);
+        
+        // 关键修复：同步 GSY 状态到 Orange 状态
+        // GSY 的 setStateAndUi 会改变 mCurrentState，但不会触发 Orange 组件的状态通知
+        // 所以我们需要手动同步状态
+        int orangeState = mapGSYStateToOrangeState(state);
+        if (orangeState != -1 && orangeState != mCurrentPlayState) {
+            setOrangePlayState(orangeState);
+        }
+    }
+    
+    /**
+     * 将 GSY 状态映射到 Orange 状态
+     */
+    private int mapGSYStateToOrangeState(int gsyState) {
+        switch (gsyState) {
+            case CURRENT_STATE_NORMAL:
+                return PlayerConstants.STATE_IDLE;
+            case CURRENT_STATE_PREPAREING:
+                return PlayerConstants.STATE_PREPARING;
+            case CURRENT_STATE_PLAYING:
+                return PlayerConstants.STATE_PLAYING;
+            case CURRENT_STATE_PAUSE:
+                return PlayerConstants.STATE_PAUSED;
+            case CURRENT_STATE_AUTO_COMPLETE:
+                return PlayerConstants.STATE_PLAYBACK_COMPLETED;
+            case CURRENT_STATE_ERROR:
+                return PlayerConstants.STATE_ERROR;
+            case CURRENT_STATE_PLAYING_BUFFERING_START:
+                return PlayerConstants.STATE_BUFFERING;
+            default:
+                return -1; // 不映射
+        }
     }
     
     /**

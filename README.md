@@ -57,6 +57,7 @@
 | 🖼️ 画中画 | PiP 小窗模式 |
 | 📸 截图 | 视频截图保存 |
 | 📺 Android TV | 完整的 TV 适配，遥控器支持 |
+| 📱 多平台 | 手机、平板、Android TV 全平台支持 |
 
 ---
 
@@ -88,7 +89,7 @@
 
 ### 系统要求
 
-- **Android 4.0+ (API 14+)** - 从 v1.1.0 开始支持 Android 4.0 及以上版本
+- **Android 4.0+ (API 14+)** - 从 v1.1.0+ 开始支持 Android 4.0 及以上版本
 - **Android 5.0+ (API 21+)** - 推荐使用，支持所有功能（包括 ExoPlayer 和 AI 功能）
 
 ### 1. 添加依赖
@@ -100,14 +101,14 @@
 ```gradle
 dependencies {
     // OrangePlayer 核心库（Maven Central）
-    implementation 'io.github.706412584:orangeplayer:1.1.0'
+    implementation 'io.github.706412584:orangeplayer:1.1.1'
     
     // 必需依赖
     implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载
     
     // 播放器内核（至少选择一个）
-    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.0'      // IJK 播放器（推荐）
-    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0' // ExoPlayer
+    implementation 'io.github.706412584:gsyVideoPlayer-java:1.1.1'      // IJK 播放器（推荐）
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.1' // ExoPlayer
     
     // 可选依赖（按需添加）
     implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'  // 弹幕功能
@@ -123,7 +124,7 @@ dependencies {
 ```gradle
 dependencies {
     // 阿里云播放器支持（排除内置版本，避免授权问题）
-    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
+    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.1') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }
@@ -212,6 +213,73 @@ public class MainActivity extends AppCompatActivity {
 ```
 
 就这么简单！OrangePlayer 会自动创建和配置所有 UI 组件。
+
+### 4. Android TV 使用
+
+OrangePlayer 完全支持 Android TV 平台，自动适配遥控器操作和 TV UI。
+
+**布局文件（与手机相同）：**
+
+```xml
+<com.orange.playerlibrary.OrangevideoView
+    android:id="@+id/video_player"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />
+```
+
+**Activity 代码：**
+
+```java
+public class TvPlayerActivity extends AppCompatActivity {
+    private OrangevideoView videoPlayer;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_tv_player);
+        
+        videoPlayer = findViewById(R.id.video_player);
+        
+        // TV 模式会自动检测，无需额外配置
+        videoPlayer.setUp(videoUrl, false, videoTitle);
+        videoPlayer.startPlayLogic();
+    }
+    
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // 处理遥控器按键
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+                if (videoPlayer.isIfCurrentIsFullscreen()) {
+                    videoPlayer.onBackFullscreen();
+                    return true;
+                }
+                break;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                // 播放/暂停切换
+                if (videoPlayer.getCurrentState() == GSYVideoPlayer.CURRENT_STATE_PLAYING) {
+                    videoPlayer.onVideoPause();
+                } else {
+                    videoPlayer.onVideoResume();
+                }
+                return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+}
+```
+
+**TV 模式特性：**
+- ✅ 自动检测 TV 设备（通过 `PackageManager.FEATURE_LEANBACK`）
+- ✅ 自动隐藏不适合 TV 的 UI（投屏、小窗按钮）
+- ✅ 保留所有播放控制功能（播放、暂停、进度、设置等）
+- ✅ 支持遥控器导航和按键操作
+- ✅ 完整的焦点管理
+- ✅ 与手机版使用相同的代码和 API
+
+**详细文档：**
+- [TV 快速开始](docs/TV_QUICK_START.md) - 5 分钟快速集成
+- [TV 适配指南](docs/TV_ADAPTATION_GUIDE.md) - 完整的 TV 开发指南
 
 ---
 
@@ -443,7 +511,7 @@ dependencies {
 ```gradle
 dependencies {
     // 播放器内核（必需）
-    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.1'
     
     // FFmpeg 解码器（可选，增强编码格式支持）
     implementation 'androidx.media3:media3-decoder-ffmpeg:1.5.0'
@@ -462,7 +530,7 @@ Google 官方播放器，性能优秀。
 
 ```gradle
 dependencies {
-    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.0'
+    implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:1.1.1'
 }
 ```
 
@@ -487,7 +555,7 @@ allprojects {
 // 在 app/build.gradle 添加依赖
 dependencies {
     // 排除内置的阿里云播放器，避免授权问题
-    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.0') {
+    implementation('io.github.706412584:gsyVideoPlayer-aliplay:1.1.1') {
         exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
         exclude group: 'com.alivc.conan', module: 'AlivcConan'
     }

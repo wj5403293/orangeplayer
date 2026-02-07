@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
     
-    <!-- 视频播放器 (使用标准 app 控制组件，TV 模式下自动隐藏不适合的 UI) -->
+    <!-- 视频播放器 (全屏显示，TV 模式下自动隐藏不适合的 UI) -->
     <com.orange.playerlibrary.OrangevideoView
         android:id="@+id/video_player"
         android:layout_width="match_parent"

@@ -7,6 +7,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.orange.player.tv.R;
+import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.OrangevideoView;
 import com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack;
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoPlayer;
@@ -14,12 +15,13 @@ import com.shuyu.gsyvideoplayer.video.base.GSYVideoPlayer;
 /**
  * TV 播放器 Activity
  * 
- * 使用标准的 OrangevideoView（包含 VodControlView）
+ * 完全按照 app 模式：标准模式播放，点击全屏按钮进入全屏
  * TV 模式下自动隐藏不适合的 UI（投屏、小窗、弹幕区）
  */
 public class TvPlayerActivity extends AppCompatActivity {
     
     private OrangevideoView videoPlayer;
+    private OrangeVideoController controller;
     
     private String videoUrl;
     private String videoTitle;
@@ -40,73 +42,79 @@ public class TvPlayerActivity extends AppCompatActivity {
         }
         
         initViews();
-        setupPlayer();
-        startPlayback();
+        initPlayer();
     }
     
     private void initViews() {
         videoPlayer = findViewById(R.id.video_player);
-        
-        // 检查 TV 模式
-        boolean isTvMode = com.orange.playerlibrary.OrangePlayerConfig.isTvMode(this);
-        android.util.Log.d("TvPlayerActivity", "TV 模式检测: " + isTvMode);
-        
-        // 创建并设置控制器
-        com.orange.playerlibrary.OrangeVideoController controller = 
-            new com.orange.playerlibrary.OrangeVideoController(this);
-        videoPlayer.setVideoController(controller);
-        
-        // 注意：不需要调用 addDefaultControlComponent()
-        // 因为 OrangevideoView.initOrangeComponents() 已经创建了所有组件
-        // 只需要设置标题
-        if (videoPlayer.getTitleView() != null) {
-            videoPlayer.getTitleView().setTitle(videoTitle != null ? videoTitle : "视频播放");
-        }
-        
-        android.util.Log.d("TvPlayerActivity", "控制器已初始化");
     }
     
-    private void setupPlayer() {
+    /**
+     * 初始化播放器 - 使用 OrangevideoView 自带的组件
+     */
+    private void initPlayer() {
+        // OrangevideoView 在构造时已经创建了控制器和所有组件
+        // 直接获取并使用，不要重新创建
+        controller = videoPlayer.getVideoController();
+        
+        if (controller != null) {
+            // 设置加载动画
+            controller.setLoading(OrangeVideoController.IndicatorType.LINE_SCALE_PULSE_OUT);
+        }
+        
+        // 关键：强制设置为标准模式（非全屏）
+        // 通过反射设置 mIfCurrentIsFullscreen = false
+        try {
+            java.lang.reflect.Field field = com.shuyu.gsyvideoplayer.video.base.GSYVideoView.class
+                .getDeclaredField("mIfCurrentIsFullscreen");
+            field.setAccessible(true);
+            field.setBoolean(videoPlayer, false);
+        } catch (Exception e) {
+            android.util.Log.e("TvPlayerActivity", "设置标准模式失败", e);
+        }
+        
+        // 设置播放回调
         videoPlayer.setVideoAllCallBack(new GSYSampleCallBack() {
             @Override
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
-                android.util.Log.d("TvPlayerActivity", "onPrepared: 视频准备完成");
-                Toast.makeText(TvPlayerActivity.this, "开始播放", Toast.LENGTH_SHORT).show();
             }
             
             @Override
             public void onPlayError(String url, Object... objects) {
                 super.onPlayError(url, objects);
-                android.util.Log.e("TvPlayerActivity", "onPlayError: 播放出错");
                 Toast.makeText(TvPlayerActivity.this, "播放出错，请检查网络连接", Toast.LENGTH_LONG).show();
             }
             
             @Override
             public void onAutoComplete(String url, Object... objects) {
                 super.onAutoComplete(url, objects);
-                android.util.Log.d("TvPlayerActivity", "onAutoComplete: 播放完成");
             }
         });
         
-        // 添加状态监听，用于调试
-        videoPlayer.addOnStateChangeListener(new com.orange.playerlibrary.interfaces.OnStateChangeListener() {
-            @Override
-            public void onPlayStateChanged(int playState) {
-                android.util.Log.d("TvPlayerActivity", "播放状态变化: " + playState);
-            }
-            
-            @Override
-            public void onPlayerStateChanged(int playerState) {
-                android.util.Log.d("TvPlayerActivity", "播放器状态变化: " + playerState + 
-                    " (0=NORMAL, 1=FULLSCREEN)");
-            }
-        });
-    }
-    
-    private void startPlayback() {
-        videoPlayer.setUp(videoUrl, true, videoTitle);
+        // 关键：确保以标准模式启动，不要自动全屏
+        // 设置视频（标准模式，false）
+        videoPlayer.setUp(videoUrl, false, videoTitle);
+        videoPlayer.setLooping(false);
+        
+        // TV 不需要自动旋转和全屏动画
+        videoPlayer.setAutoRotateOnFullscreen(false);
+        videoPlayer.setShowFullAnimation(false);
+        videoPlayer.setRotateViewAuto(false);
+        videoPlayer.setNeedLockFull(false);
+        videoPlayer.setLockLand(false);
+        videoPlayer.setRotateWithSystem(false);
+        
+        // 关键：禁用方向工具（防止自动全屏）
+        videoPlayer.setNeedOrientationUtils(false);
+        
+        // 开始播放逻辑
         videoPlayer.startPlayLogic();
+        
+        // 设置标题
+        if (videoPlayer.getTitleView() != null) {
+            videoPlayer.getTitleView().setTitle(videoTitle);
+        }
     }
     
     @Override
@@ -163,6 +171,9 @@ public class TvPlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (controller != null) {
+            controller.releaseDanmaku();
+        }
         videoPlayer.release();
     }
 }
