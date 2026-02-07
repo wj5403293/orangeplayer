@@ -11,6 +11,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.orange.playerlibrary.R;
+import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer;
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoPlayer;
 
 /**
@@ -24,7 +25,7 @@ import com.shuyu.gsyvideoplayer.video.base.GSYVideoPlayer;
  */
 public class TvControlView extends LinearLayout {
     
-    private GSYVideoPlayer mVideoPlayer;
+    private GSYBaseVideoPlayer mVideoPlayer;
     
     // 控制栏
     private View mControlBar;
@@ -140,7 +141,7 @@ public class TvControlView extends LinearLayout {
     /**
      * 绑定播放器
      */
-    public void bindVideoPlayer(GSYVideoPlayer videoPlayer) {
+    public void bindVideoPlayer(GSYBaseVideoPlayer videoPlayer) {
         this.mVideoPlayer = videoPlayer;
     }
     
