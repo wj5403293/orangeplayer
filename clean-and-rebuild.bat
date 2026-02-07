@@ -6,7 +6,19 @@ echo 清理并重新构建所有模块
 echo ========================================
 echo.
 
-echo [1/3] 清理所有构建产物...
+echo [0/4] 读取版本号...
+echo.
+
+REM 从 maven-publish.gradle 读取版本号
+for /f "tokens=3 delims='" %%a in ('findstr /C:"pomVersion = " maven-publish.gradle') do set VERSION=%%a
+if "%VERSION%"=="" (
+    echo [ERROR] 无法从 maven-publish.gradle 读取版本号
+    goto ERROR
+)
+echo   当前版本: %VERSION%
+echo.
+
+echo [1/4] 清理所有构建产物...
 echo.
 
 REM 清理 Gradle 缓存
@@ -30,7 +42,7 @@ if exist "maven-central\bundle.zip" del /q "maven-central\bundle.zip"
 if exist "maven-central\bundle-test.zip" del /q "maven-central\bundle-test.zip"
 
 echo.
-echo [2/3] 重新发布所有模块到本地仓库...
+echo [2/4] 重新发布所有模块到本地仓库...
 echo.
 
 echo   [1/8] palyerlibrary...
@@ -69,33 +81,41 @@ echo.
 echo [SUCCESS] 所有模块已发布到本地仓库
 echo.
 
-echo [3/3] 验证版本号...
+echo [3/4] 验证版本号...
 echo.
 
 REM 检查 palyerlibrary 版本
-if exist "palyerlibrary\build\repo\io\github\706412584\orangeplayer\1.1.1" (
-    echo   ✓ orangeplayer 1.1.1
+if exist "palyerlibrary\build\repo\io\github\706412584\orangeplayer\%VERSION%" (
+    echo   ✓ orangeplayer %VERSION%
 ) else (
-    echo   ✗ orangeplayer 1.1.1 未找到
+    echo   ✗ orangeplayer %VERSION% 未找到
     goto ERROR
 )
 
 REM 检查 GSYVideoPlayer 模块版本
 for %%m in (base proxy_cache java armv7a armv64 x86 x86_64) do (
-    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io\github\706412584\gsyVideoPlayer-%%m\1.1.1" (
-        echo   ✓ gsyVideoPlayer-%%m 1.1.1
+    if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io\github\706412584\gsyVideoPlayer-%%m\%VERSION%" (
+        echo   ✓ gsyVideoPlayer-%%m %VERSION%
     ) else (
-        echo   ✗ gsyVideoPlayer-%%m 1.1.1 未找到
+        echo   ✗ gsyVideoPlayer-%%m %VERSION% 未找到
         goto ERROR
     )
 )
+
+echo.
+echo [4/4] 创建版本信息文件...
+echo.
+
+REM 创建版本信息文件供其他脚本使用
+echo %VERSION%> .version
+echo   版本信息已保存到 .version 文件
 
 echo.
 echo ========================================
 echo 清理并重新构建成功！
 echo ========================================
 echo.
-echo 所有模块版本: 1.1.1
+echo 所有模块版本: %VERSION%
 echo.
 echo 下一步: 运行 test-publish-all.bat 创建 bundle
 echo.

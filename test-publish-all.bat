@@ -6,7 +6,19 @@ echo 测试发布所有模块
 echo ========================================
 echo.
 
-echo [1/3] 发布所有模块到本地仓库...
+echo [0/4] 读取版本号...
+echo.
+
+REM 从 maven-publish.gradle 读取版本号
+for /f "tokens=3 delims='" %%a in ('findstr /C:"pomVersion = " maven-publish.gradle') do set VERSION=%%a
+if "%VERSION%"=="" (
+    echo [ERROR] 无法从 maven-publish.gradle 读取版本号
+    goto ERROR
+)
+echo   当前版本: %VERSION%
+echo.
+
+echo [1/4] 发布所有模块到本地仓库...
 echo.
 
 echo   [1/10] palyerlibrary...
@@ -53,7 +65,7 @@ echo.
 echo [SUCCESS] 所有模块已发布到本地仓库
 echo.
 
-echo [2/3] 收集所有模块的 artifacts...
+echo [2/4] 收集所有模块的 artifacts...
 if exist "temp_bundle_build" rmdir /s /q temp_bundle_build
 mkdir temp_bundle_build
 
@@ -71,7 +83,7 @@ for %%m in (base proxy_cache java exo_player2 aliplay armv7a armv64 x86 x86_64) 
 )
 
 echo.
-echo [3/3] 创建 Bundle...
+echo [3/4] 创建 Bundle...
 cd temp_bundle_build
 powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle-test.zip -Force"
 cd ..
@@ -89,8 +101,16 @@ echo.
 echo Bundle 文件:
 powershell -Command "Get-Item maven-central\bundle-test.zip | Select-Object Name, @{Name='Size(MB)';Expression={[math]::Round($_.Length/1MB,2)}}"
 echo.
+echo [4/4] 验证 Bundle 内容...
+echo.
 echo 包含的模块:
-powershell -Command "$zip = [System.IO.Compression.ZipFile]::OpenRead('maven-central\bundle-test.zip'); $zip.Entries | Where-Object {$_.FullName -like '*/1.1.1/*.aar' -or $_.FullName -like '*/1.1.1/*.pom'} | Select-Object FullName | Format-Table -AutoSize; $zip.Dispose()"
+powershell -Command "$zip = [System.IO.Compression.ZipFile]::OpenRead('maven-central\bundle-test.zip'); $zip.Entries | Where-Object {$_.FullName -like '*/%VERSION%/*.aar' -or $_.FullName -like '*/%VERSION%/*.pom'} | Select-Object FullName | Format-Table -AutoSize; $zip.Dispose()"
+echo.
+
+REM 验证版本号一致性
+echo 验证版本号一致性...
+powershell -Command "$zip = [System.IO.Compression.ZipFile]::OpenRead('maven-central\bundle-test.zip'); $entries = $zip.Entries | Where-Object {$_.FullName -like '*/*.aar' -or $_.FullName -like '*/*.pom'}; $versions = $entries | ForEach-Object { if ($_.FullName -match '/(\d+\.\d+\.\d+)/') { $matches[1] } } | Select-Object -Unique; if ($versions.Count -eq 1 -and $versions[0] -eq '%VERSION%') { Write-Host '  ✓ 所有模块版本一致: %VERSION%' -ForegroundColor Green } else { Write-Host '  ✗ 版本号不一致！' -ForegroundColor Red; $versions | ForEach-Object { Write-Host \"    - $_\" } }; $zip.Dispose()"
+
 echo.
 echo 清理临时文件...
 rmdir /s /q temp_bundle_build
