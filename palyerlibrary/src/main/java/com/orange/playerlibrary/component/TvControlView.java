@@ -196,7 +196,7 @@ public class TvControlView extends LinearLayout {
      */
     public void hideControlBar() {
         if (mControlBar != null && mControlBar.getVisibility() == VISIBLE) {
-            if (mVideoPlayer != null && mVideoPlayer.isPlaying()) {
+            if (mVideoPlayer != null && mVideoPlayer.getCurrentState() == GSYVideoPlayer.CURRENT_STATE_PLAYING) {
                 mControlBar.animate()
                         .alpha(0.0f)
                         .setDuration(300)
@@ -250,7 +250,7 @@ public class TvControlView extends LinearLayout {
     
     private void togglePlayPause() {
         if (mVideoPlayer != null) {
-            if (mVideoPlayer.isPlaying()) {
+            if (mVideoPlayer.getCurrentState() == GSYVideoPlayer.CURRENT_STATE_PLAYING) {
                 mVideoPlayer.onVideoPause();
             } else {
                 mVideoPlayer.onVideoResume();
@@ -280,7 +280,7 @@ public class TvControlView extends LinearLayout {
     
     private void resetHideTimer() {
         removeCallbacks(mHideRunnable);
-        if (mVideoPlayer != null && mVideoPlayer.isPlaying()) {
+        if (mVideoPlayer != null && mVideoPlayer.getCurrentState() == GSYVideoPlayer.CURRENT_STATE_PLAYING) {
             postDelayed(mHideRunnable, HIDE_DELAY);
         }
     }

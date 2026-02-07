@@ -305,10 +305,70 @@ public class OrangeApplication extends Application {
 
 1. ✅ 创建 TvUtils 工具类
 2. ✅ 创建 TvControlView 组件
-3. ⏳ 修改 OrangevideoView 支持 TV 模式
-4. ⏳ 修改现有组件适配 TV
-5. ⏳ 添加配置 API
-6. ⏳ 完善文档和示例
+3. ✅ 创建 OrangePlayerConfig 全局配置类
+4. ✅ 修改 GestureView 支持 TV 模式（自动禁用）
+5. ✅ 修改 TvApplication 使用全局配置
+6. ✅ 修改 OrangeApplication 自动检测 TV 模式
+7. ⏳ 修改 OrangevideoView 支持 TV 模式自动切换控制栏
+8. ⏳ 修改其他组件适配 TV（VodControlView、PrepareView 等）
+9. ⏳ 完善文档和示例
+
+## 当前状态
+
+### 已完成
+- ✅ TV 设备检测（TvUtils）
+- ✅ TV 专属控制栏（TvControlView）
+- ✅ 全局配置系统（OrangePlayerConfig）
+- ✅ 手势控制在 TV 模式下自动禁用（GestureView）
+- ✅ app-tv 强制启用 TV 模式
+- ✅ app 自动检测设备类型
+
+### 工作原理
+
+1. **app 模块**：
+   - 启动时自动检测设备类型
+   - 如果是 TV 设备，自动启用 TV 模式
+   - 如果是手机/平板，使用标准模式
+
+2. **app-tv 模块**：
+   - 强制启用 TV 模式
+   - 使用 ExoPlayer 内核
+   - 禁用缓存
+
+3. **palyerlibrary**：
+   - GestureView 在 TV 模式下自动禁用
+   - 其他组件可以通过 `OrangePlayerConfig.isTvMode()` 检测模式
+   - 提供 TvControlView 作为 TV 专属控制栏
+
+### 使用示例
+
+```java
+// 在 Application 中
+public class MyApplication extends Application {
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        
+        // 方式 1: 自动检测
+        boolean isTv = TvUtils.isTvDevice(this);
+        OrangePlayerConfig.setTvMode(isTv);
+        
+        // 方式 2: 手动指定
+        OrangePlayerConfig.setTvMode(true);
+        
+        // 方式 3: 禁用自动检测
+        OrangePlayerConfig.setAutoDetectTvMode(false);
+        OrangePlayerConfig.setTvMode(false);
+    }
+}
+
+// 在组件中检测 TV 模式
+if (OrangePlayerConfig.isTvMode(context)) {
+    // TV 模式逻辑
+} else {
+    // 标准模式逻辑
+}
+```
 
 ## 相关文档
 

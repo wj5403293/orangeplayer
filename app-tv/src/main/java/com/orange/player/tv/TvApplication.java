@@ -3,6 +3,7 @@ package com.orange.player.tv;
 import android.app.Application;
 import android.util.Log;
 
+import com.orange.playerlibrary.OrangePlayerConfig;
 import com.shuyu.gsyvideoplayer.cache.CacheFactory;
 import com.shuyu.gsyvideoplayer.player.PlayerFactory;
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType;
@@ -21,6 +22,9 @@ public class TvApplication extends Application {
         super.onCreate();
         
         Log.d(TAG, "OrangePlayer TV Application started");
+        
+        // 强制启用 TV 模式
+        OrangePlayerConfig.setTvMode(true);
         
         // 初始化播放器
         initPlayer();
@@ -42,6 +46,6 @@ public class TvApplication extends Application {
         // 禁用缓存（避免网络问题）
         CacheFactory.setCacheManager(null);
         
-        Log.d(TAG, "Player initialized with ExoPlayer, cache disabled");
+        Log.d(TAG, "Player initialized with ExoPlayer, TV mode enabled, cache disabled");
     }
 }
