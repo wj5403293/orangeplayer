@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://central.sonatype.com/artifact/io.github.706412584/orangeplayer"><img src="https://img.shields.io/maven-central/v/io.github.706412584/orangeplayer.svg" alt="Maven Central"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://android-arsenal.com/api?level=21"><img src="https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat" alt="API"></a>
+  <a href="https://android-arsenal.com/api?level=14"><img src="https://img.shields.io/badge/API-14%2B-brightgreen.svg?style=flat" alt="API"></a>
   <a href="https://github.com/706412584/orangeplayer/stargazers"><img src="https://img.shields.io/github/stars/706412584/orangeplayer.svg?style=social&label=Star" alt="GitHub stars"></a>
 </p>
 
