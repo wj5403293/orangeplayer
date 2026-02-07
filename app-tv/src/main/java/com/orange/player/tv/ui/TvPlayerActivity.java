@@ -46,6 +46,14 @@ public class TvPlayerActivity extends AppCompatActivity {
     
     private void initViews() {
         videoPlayer = findViewById(R.id.video_player);
+        
+        // 创建并设置控制器
+        com.orange.playerlibrary.OrangeVideoController controller = 
+            new com.orange.playerlibrary.OrangeVideoController(this);
+        videoPlayer.setVideoController(controller);
+        
+        // 添加默认控制组件
+        controller.addDefaultControlComponent(videoTitle != null ? videoTitle : "视频播放", false);
     }
     
     private void setupPlayer() {
