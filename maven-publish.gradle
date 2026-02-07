@@ -31,7 +31,7 @@ ext {
 // 通用 POM 配置方法
 ext.configurePom = { pom ->
     pom.name = 'OrangePlayer'
-    pom.description = '基于 GSYVideoPlayer 的增强 Android 视频播放器库，支持 Android 4.0+ (API 14+)，包含多播放内核、字幕、弹幕、OCR 识别、语音识别等功能'
+    pom.description = 'Enhanced Android video player library based on GSYVideoPlayer, supports Android 4.0+ (API 14+), includes multiple player engines, subtitles, danmaku, OCR recognition, speech recognition and more'
     pom.url = pomUrl
     pom.licenses {
         license {

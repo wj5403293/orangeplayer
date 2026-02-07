@@ -51,7 +51,7 @@ afterEvaluate {
                 // POM 配置
                 pom {
                     name = 'OrangePlayer'
-                    description = '基于 GSYVideoPlayer 的增强 Android 视频播放器库，支持多播放内核、字幕、弹幕、OCR 识别、语音识别等功能'
+                    description = 'Enhanced Android video player library based on GSYVideoPlayer, supports multiple player engines, subtitles, danmaku, OCR recognition, speech recognition and more'
                     url = 'https://github.com/706412584/orangeplayer'
                     
                     licenses {
