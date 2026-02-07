@@ -491,11 +491,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (useHardware) {
             // 硬件解码
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodec();
-            com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
         } else {
             // 软件解码
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.disableMediaCodec();
         }
+        
+        // 关键修复：无论硬解还是软解，都启用 MediaCodecTexture
+        // 这样 TextureView 在横竖屏切换时会保留 SurfaceTexture，不会重新创建
+        // 避免 ExoPlayer 和系统播放器在 TextureView 模式下横竖屏切换时崩溃
+        // 
+        // 原理：enableMediaCodecTexture() 会让 GSYTextureView.onSurfaceTextureDestroyed() 返回 false
+        // 这样系统就不会销毁 SurfaceTexture，横竖屏切换时可以复用
+        com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
+        android.util.Log.d(TAG, "applyDecodeMode: 已启用 MediaCodecTexture（保留 SurfaceTexture，避免横竖屏切换重建）");
     }
 
     public void setDebugLogCallback(DebugLogCallback callback) {
