@@ -16,4 +16,4 @@ ext {
 }
 
 // Maven Central 发布配置
-apply from: "${rootDir}/scripts/publish-root.gradle"
+apply from: "${rootDir}/maven-publish.gradle"
