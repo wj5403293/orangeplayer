@@ -97,143 +97,43 @@ public class VideoEventManager {
      * 处理播放器状态变化（用于 OCR 全屏切换）
      * 
      * 问题：TextureView 模式下全屏切换（屏幕旋转）会导致 MediaCodec 崩溃
-     * 解决方案：
-     * 1. 全屏切换前：停止 OCR，切换到 SurfaceView 模式（由 shouldInterceptFullscreenForOcr 处理）
-     * 2. 全屏切换后：切换回 TextureView 模式，恢复 OCR（由本方法处理）
+    /**
+     * 处理播放器状态变化（用于 OCR 全屏切换）
+     * 
+     * 注意：由于 MediaCodecTexture 修复，OCR 现在可以在任何渲染模式下工作
+     * 不再需要在全屏切换时暂停/恢复 OCR
      */
     private void handlePlayerStateChangedForOcr(int playerState) {
-        // 只有在 OCR 被暂停等待恢复时才处理
-        if (!mOcrPausedForFullscreen) {
-            return;
-        }
-        
-        // 全屏切换完成后恢复 OCR
-        // PLAYER_FULL_SCREEN = 11, PLAYER_NORMAL = 10
-        if (playerState == PlayerConstants.PLAYER_FULL_SCREEN 
-            || playerState == PlayerConstants.PLAYER_NORMAL) {
-            // 延迟恢复 OCR，等待全屏切换动画和视频重新加载完成
-            mMainHandler.postDelayed(() -> {
-                resumeOcrAfterFullscreenSwitch();
-            }, 2000);
-        }
+        // OCR 现在可以在全屏切换时正常工作，无需特殊处理
     }
     
     /**
      * 检查是否需要为 OCR 拦截全屏切换
-     * 在全屏/竖屏切换前调用，如果返回 true，调用方应该先调用 pauseOcrForFullscreenSwitch
      * 
-     * @return true 如果 OCR 正在运行且使用 EXO/系统内核（需要拦截）
+     * @return false - 不再需要拦截（MediaCodecTexture 已修复横竖屏切换问题）
      */
     public boolean shouldInterceptFullscreenForOcr() {
-        // 检查 OCR 是否正在运行
-        if (mOcrSubtitleManager == null || !mOcrSubtitleManager.isRunning()) {
-            return false;
-        }
-        
-        // 检查是否使用 EXO 或系统内核
-        String currentEngine = mSettingsManager.getPlayerEngine();
-        boolean isExoOrSystem = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
-            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
-        
-        // 检查是否 Android Q+（只有 Q+ 才使用 SurfaceControl.reparent）
-        boolean isAndroidQ = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q;
-        return isExoOrSystem && isAndroidQ;
+        return false;
     }
     
     /**
      * 在全屏切换前暂停 OCR 并切换到 SurfaceView
-     * 调用方应该先调用 shouldInterceptFullscreenForOcr 检查是否需要拦截
+     * 
+     * 注意：此方法已废弃，不再需要调用
      */
+    @Deprecated
     public void pauseOcrForFullscreenSwitch() {
-        if (mOcrSubtitleManager == null || !mOcrSubtitleManager.isRunning()) {
-            return;
-        }
-        
-        // 标记 OCR 已暂停，等待全屏切换完成后恢复
-        mOcrPausedForFullscreen = true;
-        
-        // 1. 先暂停视频播放，避免切换过程中的画面撕裂
-        boolean wasPlaying = false;
-        long currentPosition = 0;
-        String url = null;
-        
-        if (mVideoView != null) {
-            wasPlaying = mVideoView.isPlaying();
-            currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-            url = mVideoView.getUrl();
-            
-            if (wasPlaying) {
-                mVideoView.pause();
-            }
-        }
-        
-        // 2. 停止 OCR
-        if (mOcrSubtitleManager != null) {
-            mOcrSubtitleManager.release();
-            mOcrSubtitleManager = null;
-        }
-        
-        // 3. 切换到 SurfaceView 模式并重新加载视频
-        try {
-            String currentEngine = mSettingsManager.getPlayerEngine();
-            // 设置回 SurfaceView 模式
-            if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
-                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
-            } else if (PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
-            }
-            
-            // 设置 GSYVideoType 为 SurfaceView
-            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-            // 重新加载视频以应用新的渲染模式
-            if (mVideoView != null && url != null && !url.isEmpty()) {
-                final long seekPosition = currentPosition;
-                final boolean shouldResume = wasPlaying;
-                
-                // 释放当前播放器
-                mVideoView.release();
-                com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
-                
-                // 重新选择播放器工厂
-                mVideoView.selectPlayerFactory(currentEngine);
-                
-                // 重新设置视频
-                mVideoView.setUp(url, false, "");
-                mVideoView.setSeekOnStart(seekPosition);
-                
-                // 暂停状态启动，让全屏切换更平滑
-                // 全屏切换完成后会自动恢复 OCR 并继续播放
-                mVideoView.startPlayLogic();
-            }
-        } catch (Exception e) {
-        }
+        // 不再需要暂停 OCR
     }
     
     /**
      * 在全屏切换后恢复 OCR
+     * 
+     * 注意：此方法已废弃，不再需要调用
      */
+    @Deprecated
     private void resumeOcrAfterFullscreenSwitch() {
-        if (!mOcrPausedForFullscreen) {
-            return;
-        }
-        mOcrPausedForFullscreen = false;
-        
-        // 重新启动 OCR
-        // 注意：doStartOcrTranslate 会自动切换到 TextureView 模式并重新加载视频
-        // 这里需要确保在正确的时机调用
-        String currentEngine = mSettingsManager.getPlayerEngine();
-        boolean needSwitchToTexture = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
-            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
-        
-        if (needSwitchToTexture && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            // 对于 EXO/系统内核，需要先切换到 TextureView 模式
-            // doStartOcrTranslate 会处理这个
-            doStartOcrTranslate(mOcrSourceLang, mOcrTargetLang);
-        } else {
-            // 其他内核直接启动 OCR
-            doStartOcrTranslateInternal(mOcrSourceLang, mOcrTargetLang);
-        }
+        // 不再需要恢复 OCR
     }
     
     /**
@@ -245,9 +145,12 @@ public class VideoEventManager {
     
     /**
      * 检查 OCR 是否被暂停等待恢复
+     * 
+     * @return false - 不再需要暂停/恢复机制
      */
+    @Deprecated
     public boolean isOcrPausedForFullscreen() {
-        return mOcrPausedForFullscreen;
+        return false;
     }
     
     /**
@@ -3226,51 +3129,14 @@ public class VideoEventManager {
      * 横竖屏切换时通过 onSurfaceDestroyed 中先切换到 PlaceholderSurface 来避免崩溃。
      */
     private void doStartOcrTranslate(String sourceLang, String targetLang) {
-        // 检查当前播放核心，如果是 Exo 或系统核心，需要切换到 TextureView 模式
-        String currentEngine = mSettingsManager.getPlayerEngine();
-        boolean needSwitchRenderer = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
-            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        // OCR 功能现在可以在任何渲染模式下工作
+        // 因为 MediaCodecTexture 修复已经解决了 TextureView 横竖屏切换崩溃问题
+        // 不再需要强制切换到 TextureView 模式
         
-        if (needSwitchRenderer) {
-            // 记录当前播放状态
-            long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-            String currentUrl = mVideoView.getUrl();
-            boolean wasPlaying = mVideoView.isPlaying();
-            // 设置强制 TextureView 模式
-            if (PlayerConstants.ENGINE_EXO.equals(currentEngine)) {
-                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
-            } else {
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
-            }
-            
-            // 先设置 GSYVideoType 为 TextureView
-            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-            // 重新加载视频以应用新的渲染模式
-            mVideoView.release();
-            com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
-            mVideoView.selectPlayerFactory(currentEngine);
-            
-            if (currentUrl != null && !currentUrl.isEmpty()) {
-                mVideoView.setUp(currentUrl, false, "");
-                if (currentPosition > 0) {
-                    mVideoView.setSeekOnStart(currentPosition);
-                }
-                if (wasPlaying) {
-                    mVideoView.startPlayLogic();
-                }
-            }
-            
-            showToast("已切换到 TextureView 模式");
-            
-            // 延迟启动 OCR，等待视频重新加载
-            mMainHandler.postDelayed(() -> {
-                doStartOcrTranslateInternal(sourceLang, targetLang);
-            }, 1000);
-        } else {
-            // 其他播放核心直接启动 OCR
-            doStartOcrTranslateInternal(sourceLang, targetLang);
-        }
+        android.util.Log.d(TAG, "doStartOcrTranslate: 启动 OCR 翻译（无需切换渲染模式）");
+        
+        // 直接启动 OCR
+        doStartOcrTranslateInternal(sourceLang, targetLang);
     }
     
     private android.os.Handler mMainHandler = new android.os.Handler(android.os.Looper.getMainLooper());

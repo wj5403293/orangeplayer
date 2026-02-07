@@ -371,19 +371,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     try {
                         PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
                         android.util.Log.d(TAG, "initPlayerFactory: 使用 ExoPlayer");
-                        // ExoPlayer 需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
-                        // 设置渲染类型为 SurfaceView (Android Q+)
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                            // 禁用 TextureView 模式，使用 SurfaceControl
-                            com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
-                        } else {
-                            // 低版本 Android 使用 TextureView
-                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                            com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
-                        }
+                        
+                        // 默认强制使用 TextureView 渲染模式（已修复横竖屏切换崩溃问题）
+                        // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                        com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
+                        android.util.Log.d(TAG, "initPlayerFactory: 默认使用 TextureView 渲染模式");
                     } catch (Exception e) {
                         android.util.Log.w(TAG, "initPlayerFactory: ExoPlayer 初始化失败", e);
                         // 回退到 GSY 原生 Exo2PlayerManager
@@ -436,17 +430,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
             android.util.Log.d(TAG, "initPlayerFactory: 使用系统播放器");
             
-            // 系统播放器也需要使用 SurfaceView 才能使用 SurfaceControl.reparent()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
-            } else {
-                // 低版本 Android 使用 TextureView
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
-            }
+            // 默认强制使用 TextureView 渲染模式（已修复横竖屏切换崩溃问题）
+            // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+            com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
+            android.util.Log.d(TAG, "initPlayerFactory: 默认使用 TextureView 渲染模式");
             
             // 如果用户设置的不是系统播放器，但回退到了系统播放器，更新设置
             if (!PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
@@ -504,6 +493,60 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // 这样系统就不会销毁 SurfaceTexture，横竖屏切换时可以复用
         com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
         android.util.Log.d(TAG, "applyDecodeMode: 已启用 MediaCodecTexture（保留 SurfaceTexture，避免横竖屏切换重建）");
+    }
+    
+    /**
+     * 设置渲染模式
+     * 
+     * @param useTextureView true: 使用 TextureView（推荐，已修复横竖屏切换崩溃）
+     *                       false: 使用 SurfaceView（Android Q+ 支持 SurfaceControl 无缝切换）
+     */
+    public void setRenderMode(boolean useTextureView) {
+        if (useTextureView) {
+            // 使用 TextureView 渲染
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+            
+            // 设置播放器管理器的强制模式
+            String engine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+            if (PlayerConstants.ENGINE_EXO.equals(engine)) {
+                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
+            } else if (PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
+            }
+            
+            android.util.Log.d(TAG, "setRenderMode: 已切换到 TextureView 渲染模式");
+        } else {
+            // 使用 SurfaceView 渲染
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+            
+            // 设置播放器管理器的强制模式
+            String engine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+            if (PlayerConstants.ENGINE_EXO.equals(engine)) {
+                com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(false);
+            } else if (PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
+                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
+            }
+            
+            android.util.Log.d(TAG, "setRenderMode: 已切换到 SurfaceView 渲染模式");
+        }
+        
+        // 智能检测：如果使用 TextureView，确保启用 MediaCodecTexture
+        if (useTextureView) {
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
+            android.util.Log.d(TAG, "setRenderMode: 已自动启用 MediaCodecTexture（TextureView 模式必需）");
+        }
+    }
+    
+    /**
+     * 获取当前渲染模式
+     * 
+     * @return true: TextureView, false: SurfaceView
+     */
+    public boolean isTextureViewMode() {
+        return com.shuyu.gsyvideoplayer.utils.GSYVideoType.getRenderType() == 
+               com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE;
     }
 
     public void setDebugLogCallback(DebugLogCallback callback) {

@@ -674,6 +674,78 @@ dependencies {
 - [PlayerSettingsManager](docs/API.md#playersettingsmanager) - 设置管理器
 - [PlayerConstants](docs/API.md#playerconstants) - 常量定义
 
+### 渲染模式设置
+
+OrangePlayer 支持两种渲染模式，默认使用 **TextureView**（已修复横竖屏切换崩溃问题）：
+
+#### 1. TextureView 模式（推荐，默认）
+
+```java
+// 设置为 TextureView 渲染模式
+mVideoView.setRenderMode(true);
+```
+
+**优点：**
+- ✅ 已修复横竖屏切换崩溃问题（通过 MediaCodecTexture）
+- ✅ 支持 OCR 字幕识别
+- ✅ 支持视频截图
+- ✅ 可以应用动画和变换
+- ✅ 所有 Android 版本都支持
+
+**适用场景：**
+- 需要 OCR 字幕识别
+- 需要视频截图功能
+- 需要应用视频特效
+
+#### 2. SurfaceView 模式
+
+```java
+// 设置为 SurfaceView 渲染模式
+mVideoView.setRenderMode(false);
+```
+
+**优点：**
+- ✅ Android Q+ 支持 SurfaceControl 无缝切换
+- ✅ 性能更好，内存占用更低
+- ✅ 适合直播流（RTSP/RTMP）
+
+**适用场景：**
+- Android Q+ 设备
+- 直播流播放
+- 对性能要求高的场景
+
+#### 3. 查询当前渲染模式
+
+```java
+boolean isTextureView = mVideoView.isTextureViewMode();
+if (isTextureView) {
+    Log.d(TAG, "当前使用 TextureView 渲染");
+} else {
+    Log.d(TAG, "当前使用 SurfaceView 渲染");
+}
+```
+
+#### 4. 技术说明
+
+**TextureView 横竖屏切换修复原理：**
+
+之前 ExoPlayer 和系统播放器在 TextureView 模式下横竖屏切换会崩溃，原因是系统会销毁 SurfaceTexture，导致 MediaCodec 抛出 `IllegalStateException`。
+
+我们通过启用 `MediaCodecTexture` 修复了这个问题：
+- `enableMediaCodecTexture()` 让 `onSurfaceTextureDestroyed()` 返回 `false`
+- 系统不会销毁 SurfaceTexture，横竖屏切换时复用
+- MediaCodec 继续渲染到同一个 Surface，不会崩溃
+
+**适用范围：**
+- ✅ 所有播放器内核（ExoPlayer、系统播放器、IJK）
+- ✅ 所有 Android 版本
+- ✅ 硬解和软解模式
+
+> 💡 **建议**：
+> - 大多数场景使用默认的 TextureView 模式即可
+> - 如果是 Android Q+ 设备且对性能要求高，可以切换到 SurfaceView
+> - 切换渲染模式需要在 `setUp()` 之前调用
+
 ---
 
 ## 项目结构
