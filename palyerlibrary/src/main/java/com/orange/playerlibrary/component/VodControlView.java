@@ -122,6 +122,9 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     private boolean mIsShowBottomProgress = true;
     private static boolean sShowBottomProgress = true;
     
+    // TV 模式
+    private boolean mIsTvMode = false;
+    
     // ===== 自主进度更新 =====
     private Handler mProgressHandler;
     private Runnable mProgressRunnable;
@@ -216,6 +219,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     private void init() {
         setVisibility(GONE);
         setClickable(false);
+        
+        // 检测 TV 模式
+        mIsTvMode = com.orange.playerlibrary.OrangePlayerConfig.isTvMode(getContext());
+        
         LayoutInflater.from(getContext()).inflate(R.layout.orange_layout_vod_control_view, this, true);
         mBottomContainer = findViewById(R.id.bottom_container);
         mTopContainer = findViewById(R.id.container_main);
@@ -855,15 +862,19 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             return;
         }
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN) {
+            // TV 模式下隐藏弹幕区
             if (mDanmuContainer != null) {
-                mDanmuContainer.setVisibility(VISIBLE);
+                mDanmuContainer.setVisibility(mIsTvMode ? GONE : VISIBLE);
             }
             if (mPlayButton != null) mPlayButton.setVisibility(GONE);
             if (mFullScreen != null) mFullScreen.setVisibility(GONE);
             if (mPlayButtonFullscreen != null) mPlayButtonFullscreen.setVisibility(VISIBLE);
+            // TV 模式下隐藏全屏弹幕按钮
             if (mFullScreenDanmu != null) {
-                mFullScreenDanmu.setVisibility(VISIBLE);
-                mFullScreenDanmu.setSelected(true);
+                mFullScreenDanmu.setVisibility(mIsTvMode ? GONE : VISIBLE);
+                if (!mIsTvMode) {
+                    mFullScreenDanmu.setSelected(true);
+                }
             }
             if (mSkipButton != null) mSkipButton.setVisibility(VISIBLE);
             if (mEpisodeSelect != null) mEpisodeSelect.setVisibility(VISIBLE);

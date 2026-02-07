@@ -18,6 +18,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.orange.playerlibrary.OrangePlayerConfig;
 import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.PlayerConstants;
 import com.orange.playerlibrary.R;
@@ -38,9 +39,9 @@ import java.util.Locale;
  * - 显示电池电量（通过广播接收器实时更新）
  * - 显示直播标识（直播模式时）
  * - 返回按钮（全屏时退出全屏，非全屏时关闭Activity）
- * - 投屏按钮（可选）
+ * - 投屏按钮（可选，TV 模式下隐藏）
  * - 设置按钮（可选）
- * - 小窗按钮（可选）
+ * - 小窗按钮（可选，TV 模式下隐藏）
  * - 定时按钮（可选）
  * 
  * Requirements: 1.2, 1.3, 2.1, 2.2, 3.1, 3.2, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7
@@ -69,6 +70,9 @@ public class TitleView extends FrameLayout implements IControlComponent {
     // 电池接收器
     private BatteryReceiver mBatteryReceiver;
     private boolean mIsRegister = false;
+    
+    // TV 模式
+    private boolean mIsTvMode = false;
     
     // 点击事件监听器
     private View.OnClickListener mOnSettingsClickListener;
@@ -99,11 +103,16 @@ public class TitleView extends FrameLayout implements IControlComponent {
      * 2. 通过 findViewById 获取所有视图引用
      * 3. 设置按钮点击事件监听器
      * 4. 初始化电池接收器
+     * 5. TV 模式下隐藏投屏和小窗按钮
      * 
      * Requirements: 2.1, 3.2
      */
     private void initView() {
         setVisibility(GONE);
+        
+        // 检测 TV 模式
+        mIsTvMode = OrangePlayerConfig.isTvMode(getContext());
+        
         LayoutInflater.from(getContext()).inflate(R.layout.orange_layout_title_view, this, true);
         
         mTitleContainer = findViewById(R.id.title_container);
@@ -122,12 +131,22 @@ public class TitleView extends FrameLayout implements IControlComponent {
             mLive.setVisibility(GONE);
         }
         
-        // 默认显示设置和投屏按钮（全屏时可见）
-        if (mSettings != null) {
-            mSettings.setVisibility(VISIBLE);
-        }
-        if (mCast != null) {
-            mCast.setVisibility(VISIBLE);
+        // TV 模式下隐藏投屏和小窗按钮
+        if (mIsTvMode) {
+            if (mCast != null) {
+                mCast.setVisibility(GONE);
+            }
+            if (mWindow != null) {
+                mWindow.setVisibility(GONE);
+            }
+        } else {
+            // 默认显示设置和投屏按钮（全屏时可见）
+            if (mSettings != null) {
+                mSettings.setVisibility(VISIBLE);
+            }
+            if (mCast != null) {
+                mCast.setVisibility(VISIBLE);
+            }
         }
         
         // 设置返回按钮点击事件
@@ -136,7 +155,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
         }
         
         // 设置投屏按钮点击事件
-        if (mCast != null) {
+        if (mCast != null && !mIsTvMode) {
             mCast.setOnClickListener(v -> onCastClick());
         }
         
@@ -146,7 +165,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
         }
         
         // 设置小窗按钮点击事件
-        if (mWindow != null) {
+        if (mWindow != null && !mIsTvMode) {
             mWindow.setOnClickListener(v -> onWindowClick());
         }
         
