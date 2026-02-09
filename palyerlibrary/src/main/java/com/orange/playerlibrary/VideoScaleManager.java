@@ -58,6 +58,7 @@ public class VideoScaleManager {
                 mVideoView.getRenderProxy().getWidth() + "x" + mVideoView.getRenderProxy().getHeight());
         }
         
+        // 先设置 GSY 的显示类型
         switch (scaleType) {
             case "默认":
                 GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_DEFAULT);
@@ -80,6 +81,9 @@ public class VideoScaleManager {
         }
         
         android.util.Log.d(TAG, "applyScaleType: GSYVideoType.getShowType()=" + GSYVideoType.getShowType());
+        
+        // 阿里云播放器特殊处理：需要调用 IPlayer.setScaleMode()
+        applyAliPlayerScaleMode(scaleType);
         
         // 在主线程刷新视频显示
         mVideoView.post(new Runnable() {
@@ -124,6 +128,124 @@ public class VideoScaleManager {
                 }, 200);  // 增加延迟到 200ms
             }
         });
+    }
+    
+    /**
+     * 为阿里云播放器设置缩放模式
+     * 阿里云播放器有自己的缩放模式控制，需要通过反射调用 IPlayer.setScaleMode()
+     * 
+     * @param scaleType 比例类型
+     */
+    private void applyAliPlayerScaleMode(final String scaleType) {
+        try {
+            // 获取当前播放器管理器（注意：要通过 getPlayer() 获取实际的播放器实例）
+            com.shuyu.gsyvideoplayer.GSYVideoManager videoManager = mVideoView.getGSYVideoManager();
+            if (videoManager == null) {
+                android.util.Log.d(TAG, "applyAliPlayerScaleMode: videoManager is null");
+                return;
+            }
+            
+            // 获取实际的播放器管理器实例
+            Object playerManager = videoManager.getPlayer();
+            if (playerManager == null) {
+                android.util.Log.d(TAG, "applyAliPlayerScaleMode: playerManager (getPlayer()) is null");
+                return;
+            }
+            
+            String managerClassName = playerManager.getClass().getName();
+            android.util.Log.d(TAG, "applyAliPlayerScaleMode: playerManager class=" + managerClassName);
+            
+            // 只处理阿里云播放器
+            if (!managerClassName.contains("AliPlayerManager")) {
+                android.util.Log.d(TAG, "applyAliPlayerScaleMode: 不是阿里云播放器，跳过");
+                return;
+            }
+            
+            android.util.Log.d(TAG, "applyAliPlayerScaleMode: 检测到阿里云播放器，开始设置缩放模式");
+            
+            // 通过反射获取 AliMediaPlayer
+            java.lang.reflect.Method getMediaPlayerMethod = playerManager.getClass().getMethod("getMediaPlayer");
+            Object mediaPlayer = getMediaPlayerMethod.invoke(playerManager);
+            
+            if (mediaPlayer == null) {
+                android.util.Log.w(TAG, "applyAliPlayerScaleMode: mediaPlayer is null，播放器可能还未初始化");
+                // 延迟重试
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        android.util.Log.d(TAG, "applyAliPlayerScaleMode: 延迟重试设置缩放模式");
+                        applyAliPlayerScaleMode(scaleType);
+                    }
+                }, 500);
+                return;
+            }
+            
+            android.util.Log.d(TAG, "applyAliPlayerScaleMode: mediaPlayer class=" + mediaPlayer.getClass().getName());
+            
+            // 通过反射获取 AliPlayer 实例（AliMediaPlayer 内部的 mInternalPlayer）
+            java.lang.reflect.Field internalPlayerField = mediaPlayer.getClass().getDeclaredField("mInternalPlayer");
+            internalPlayerField.setAccessible(true);
+            Object aliPlayer = internalPlayerField.get(mediaPlayer);
+            
+            if (aliPlayer == null) {
+                android.util.Log.w(TAG, "applyAliPlayerScaleMode: aliPlayer (mInternalPlayer) is null，播放器可能还未准备好");
+                // 延迟重试
+                mVideoView.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        android.util.Log.d(TAG, "applyAliPlayerScaleMode: 延迟重试设置缩放模式（第2次）");
+                        applyAliPlayerScaleMode(scaleType);
+                    }
+                }, 500);
+                return;
+            }
+            
+            android.util.Log.d(TAG, "applyAliPlayerScaleMode: aliPlayer class=" + aliPlayer.getClass().getName());
+            
+            // 获取 IPlayer.ScaleMode 枚举类
+            Class<?> scaleModeClass = Class.forName("com.aliyun.player.IPlayer$ScaleMode");
+            Object scaleModeValue = null;
+            
+            // 根据 scaleType 选择对应的 ScaleMode
+            switch (scaleType) {
+                case "默认":
+                case "16:9":
+                case "4:3":
+                    // SCALE_ASPECT_FIT - 自动缩放适配（保持比例）
+                    scaleModeValue = java.lang.Enum.valueOf((Class<Enum>) scaleModeClass, "SCALE_ASPECT_FIT");
+                    android.util.Log.d(TAG, "applyAliPlayerScaleMode: 选择 SCALE_ASPECT_FIT");
+                    break;
+                case "全屏裁剪":
+                    // SCALE_ASPECT_FILL - 填充适配（保持比例，裁剪）
+                    scaleModeValue = java.lang.Enum.valueOf((Class<Enum>) scaleModeClass, "SCALE_ASPECT_FILL");
+                    android.util.Log.d(TAG, "applyAliPlayerScaleMode: 选择 SCALE_ASPECT_FILL");
+                    break;
+                case "全屏拉伸":
+                    // SCALE_TO_FILL - 拉伸适配（不保持比例）
+                    scaleModeValue = java.lang.Enum.valueOf((Class<Enum>) scaleModeClass, "SCALE_TO_FILL");
+                    android.util.Log.d(TAG, "applyAliPlayerScaleMode: 选择 SCALE_TO_FILL");
+                    break;
+                default:
+                    scaleModeValue = java.lang.Enum.valueOf((Class<Enum>) scaleModeClass, "SCALE_ASPECT_FIT");
+                    android.util.Log.d(TAG, "applyAliPlayerScaleMode: 默认选择 SCALE_ASPECT_FIT");
+                    break;
+            }
+            
+            // 调用 IPlayer.setScaleMode()
+            java.lang.reflect.Method setScaleModeMethod = aliPlayer.getClass().getMethod("setScaleMode", scaleModeClass);
+            setScaleModeMethod.invoke(aliPlayer, scaleModeValue);
+            
+            android.util.Log.d(TAG, "✅ applyAliPlayerScaleMode: 成功设置阿里云播放器缩放模式 - " + scaleModeValue);
+            
+        } catch (ClassNotFoundException e) {
+            android.util.Log.e(TAG, "applyAliPlayerScaleMode: 找不到阿里云播放器类，可能未集成阿里云SDK", e);
+        } catch (NoSuchMethodException e) {
+            android.util.Log.e(TAG, "applyAliPlayerScaleMode: 找不到方法", e);
+        } catch (NoSuchFieldException e) {
+            android.util.Log.e(TAG, "applyAliPlayerScaleMode: 找不到字段 mInternalPlayer", e);
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "applyAliPlayerScaleMode: 设置阿里云播放器缩放模式失败", e);
+        }
     }
     
     /**

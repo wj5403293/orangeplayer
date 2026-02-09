@@ -210,6 +210,15 @@ public class CustomFullscreenHelper {
             return;
         }
         
+        // 调试日志：记录全屏切换前的状态
+        android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        android.util.Log.d(TAG, "startFullScreen: 开始进入全屏");
+        android.util.Log.d(TAG, "  VideoView: @" + Integer.toHexString(mVideoView.hashCode()));
+        android.util.Log.d(TAG, "  VodControlView: " + (mVideoView.getVodControlView() != null ? 
+            "@" + Integer.toHexString(mVideoView.getVodControlView().hashCode()) : "null"));
+        android.util.Log.d(TAG, "  TitleView: " + (mVideoView.getTitleView() != null ? 
+            "@" + Integer.toHexString(mVideoView.getTitleView().hashCode()) : "null"));
+        
         // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
         android.util.Log.d(TAG, "startFullScreen: calling pauseOcrIfRunning");
         pauseOcrIfRunning();
@@ -276,6 +285,16 @@ public class CustomFullscreenHelper {
                 
                 // 6. 通知状态变化
                 mVideoView.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
+                
+                // 调试日志：记录全屏切换后的状态
+                android.util.Log.d(TAG, "startFullScreen: 全屏切换完成");
+                android.util.Log.d(TAG, "  VideoView: @" + Integer.toHexString(mVideoView.hashCode()));
+                android.util.Log.d(TAG, "  VodControlView: " + (mVideoView.getVodControlView() != null ? 
+                    "@" + Integer.toHexString(mVideoView.getVodControlView().hashCode()) : "null"));
+                android.util.Log.d(TAG, "  TitleView: " + (mVideoView.getTitleView() != null ? 
+                    "@" + Integer.toHexString(mVideoView.getTitleView().hashCode()) : "null"));
+                android.util.Log.d(TAG, "  ⚠️ 检查：组件实例是否与进入全屏前一致？");
+                android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 
                 if (mVideoView.getTitleView() != null) {
                     mVideoView.getTitleView().setVisibility(View.VISIBLE);

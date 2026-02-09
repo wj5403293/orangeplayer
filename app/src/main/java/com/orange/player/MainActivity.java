@@ -457,6 +457,8 @@ public class MainActivity extends AppCompatActivity {
         if (mPiPHelper != null && mPiPHelper.handleOnResume()) {
             return;
         }
+   
+        mVideoView.onVideoResume();
         // 修复：不自动恢复播放
         // 原因：
         // 1. 用户可能在后台通过通知栏暂停了播放

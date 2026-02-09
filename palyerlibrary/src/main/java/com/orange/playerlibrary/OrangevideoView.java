@@ -565,30 +565,42 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 android.widget.RelativeLayout.LayoutParams.MATCH_PARENT,
                 android.widget.RelativeLayout.LayoutParams.MATCH_PARENT);
 
+        // 调试日志：记录组件初始化
+        android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        android.util.Log.d(TAG, "initOrangeComponents: 开始初始化组件");
+        android.util.Log.d(TAG, "  VideoView 实例: @" + Integer.toHexString(this.hashCode()));
+
         mControlWrapper = createControlWrapper();
         
         // 自动创建控制器（如果用户没有手动设置）
         if (mOrangeController == null) {
             mOrangeController = new OrangeVideoController(context);
             mOrangeController.setVideoView(this);
+            android.util.Log.d(TAG, "  创建新控制器: @" + Integer.toHexString(mOrangeController.hashCode()));
+        } else {
+            android.util.Log.d(TAG, "  复用已有控制器: @" + Integer.toHexString(mOrangeController.hashCode()));
         }
         
         mPrepareView = new com.orange.playerlibrary.component.PrepareView(context);
         mPrepareView.attach(mControlWrapper);
         mPrepareView.setClickStart();
         addView(mPrepareView, matchParentParams);
+        android.util.Log.d(TAG, "  PrepareView: @" + Integer.toHexString(mPrepareView.hashCode()));
         
         mCompleteView = new com.orange.playerlibrary.component.CompleteView(context);
         mCompleteView.attach(mControlWrapper);
         addView(mCompleteView, matchParentParams);
+        android.util.Log.d(TAG, "  CompleteView: @" + Integer.toHexString(mCompleteView.hashCode()));
 
         mErrorView = new com.orange.playerlibrary.component.ErrorView(context);
         mErrorView.attach(mControlWrapper);
         addView(mErrorView, matchParentParams);
+        android.util.Log.d(TAG, "  ErrorView: @" + Integer.toHexString(mErrorView.hashCode()));
 
         mTitleView = new com.orange.playerlibrary.component.TitleView(context);
         mTitleView.attach(mControlWrapper);
         addView(mTitleView, matchParentParams);
+        android.util.Log.d(TAG, "  TitleView: @" + Integer.toHexString(mTitleView.hashCode()));
 
         mVodControlView = new com.orange.playerlibrary.component.VodControlView(context);
         if (mOrangeController != null) {
@@ -596,6 +608,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         mVodControlView.attach(mControlWrapper);
         addView(mVodControlView, matchParentParams);
+        android.util.Log.d(TAG, "  VodControlView: @" + Integer.toHexString(mVodControlView.hashCode()));
+        
+        android.util.Log.d(TAG, "initOrangeComponents: 组件初始化完成");
+        android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         
         // 使用 post 延迟状态通知，确保所有组件都已附加到窗口
         // 这样可以避免在 setUp() 后立即调用 startPlayLogic() 时出现的问题
@@ -1669,7 +1685,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 try {
                     Class<?> aliClass = Class.forName("com.shuyu.aliplay.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
+                    android.util.Log.d(TAG, "✅ selectPlayerFactory: 成功设置阿里云播放器工厂");
                 } catch (ClassNotFoundException e) {
+                    android.util.Log.e(TAG, "❌ selectPlayerFactory: 找不到阿里云播放器类，回退到 IJK", e);
                     PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeIjkPlayerManager.class);
                 }
                 break;
@@ -1830,6 +1848,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     private void updateComponentsProgressInternal(int duration, int position) {
+        // 调试日志：追踪进度更新和组件实例
+        if (position % 5000 < 100) { // 每5秒打印一次，避免日志过多
+            android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            android.util.Log.d(TAG, "updateComponentsProgress: 更新进度");
+            android.util.Log.d(TAG, "  VideoView: @" + Integer.toHexString(this.hashCode()));
+            android.util.Log.d(TAG, "  Duration: " + duration + "ms, Position: " + position + "ms");
+            android.util.Log.d(TAG, "  Controller: " + (mOrangeController != null ? "@" + Integer.toHexString(mOrangeController.hashCode()) : "null"));
+            android.util.Log.d(TAG, "  VodControlView: " + (mVodControlView != null ? "@" + Integer.toHexString(mVodControlView.hashCode()) : "null"));
+            android.util.Log.d(TAG, "  LiveControlView: " + (mLiveControlView != null ? "@" + Integer.toHexString(mLiveControlView.hashCode()) : "null"));
+            android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        }
+        
         // 通过控制器分发进度更新给所有控制组件（包括弹幕）
         if (mOrangeController != null) {
             try {
