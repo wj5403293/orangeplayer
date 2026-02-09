@@ -197,6 +197,8 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
      * 避免 MediaCodec 渲染到已销毁的 Surface 导致崩溃
      * 
      * RTMP 直播流修复：在 Surface 切换时保持 Surface 引用，避免过早释放
+     * 
+     * m3u8 seek 修复：完全忽略 null Surface 调用，保持当前 Surface 继续渲染
      */
     @Override
     public void showDisplay(final Message msg) {
@@ -205,31 +207,19 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         }
         
         if (msg.obj == null) {
-            // Surface 为 null（横竖屏切换时旧 Surface 被销毁）
-            android.util.Log.d(TAG, "showDisplay: Surface 为 null, 切换到 PlaceholderSurface (isLiveStream=" + isLiveStream + ")");
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null) {
-                reparent(null);
-            }
-            
-            // 关键：使用 PlaceholderSurface 而不是 null，避免 MediaCodec 错误
-            // 这样 MediaCodec 可以继续渲染到 PlaceholderSurface，不会崩溃
+            // Surface 为 null - 完全忽略这个调用
             // 
-            // RTMP 直播流特殊处理：不清空 surface 引用，避免 Surface.finalize() 被调用
-            // 因为 RTMP 流在 Surface 切换时如果 Surface 被释放，会导致连接中断
-            if (dummySurface != null && dummySurface.isValid()) {
-                try {
-                    mediaPlayer.setSurface(dummySurface);
-                    android.util.Log.d(TAG, "showDisplay: 已切换到 PlaceholderSurface");
-                } catch (Exception e) {
-                    android.util.Log.e(TAG, "showDisplay: 切换到 PlaceholderSurface 失败: " + e.getMessage());
-                }
-            }
-            
-            // 直播流不清空 surface 引用，避免 Surface 被 GC 回收导致 finalize() 崩溃
-            if (!isLiveStream) {
-                surface = null;
-            }
+            // 问题分析：
+            // 1. GSY 框架在某些情况下（如 seek）会调用 showDisplay(null)
+            // 2. 之前的实现会切换到 PlaceholderSurface，导致画面变白/变绿
+            // 3. 正确的做法是：完全忽略这个调用，让 MediaCodec 继续使用当前 Surface
+            // 
+            // 适用场景：
+            // - m3u8 视频 seek 时
+            // - 横竖屏切换时（SurfaceControl 模式会自动处理）
+            // - 任何不应该中断渲染的场景
+            android.util.Log.d(TAG, "showDisplay: Surface 为 null, 完全忽略此调用，保持当前 Surface");
+            return;
         } else {
             // 检查是否是 SurfaceView (Android Q+ 且有 SurfaceControl 时使用 reparent)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null && msg.obj instanceof SurfaceView) {

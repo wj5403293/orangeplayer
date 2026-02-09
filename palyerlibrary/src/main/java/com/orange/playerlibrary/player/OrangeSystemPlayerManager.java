@@ -108,15 +108,19 @@ public class OrangeSystemPlayerManager extends BasePlayerManager {
         if (mediaPlayer == null) return;
         
         if (msg.obj == null) {
-            // Surface 为 null（横竖屏切换时旧 Surface 被销毁）
-            android.util.Log.d(TAG, "showDisplay: Surface 为 null");
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null) {
-                reparent(null);
-            }
-            // 系统播放器设置 null Surface 是安全的，不会像 ExoPlayer 那样崩溃
-            // 但为了保持一致性，我们也不设置 null
-            // mediaPlayer.setSurface(null); // 不设置 null，避免潜在问题
+            // Surface 为 null - 完全忽略这个调用
+            // 
+            // 问题分析：
+            // 1. GSY 框架在某些情况下（如 seek）会调用 showDisplay(null)
+            // 2. 之前的实现会切换到 null 或调用 reparent(null)，导致画面消失
+            // 3. 正确的做法是：完全忽略这个调用，让 MediaCodec 继续使用当前 Surface
+            // 
+            // 适用场景：
+            // - m3u8 视频 seek 时
+            // - 横竖屏切换时（SurfaceControl 模式会自动处理）
+            // - 任何不应该中断渲染的场景
+            android.util.Log.d(TAG, "showDisplay: Surface 为 null, 完全忽略此调用，保持当前 Surface");
+            return;
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && surfaceControl != null && msg.obj instanceof SurfaceView) {
                 reparent((SurfaceView) msg.obj);

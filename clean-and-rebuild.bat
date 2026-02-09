@@ -10,9 +10,11 @@ echo [0/4] 读取版本号...
 echo.
 
 REM 从 maven-publish.gradle 读取版本号
-for /f "tokens=3 delims='" %%a in ('findstr /C:"pomVersion = " maven-publish.gradle') do set VERSION=%%a
+powershell -Command "$line = Get-Content maven-publish.gradle | Select-String 'pomVersion = '; $line.Line -replace \".*pomVersion = '([^']+)'.*\", '$1'" > .version.tmp
+set /p VERSION=<.version.tmp
+del .version.tmp
 if "%VERSION%"=="" (
-    echo [ERROR] 无法从 maven-publish.gradle 读取版本号
+    echo [ERROR] 无法读取版本号
     goto ERROR
 )
 echo   当前版本: %VERSION%

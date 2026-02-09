@@ -199,8 +199,17 @@ public class MainActivity extends AppCompatActivity {
             mVideoView.startSniffing();
         } else {
             log("▶ 直接播放: " + getShortUrl(url));
+            // 先释放旧的播放器资源
+            mVideoView.release();
+            // 设置新视频
             mVideoView.setUp(url, false, mCurrentTitle);
-            mVideoView.startPlayLogic();
+            // 延迟一帧再开始播放，让播放器有时间完成重置
+            mVideoView.post(new Runnable() {
+                @Override
+                public void run() {
+                    mVideoView.startPlayLogic();
+                }
+            });
         }
 
         // 更新标题
@@ -448,11 +457,19 @@ public class MainActivity extends AppCompatActivity {
         if (mPiPHelper != null && mPiPHelper.handleOnResume()) {
             return;
         }
-        // 如果切后台前在播放，且不是用户主动暂停的，则恢复播放
-        if (mWasPlayingBeforeBackground && !mVideoView.isUserPaused()) {
-            mVideoView.onVideoResume();
-        }
+        // 修复：不自动恢复播放
+        // 原因：
+        // 1. 用户可能在后台通过通知栏暂停了播放
+        // 2. 用户可能在其他 App 中暂停了播放（如蓝牙耳机控制）
+        // 3. 自动恢复播放会打断用户的操作
+        // 
+        // 如果需要自动恢复，用户可以在设置中开启
+        // 或者在特定场景下（如视频详情页）才自动恢复
+        
+        // 清空标记，避免下次误判
         mWasPlayingBeforeBackground = false;
+        
+        log("📱 App 回到前台（不自动恢复播放）");
     }
 
     @Override
@@ -465,6 +482,7 @@ public class MainActivity extends AppCompatActivity {
         mWasPlayingBeforeBackground = mVideoView.isPlaying();
         if (mWasPlayingBeforeBackground) {
             mVideoView.onVideoPause();
+            log("📱 App 切到后台，暂停播放");
         }
     }
 
