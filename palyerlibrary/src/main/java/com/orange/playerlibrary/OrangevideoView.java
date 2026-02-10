@@ -451,10 +451,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
-     * 检查 IJK 播放器 so 库是否可用
-     * 通过尝试加载 IJK 的 native 库来判断
+     * 检查 IJK 播放器是否可用
+     * 同时检查 Java 类和 native 库
      */
     private boolean isIjkPlayerAvailable() {
+        // 1. 先检查 Java 类是否存在
+        try {
+            Class.forName("tv.danmaku.ijk.media.player.IjkMediaPlayer");
+        } catch (ClassNotFoundException e) {
+            android.util.Log.d(TAG, "isIjkPlayerAvailable: IJK Java 类未找到");
+            return false;
+        }
+        
+        // 2. 再检查 SO 库是否可用
         try {
             // 尝试加载 IJK 的 native 库
             System.loadLibrary("ijkffmpeg");
@@ -463,7 +472,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return true;
         } catch (UnsatisfiedLinkError e) {
             // so 库未找到
-            android.util.Log.d(TAG, "isIjkPlayerAvailable: IJK so 库未找到");
+            android.util.Log.d(TAG, "isIjkPlayerAvailable: IJK so 库未找到 - " + e.getMessage());
             return false;
         } catch (Exception e) {
             android.util.Log.w(TAG, "isIjkPlayerAvailable: 检查 IJK 可用性时出错", e);

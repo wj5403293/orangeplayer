@@ -574,7 +574,7 @@ public class VideoEventManager {
                                    android.widget.TextView ijkBtn, android.widget.TextView systemBtn) {
         // 检查核心是否可用
         boolean isAliPlayerAvailable = isClassPresent("com.aliyun.player.AliPlayer");
-        boolean isIjkPlayerAvailable = isClassPresent("tv.danmaku.ijk.media.player.IjkMediaPlayer");
+        boolean isIjkPlayerAvailable = isIjkPlayerAvailable(); // 使用新的检测方法，同时检查 Java 类和 SO 库
         // ExoPlayer 检测：GSY 11.x 使用 Media3，也检测旧版 ExoPlayer2
         boolean isExoPlayerAvailable = isClassPresent("com.shuyu.gsyvideoplayer.player.Exo2PlayerManager") ||
                                        isClassPresent("com.google.android.exoplayer2.ExoPlayer") ||
@@ -674,6 +674,30 @@ public class VideoEventManager {
             Class.forName(className);
             return true;
         } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 检查 IJK 播放器是否可用（同时检查 Java 类和 SO 库）
+     */
+    private boolean isIjkPlayerAvailable() {
+        // 1. 先检查 Java 类是否存在
+        if (!isClassPresent("tv.danmaku.ijk.media.player.IjkMediaPlayer")) {
+            return false;
+        }
+        
+        // 2. 再检查 SO 库是否可用
+        try {
+            System.loadLibrary("ijkffmpeg");
+            System.loadLibrary("ijksdl");
+            System.loadLibrary("ijkplayer");
+            return true;
+        } catch (UnsatisfiedLinkError e) {
+            android.util.Log.d("VideoEventManager", "IJK SO 库未找到: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            android.util.Log.w("VideoEventManager", "检查 IJK 可用性时出错", e);
             return false;
         }
     }
