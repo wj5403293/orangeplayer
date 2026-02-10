@@ -1418,7 +1418,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     
     @Override
     public void onVideoResume(boolean seek) {
-        // 如果用户主动暂停了，不自动恢复播放
         if (mUserPaused) {
             return;
         }
@@ -1430,23 +1429,48 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
         
-        // 检查是否是 ExoPlayer 或系统播放器内核
+        // 检查当前播放器内核
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         boolean isExoOrSystem = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
             || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        boolean isIjk = PlayerConstants.ENGINE_IJK.equals(currentEngine);
         
-        if (isExoOrSystem && mCurrentState == CURRENT_STATE_PAUSE) {
-            // ExoPlayer 和系统播放器的 seekTo 是异步的
-            // 需要特殊处理：先获取暂停时保存的位置，然后 seek + start
-            // GSY 基类的 mCurrentPosition 在 onVideoPause 时保存了当前位置
+        if ((isExoOrSystem || isIjk) && mCurrentState == CURRENT_STATE_PAUSE) {
+            // ExoPlayer、系统播放器和 IJK 播放器都需要特殊处理
+            // 保存暂停时的位置（GSY 基类的 mCurrentPosition 在 onVideoPause 时保存）
             long savedPosition = mCurrentPosition;
             try {
                 if (savedPosition >= 0 && getGSYVideoManager() != null) {
-                    // 先 start，再 seek（ExoPlayer 在播放状态下 seek 更可靠）
-                    getGSYVideoManager().start();
-                    if (seek && savedPosition > 0) {
-                        getGSYVideoManager().seekTo(savedPosition);
+                    if (isIjk) {
+                        // IJK 播放器：先 seek 再 start，确保 seek 操作在 start 之前完成
+                        // 这样可以避免后台切换时进度重置的问题
+                        if (seek && savedPosition > 0) {
+                            getGSYVideoManager().seekTo(savedPosition);
+                            // 给 IJK 一点时间完成 seek 操作（IJK 的 seekTo 是同步调用但异步执行）
+                            // 使用 post 延迟 start，确保 seek 先执行
+                            post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        if (getGSYVideoManager() != null) {
+                                            getGSYVideoManager().start();
+                                        }
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                        } else {
+                            getGSYVideoManager().start();
+                        }
+                    } else {
+                        // ExoPlayer 和系统播放器：先 start 再 seek（在播放状态下 seek 更可靠）
+                        getGSYVideoManager().start();
+                        if (seek && savedPosition > 0) {
+                            getGSYVideoManager().seekTo(savedPosition);
+                        }
                     }
+                    
                     setStateAndUi(CURRENT_STATE_PLAYING);
                     
                     // 更新 Orange 状态
@@ -1460,7 +1484,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 e.printStackTrace();
             }
         } else {
-            // IJK 播放器或其他情况，使用 GSY 基类的默认实现
+            // 其他情况，使用 GSY 基类的默认实现
             boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PAUSED);
             super.onVideoResume(seek);
             if (shouldUpdateState) {
