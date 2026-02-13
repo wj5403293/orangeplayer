@@ -53,7 +53,7 @@ dependencies {
     compileOnly project(':gsyVideoPlayer-x86_64')
     
     // ExoPlayer 支持 - compileOnly（需要 API 21+，用户按需添加）
-    compileOnly 'io.github.carguo:gsyvideoplayer-exo2:11.3.0'
+    compileOnly project(':gsyVideoPlayer-exo_player2')
     
     // 弹幕库 - compileOnly（用户按需添加）
     compileOnly 'com.github.bilibili:DanmakuFlameMaster:0.9.25'
