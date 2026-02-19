@@ -130,6 +130,12 @@ dependencies {
 > - `gsyVideoPlayer-armv64` - ARM64 架构 so 库
 > - `gsyVideoPlayer-x86` - x86 架构 so 库
 > - `gsyVideoPlayer-x86_64` - x86_64 架构 so 库
+> - `gsyVideoPlayer-ex_so` - IJK 加密支持 so 库（全架构，支持 HLS AES-128 等加密视频）
+>
+> ⚠️ **重要提示**：
+> - `gsyVideoPlayer-ex_so` 和标准 so 库（armv7a/armv64/x86/x86_64）**不能同时使用**，会导致 SO 库冲突
+> - 如需播放加密视频，使用 `gsyVideoPlayer-ex_so` 替代标准 so 库
+> - `ex_so` 包含所有架构，体积较大（约增加 20-30MB）
 >
 > 💡 **版本说明**：
 > - 使用 `+` 可自动获取最新版本
