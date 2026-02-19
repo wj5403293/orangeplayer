@@ -71,11 +71,15 @@ dependencies {
     // Java 层实现（必需！包含播放器核心逻辑）
     implementation project(':gsyVideoPlayer-java')
     
-    // Native so 文件（按需选择架构）
-    implementation project(':gsyVideoPlayer-armv7a')  // ARM 32位架构
-    implementation project(':gsyVideoPlayer-armv64')  // ARM 64位架构
-    implementation project(':gsyVideoPlayer-x86')     // x86 32位架构
-    implementation project(':gsyVideoPlayer-x86_64')  // x86 64位架构
+    // Native so 文件（二选一）
+    // 方案 1：使用 ex_so 模块（支持加密视频，包含所有架构）
+    implementation project(':gsyVideoPlayer-ex_so')   // IJK with encryption support
+    
+    // 方案 2：使用标准 so 模块（不支持加密视频，按需选择架构）
+    // implementation project(':gsyVideoPlayer-armv7a')  // ARM 32位架构
+    // implementation project(':gsyVideoPlayer-armv64')  // ARM 64位架构
+    // implementation project(':gsyVideoPlayer-x86')     // x86 32位架构
+    // implementation project(':gsyVideoPlayer-x86_64')  // x86 64位架构
     
     // ExoPlayer 内核（可选，需要 API 21+）- 使用本地模块
     implementation project(':gsyVideoPlayer-exo_player2')

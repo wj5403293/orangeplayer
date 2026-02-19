@@ -40,6 +40,7 @@ include ':gsyVideoPlayer-armv7a'
 include ':gsyVideoPlayer-armv64'
 include ':gsyVideoPlayer-x86'
 include ':gsyVideoPlayer-x86_64'
+include ':gsyVideoPlayer-ex_so'  // IJK with encryption support
 
 project(':gsyVideoPlayer-base').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-base')
 project(':gsyVideoPlayer-proxy_cache').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-proxy_cache')
@@ -50,6 +51,7 @@ project(':gsyVideoPlayer-armv7a').projectDir = new File(rootDir, 'GSYVideoPlayer
 project(':gsyVideoPlayer-armv64').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-armv64')
 project(':gsyVideoPlayer-x86').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-x86')
 project(':gsyVideoPlayer-x86_64').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-x86_64')
+project(':gsyVideoPlayer-ex_so').projectDir = new File(rootDir, 'GSYVideoPlayer-source/gsyVideoPlayer-ex_so')
 
 rootProject.name = "OrangePlayer"
 include ':app'

@@ -51,6 +51,7 @@ dependencies {
     compileOnly project(':gsyVideoPlayer-armv64')
     compileOnly project(':gsyVideoPlayer-x86')
     compileOnly project(':gsyVideoPlayer-x86_64')
+    compileOnly project(':gsyVideoPlayer-ex_so')  // IJK with encryption support
     
     // ExoPlayer 支持 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly project(':gsyVideoPlayer-exo_player2')
