@@ -14,6 +14,18 @@
         android:src="@drawable/orange_ic_action_arrow_back"
         android:visibility="visible" />
 
+    <ImageView
+        android:id="@+id/error_settings_btn"
+        android:layout_width="@dimen/orange_controller_height"
+        android:layout_height="@dimen/orange_controller_height"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="20dp"
+        android:padding="@dimen/orange_controller_icon_padding"
+        android:src="@drawable/ic_settings_player"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/orange_settings" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"

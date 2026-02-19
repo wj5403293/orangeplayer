@@ -457,8 +457,50 @@ public class VideoEventManager {
         mCurrentSetupDialog = DialogUtils.showCustomDialog(mActivity, dialogView,
                 DialogUtils.DialogPosition.RIGHT, null, null);
         
+        // 只在非全屏状态下调整弹窗大小以适配播放器
+        // 使用 isFullScreen() 方法判断，它通过 CustomFullscreenHelper 判断更准确
+        boolean isFullscreen = mVideoView != null && mVideoView.isFullScreen();
+        Log.d(TAG, "showSetupDialog: isFullscreen=" + isFullscreen);
+        
+        if (mVideoView != null && !isFullscreen) {
+            adjustDialogSizeForPlayer(dialogView);
+        }
+        
         // 绑定所有设置项（使用 dialogView 而不是 mCurrentSetupDialog）
         bindSetupOptions(dialogView);
+    }
+    
+    /**
+     * 调整弹窗大小以适配播放器（仅非全屏状态）
+     */
+    private void adjustDialogSizeForPlayer(View dialogView) {
+        // 获取播放器的位置和尺寸
+        int[] location = new int[2];
+        mVideoView.getLocationOnScreen(location);
+        int playerTop = location[1];
+        int playerHeight = mVideoView.getHeight();
+        int playerWidth = mVideoView.getWidth();
+        
+        Log.d(TAG, "adjustDialogSizeForPlayer: playerTop=" + playerTop + 
+              ", playerHeight=" + playerHeight + ", playerWidth=" + playerWidth);
+        
+        // 获取内容面板
+        View contentLayout = dialogView.findViewById(R.id.content_layout);
+        if (contentLayout != null) {
+            // 设置内容面板的宽度为播放器宽度的 55%，高度为播放器高度
+            android.view.ViewGroup.LayoutParams params = contentLayout.getLayoutParams();
+            if (params instanceof android.widget.FrameLayout.LayoutParams) {
+                android.widget.FrameLayout.LayoutParams frameParams = 
+                    (android.widget.FrameLayout.LayoutParams) params;
+                frameParams.width = (int) (playerWidth * 0.55f); // 55% 宽度
+                frameParams.height = playerHeight;
+                frameParams.topMargin = playerTop;
+                frameParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;
+                contentLayout.setLayoutParams(frameParams);
+                Log.d(TAG, "adjustDialogSizeForPlayer: adjusted width=" + frameParams.width + 
+                      ", height=" + frameParams.height);
+            }
+        }
     }
     
     /**

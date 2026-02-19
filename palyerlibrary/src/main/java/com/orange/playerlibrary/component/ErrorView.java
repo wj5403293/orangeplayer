@@ -15,8 +15,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.orange.playerlibrary.OrangeVideoController;
+import com.orange.playerlibrary.OrangevideoView;
 import com.orange.playerlibrary.PlayerConstants;
 import com.orange.playerlibrary.R;
+import com.orange.playerlibrary.VideoEventManager;
 import com.orange.playerlibrary.interfaces.ControlWrapper;
 import com.orange.playerlibrary.interfaces.IControlComponent;
 
@@ -37,6 +39,7 @@ public class ErrorView extends LinearLayout implements IControlComponent {
     // UI 组件
     private ImageView mStopFullscreen;
     private ImageView mRetryButton;
+    private ImageView mSettingsButton;
     
     // 触摸状态
     private float mDownX;
@@ -70,6 +73,12 @@ public class ErrorView extends LinearLayout implements IControlComponent {
                     mControlWrapper.replay(false);
                 }
             });
+        }
+        
+        // 设置按钮
+        mSettingsButton = findViewById(R.id.error_settings_btn);
+        if (mSettingsButton != null) {
+            mSettingsButton.setOnClickListener(v -> showSettingsDialog());
         }
         
         // 退出全屏按钮
@@ -165,6 +174,63 @@ public class ErrorView extends LinearLayout implements IControlComponent {
         
         // 使用 ControlWrapper 退出全屏，它会正确处理全屏切换
         mControlWrapper.toggleFullScreen();
+    }
+    
+    /**
+     * 显示设置对话框（用于切换播放内核）
+     */
+    private void showSettingsDialog() {
+        // 获取 VideoView
+        OrangevideoView videoView = getVideoView();
+        if (videoView == null) {
+            return;
+        }
+        
+        // 获取 Activity
+        Context context = getContext();
+        Activity activity = null;
+        if (context instanceof Activity) {
+            activity = (Activity) context;
+        }
+        
+        if (activity == null) {
+            return;
+        }
+        
+        // 获取 Controller
+        OrangeVideoController controller = mOrangeController;
+        if (controller == null && videoView != null) {
+            // 尝试从 VideoView 获取 Controller
+            controller = (OrangeVideoController) videoView.getVideoController();
+        }
+        
+        if (controller == null) {
+            return;
+        }
+        
+        // 使用 VideoEventManager 显示设置对话框
+        VideoEventManager eventManager = new VideoEventManager(activity, videoView, controller);
+        eventManager.showSetupDialog();
+    }
+    
+    /**
+     * 获取 VideoView
+     */
+    private OrangevideoView getVideoView() {
+        if (mControlWrapper != null) {
+            View parent = (View) getParent();
+            while (parent != null) {
+                if (parent instanceof OrangevideoView) {
+                    return (OrangevideoView) parent;
+                }
+                if (parent.getParent() instanceof View) {
+                    parent = (View) parent.getParent();
+                } else {
+                    break;
+                }
+            }
+        }
+        return null;
     }
 
     public void setDebug(boolean debug) {
