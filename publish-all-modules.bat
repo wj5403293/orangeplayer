@@ -86,6 +86,14 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
+echo [11/11] 发布 gsyVideoPlayer-ex_so...
+call gradlew :gsyVideoPlayer-ex_so:publishToMavenLocal
+if %ERRORLEVEL% NEQ 0 (
+    echo 错误: gsyVideoPlayer-ex_so 发布失败
+    exit /b 1
+)
+echo.
+
 echo ========================================
 echo 所有模块发布成功！
 echo ========================================
@@ -103,6 +111,7 @@ echo   - gsyVideoPlayer-armv7a (ARM 32位 so)
 echo   - gsyVideoPlayer-armv64 (ARM 64位 so)
 echo   - gsyVideoPlayer-x86 (x86 32位 so)
 echo   - gsyVideoPlayer-x86_64 (x86 64位 so)
+echo   - gsyVideoPlayer-ex_so (IJK 加密支持 so，全架构)
 echo.
 
 pause
