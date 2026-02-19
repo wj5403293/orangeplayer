@@ -55,7 +55,7 @@ echo Choose operation:
 echo.
 echo 1. Quick Publish (Recommended) - Build and upload palyerlibrary only
 echo 2. Full Publish - Clean, build, and upload palyerlibrary only
-echo 3. Publish All Modules - Upload all 10 modules (palyerlibrary + GSYVideoPlayer modules)
+echo 3. Publish All Modules - Upload all 11 modules (palyerlibrary + GSYVideoPlayer modules)
 echo 4. Check deployment status
 echo 5. Check Maven Central sync status
 echo 6. Clear all deployments
@@ -217,7 +217,7 @@ echo ========================================
 echo Publish All Modules
 echo ========================================
 echo.
-echo This will publish 10 modules:
+echo This will publish 11 modules:
 echo   1. palyerlibrary (OrangePlayer core)
 echo   2. gsyVideoPlayer-base
 echo   3. gsyVideoPlayer-proxy_cache
@@ -228,6 +228,7 @@ echo   7. gsyVideoPlayer-armv7a (ARM 32-bit)
 echo   8. gsyVideoPlayer-armv64 (ARM 64-bit)
 echo   9. gsyVideoPlayer-x86 (x86 32-bit)
 echo   10. gsyVideoPlayer-x86_64 (x86 64-bit)
+echo   11. gsyVideoPlayer-ex_so (IJK with encryption support, all architectures)
 echo.
 set /p CONFIRM="Continue? (Y/N): "
 
@@ -277,8 +278,12 @@ echo   [9/10] Publishing gsyVideoPlayer-x86...
 call gradlew.bat :gsyVideoPlayer-x86:publishReleasePublicationToLocalRepository
 if errorlevel 1 goto PUBLISH_ERROR
 
-echo   [10/10] Publishing gsyVideoPlayer-x86_64...
+echo   [10/11] Publishing gsyVideoPlayer-x86_64...
 call gradlew.bat :gsyVideoPlayer-x86_64:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto PUBLISH_ERROR
+
+echo   [11/11] Publishing gsyVideoPlayer-ex_so...
+call gradlew.bat :gsyVideoPlayer-ex_so:publishReleasePublicationToLocalRepository
 if errorlevel 1 goto PUBLISH_ERROR
 
 echo.
@@ -297,7 +302,7 @@ if exist "palyerlibrary\build\repo\io" (
 
 REM Copy GSYVideoPlayer module artifacts from each module's build/repo
 echo   Copying GSYVideoPlayer modules...
-for %%m in (base proxy_cache java exo_player2 aliplay armv7a armv64 x86 x86_64) do (
+for %%m in (base proxy_cache java exo_player2 aliplay armv7a armv64 x86 x86_64 ex_so) do (
     if exist "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io" (
         echo     - gsyVideoPlayer-%%m
         xcopy /E /I /Y "GSYVideoPlayer-source\gsyVideoPlayer-%%m\build\repo\io" "temp_bundle_build\io"
@@ -332,7 +337,7 @@ echo Deployment ID:
 type deployment_response.json
 echo.
 echo.
-echo Published modules (10):
+echo Published modules (11):
 echo   - orangeplayer:%VERSION%
 echo   - gsyVideoPlayer-base:%VERSION%
 echo   - gsyVideoPlayer-proxy_cache:%VERSION%
@@ -343,6 +348,7 @@ echo   - gsyVideoPlayer-armv7a:%VERSION%
 echo   - gsyVideoPlayer-armv64:%VERSION%
 echo   - gsyVideoPlayer-x86:%VERSION%
 echo   - gsyVideoPlayer-x86_64:%VERSION%
+echo   - gsyVideoPlayer-ex_so:%VERSION%
 echo.
 echo Next steps:
 echo   1. Visit https://central.sonatype.com/publishing/deployments
