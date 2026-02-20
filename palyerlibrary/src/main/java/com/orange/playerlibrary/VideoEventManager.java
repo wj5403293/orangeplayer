@@ -50,6 +50,13 @@ public class VideoEventManager {
     private float mNormalSpeed = 1.0f;
     private boolean mIsLongPressing = false;
     
+    // ===== 临时设置（不持久化，每次播放重置）=====
+    private int mCurrentSkipOpening = 0;  // 跳过片头（毫秒）
+    private int mCurrentSkipEnding = 0;   // 跳过片尾（毫秒）
+    private float mCurrentLongPressSpeed = 2.0f;  // 长按倍速
+    private String mCurrentScreenScale = "默认";  // 画面比例
+    private String mCurrentVideoUrl = null;  // 当前视频 URL（用于判断是否切换视频）
+    
     // OCR 全屏切换相关
     private boolean mOcrPausedForFullscreen = false;
     private String mOcrSourceLang = "chi_sim";
@@ -367,7 +374,7 @@ public class VideoEventManager {
     }
     
     /**
-     * 设置长按倍
+     * 设置长按倍速
      */
     public void setLongPressSpeed(float speed) {
         mLongPressSpeed = speed;
@@ -375,10 +382,85 @@ public class VideoEventManager {
     }
     
     /**
-     * 获取长按倍
+     * 获取长按倍速
      */
     public float getLongPressSpeed() {
         return mLongPressSpeed;
+    }
+    
+    /**
+     * 重置临时设置（在切换视频时调用）
+     * 跳过片头片尾、倍速、画面比例等设置不持久化，每次播放重置为默认值
+     * 
+     * @param videoUrl 新视频的 URL，用于判断是否切换了视频
+     */
+    public void resetTemporarySettings(String videoUrl) {
+        android.util.Log.d("VideoEventManager", "resetTemporarySettings() called with url: " + videoUrl);
+        android.util.Log.d("VideoEventManager", "Current URL: " + mCurrentVideoUrl);
+        
+        // 检查是否切换了视频（URL 不同）
+        boolean isNewVideo = (mCurrentVideoUrl == null || !mCurrentVideoUrl.equals(videoUrl));
+        android.util.Log.d("VideoEventManager", "isNewVideo: " + isNewVideo);
+        
+        if (isNewVideo) {
+            // 切换了视频，重置所有临时设置
+            mCurrentVideoUrl = videoUrl;
+            
+            // 重置跳过片头片尾
+            mCurrentSkipOpening = 0;
+            mCurrentSkipEnding = 0;
+            android.util.Log.d("VideoEventManager", "Reset skip settings to 0");
+            if (mVideoView != null) {
+                mVideoView.setSkipIntroTime(0);
+                mVideoView.setSkipIntroEnabled(false);
+                mVideoView.setSkipOutroTime(0);
+                mVideoView.setSkipOutroEnabled(false);
+                // 重置 SkipManager 的状态标志
+                SkipManager skipManager = mVideoView.getSkipManager();
+                if (skipManager != null) {
+                    android.util.Log.d("VideoEventManager", "Calling skipManager.reset()");
+                    skipManager.reset();
+                }
+            }
+            
+            // 重置长按倍速为默认值 2.0x
+            mCurrentLongPressSpeed = 2.0f;
+            
+            // 重置画面比例为默认
+            mCurrentScreenScale = "默认";
+            if (mVideoView != null) {
+                VideoScaleManager scaleManager = mVideoView.getVideoScaleManager();
+                if (scaleManager != null) {
+                    scaleManager.applyScaleType("默认");
+                }
+            }
+        } else {
+            // 同一个视频，保持当前设置不变
+            // 但需要重新应用到播放器（因为播放器可能被重新创建）
+            android.util.Log.d("VideoEventManager", "Same video, re-applying settings");
+            android.util.Log.d("VideoEventManager", "Current skip opening: " + mCurrentSkipOpening);
+            android.util.Log.d("VideoEventManager", "Current skip ending: " + mCurrentSkipEnding);
+            
+            if (mVideoView != null) {
+                // 重新应用跳过片头片尾设置
+                mVideoView.setSkipIntroTime(mCurrentSkipOpening);
+                mVideoView.setSkipIntroEnabled(mCurrentSkipOpening > 0);
+                mVideoView.setSkipOutroTime(mCurrentSkipEnding);
+                mVideoView.setSkipOutroEnabled(mCurrentSkipEnding > 0);
+                // 重置 SkipManager 的状态标志（允许再次跳过）
+                SkipManager skipManager = mVideoView.getSkipManager();
+                if (skipManager != null) {
+                    android.util.Log.d("VideoEventManager", "Calling skipManager.reset() for same video");
+                    skipManager.reset();
+                }
+                
+                // 重新应用画面比例
+                VideoScaleManager scaleManager = mVideoView.getVideoScaleManager();
+                if (scaleManager != null) {
+                    scaleManager.applyScaleType(mCurrentScreenScale);
+                }
+            }
+        }
     }
     
     /**
@@ -1264,8 +1346,8 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前选中的比
-        final String currentScale = mSettingsManager.getVideoScale();
+        // 当前选中的比例（使用私有变量）
+        final String currentScale = mCurrentScreenScale;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
         orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
@@ -1287,7 +1369,9 @@ public class VideoEventManager {
                 
                 // 比例选择事件
                 scaleName.setOnClickListener(v -> {
-                    mSettingsManager.setVideoScale(scaleText);
+                    // 保存到私有变量
+                    mCurrentScreenScale = scaleText;
+                    // 立即应用到播放器
                     setScreenScaleType(scaleText);
                     showToast("画面比例: " + scaleText);
                     dialog.dismiss();
@@ -1299,15 +1383,10 @@ public class VideoEventManager {
      * 设置画面比例类型
      */
     private void setScreenScaleType(String scaleType) {
-        // 保存设置并立即应用
+        // 立即应用到播放器（不保存到持久化存储）
         VideoScaleManager scaleManager = mVideoView.getVideoScaleManager();
         if (scaleManager != null) {
-            scaleManager.setAndSaveScale(scaleType);
-            showToast("画面比例: " + scaleType + " 已应用");
-        } else {
-            // 如果 VideoScaleManager 未初始化，只保存设置
-            mSettingsManager.setVideoScale(scaleType);
-            showToast("画面比例: " + scaleType + "\n将在下次播放时生效");
+            scaleManager.applyScaleType(scaleType);
         }
     }
     
@@ -1359,8 +1438,8 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前长按倍速
-        final float currentSpeed = mLongPressSpeed;
+        // 当前长按倍速（使用私有变量）
+        final float currentSpeed = mCurrentLongPressSpeed;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
         orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
@@ -1383,6 +1462,9 @@ public class VideoEventManager {
                 
                 // 倍速选择事件
                 speedName.setOnClickListener(v -> {
+                    // 保存到私有变量
+                    mCurrentLongPressSpeed = speedValue;
+                    // 立即应用（更新 mLongPressSpeed）
                     setLongPressSpeed(speedValue);
                     showToast("长按倍数 " + speedText);
                     dialog.dismiss();
@@ -1629,8 +1711,8 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前设置
-        final int currentValue = mSettingsManager.getSkipOpening();
+        // 当前设置（使用私有变量）
+        final int currentValue = mCurrentSkipOpening;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
         orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
@@ -1659,7 +1741,15 @@ public class VideoEventManager {
                 // 设置点击事件
                 final int finalSeconds = seconds;
                 title.setOnClickListener(v -> {
-                    mSettingsManager.setSkipOpening(finalSeconds);
+                    // 保存到私有变量
+                    mCurrentSkipOpening = finalSeconds;
+                    android.util.Log.d("VideoEventManager", "User selected skip opening: " + finalSeconds + "ms");
+                    // 立即应用到播放器
+                    if (mVideoView != null) {
+                        mVideoView.setSkipIntroTime(finalSeconds);
+                        mVideoView.setSkipIntroEnabled(finalSeconds > 0);
+                        android.util.Log.d("VideoEventManager", "Applied skip opening to player");
+                    }
                     showToast("跳过片头: " + optionText);
                     dialog.dismiss();
                 });
@@ -1702,8 +1792,8 @@ public class VideoEventManager {
             arrayList.add(map);
         }
         
-        // 当前设置
-        final int currentValue = mSettingsManager.getSkipEnding();
+        // 当前设置（使用私有变量）
+        final int currentValue = mCurrentSkipEnding;
         
         OrangeRecyclerView orangeRecyclerView = new OrangeRecyclerView();
         orangeRecyclerView.setLinearLayoutManager(recyclerView, mActivity);
@@ -1732,7 +1822,13 @@ public class VideoEventManager {
                 // 设置点击事件
                 final int finalSeconds = seconds;
                 title.setOnClickListener(v -> {
-                    mSettingsManager.setSkipEnding(finalSeconds);
+                    // 保存到私有变量
+                    mCurrentSkipEnding = finalSeconds;
+                    // 立即应用到播放器
+                    if (mVideoView != null) {
+                        mVideoView.setSkipOutroTime(finalSeconds);
+                        mVideoView.setSkipOutroEnabled(finalSeconds > 0);
+                    }
                     showToast("跳过片尾: " + optionText);
                     dialog.dismiss();
                 });

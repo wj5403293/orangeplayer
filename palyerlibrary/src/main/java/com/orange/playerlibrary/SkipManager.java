@@ -88,6 +88,7 @@ public class SkipManager {
      * @param timeMs 时长（毫秒）
      */
     public void setSkipIntroTime(long timeMs) {
+        android.util.Log.d(TAG, "setSkipIntroTime: " + timeMs + "ms");
         mSkipIntroTime = timeMs;
         mSkipIntroEnabled = timeMs > 0;
     }
@@ -129,11 +130,18 @@ public class SkipManager {
      * 在视频准备完成后调用
      */
     public void performSkipIntro() {
+        android.util.Log.d(TAG, "performSkipIntro() called - enabled=" + mSkipIntroEnabled 
+                + ", skipped=" + mIntroSkipped 
+                + ", skipTime=" + mSkipIntroTime 
+                + ", videoView=" + (mVideoView != null));
+        
         if (!mSkipIntroEnabled || mIntroSkipped || mVideoView == null || mSkipIntroTime <= 0) {
+            android.util.Log.d(TAG, "performSkipIntro() skipped - conditions not met");
             return;
         }
         
         mIntroSkipped = true;
+        android.util.Log.d(TAG, "performSkipIntro() seeking to " + mSkipIntroTime + "ms");
         mVideoView.seekTo(mSkipIntroTime);
         
         if (mSkipListener != null) {
@@ -255,6 +263,7 @@ public class SkipManager {
      * 在切换视频时调用
      */
     public void reset() {
+        android.util.Log.d(TAG, "reset() called - clearing intro/outro skipped flags");
         mIntroSkipped = false;
         mOutroSkipped = false;
         stopOutroCheck();

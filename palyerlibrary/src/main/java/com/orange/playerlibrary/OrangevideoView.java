@@ -922,6 +922,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
         saveVideoUrl(url);
+        // 重置临时设置（跳过片头片尾、倍速、画面比例）
+        if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
+            mOrangeController.getVideoEventManager().resetTemporarySettings(url);
+        }
+        // 重新绑定 SkipManager（防止 release() 后失去引用）
+        if (mSkipManager != null) {
+            mSkipManager.attachVideoView(this);
+        }
         // 自动选择最合适的播放器内核
         autoSelectPlayerEngine(url);
         // 异步获取视频首帧作为封面
@@ -935,6 +943,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
         saveVideoUrl(url);
+        // 重置临时设置（跳过片头片尾、倍速、画面比例）
+        if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
+            mOrangeController.getVideoEventManager().resetTemporarySettings(url);
+        }
+        // 重新绑定 SkipManager（防止 release() 后失去引用）
+        if (mSkipManager != null) {
+            mSkipManager.attachVideoView(this);
+        }
         // 自动选择最合适的播放器内核
         autoSelectPlayerEngine(url);
         boolean result = super.setUp(url, cacheWithPlay, cachePath, title);
@@ -945,6 +961,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
         saveVideoUrl(url);
+        // 重置临时设置（跳过片头片尾、倍速、画面比例）
+        if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
+            mOrangeController.getVideoEventManager().resetTemporarySettings(url);
+        }
+        // 重新绑定 SkipManager（防止 release() 后失去引用）
+        if (mSkipManager != null) {
+            mSkipManager.attachVideoView(this);
+        }
         // 自动选择最合适的播放器内核
         autoSelectPlayerEngine(url);
         boolean result = super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
