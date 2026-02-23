@@ -3182,6 +3182,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void changeUiToSniffingShow() {
         android.util.Log.d(TAG, "changeUiToSniffingShow: 显示嗅探加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, VISIBLE);
+        setViewShowState(mStartButton, INVISIBLE);  // 隐藏准备视频控件
         startSpeedUpdate();
     }
     
@@ -3191,6 +3192,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void changeUiToSniffingEnd() {
         android.util.Log.d(TAG, "changeUiToSniffingEnd: 隐藏嗅探加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
+        setViewShowState(mStartButton, VISIBLE);  // 恢复显示准备视频控件
         stopSpeedUpdate();
     }
     
