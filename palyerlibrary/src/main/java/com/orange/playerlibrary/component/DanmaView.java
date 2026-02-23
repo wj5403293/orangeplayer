@@ -308,17 +308,37 @@ public class DanmaView extends DanmakuView implements IControlComponent {
         
         switch (playState) {
             case PlayerConstants.STATE_IDLE:
-                release();
+                // 在后台线程释放弹幕，避免主线程阻塞导致 ANR
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        release();
+                    }
+                }).start();
                 mDanmakuPrepared = false;
                 clearSentDanmakuSet();
                 mRealTimeAddedKeys.clear();
                 break;
                 
             case PlayerConstants.STATE_PREPARING:
+                // 在后台线程准备弹幕，避免主线程阻塞导致 ANR
                 if (!isPrepared()) {
-                    prepare(mParser, mDanmakuContext);
-                }
-                if (isPrepared() && !isPaused()) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            prepare(mParser, mDanmakuContext);
+                            // 准备完成后，如果需要暂停，在主线程执行
+                            post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (isPrepared() && !isPaused()) {
+                                        pause();
+                                    }
+                                }
+                            });
+                        }
+                    }).start();
+                } else if (isPrepared() && !isPaused()) {
                     pause();
                 }
                 break;
@@ -371,27 +391,42 @@ public class DanmaView extends DanmakuView implements IControlComponent {
         
         if (playerState == PlayerConstants.PLAYER_FULL_SCREEN 
                 || playerState == PlayerConstants.PLAYER_NORMAL) {
-            long currentPosition = getCurrentTime();
+            final long currentPosition = getCurrentTime();
             
-            if (isPrepared()) {
-                release();
-                mDanmakuPrepared = false;
-            }
-            
-            postDelayed(() -> {
-                if (!isPrepared() && mDanmakuContext != null) {
-                    prepare(mParser, mDanmakuContext);
+            // 在后台线程执行 release 和 prepare 操作，避免阻塞主线程（修复 ANR）
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    if (isPrepared()) {
+                        release();
+                        mDanmakuPrepared = false;
+                    }
                     
-                    postDelayed(() -> {
-                        if (isPrepared() && mDanmakuPrepared) {
-                            seekTo(currentPosition);
-                            mLastCheckedIndex = 0;
-                            mRealTimeAddedKeys.clear();
-                            mLastPosition = currentPosition;
-                        }
-                    }, 500);
+                    // 延迟后在后台线程准备弹幕
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    
+                    if (!isPrepared() && mDanmakuContext != null) {
+                        prepare(mParser, mDanmakuContext);
+                        
+                        // 准备完成后在主线程执行 seekTo
+                        postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (isPrepared() && mDanmakuPrepared) {
+                                    seekTo(currentPosition);
+                                    mLastCheckedIndex = 0;
+                                    mRealTimeAddedKeys.clear();
+                                    mLastPosition = currentPosition;
+                                }
+                            }
+                        }, 500);
+                    }
                 }
-            }, 200);
+            }).start();
         }
     }
 

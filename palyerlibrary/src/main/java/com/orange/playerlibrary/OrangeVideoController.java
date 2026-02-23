@@ -344,6 +344,20 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     }
 
     /**
+     * 切换全屏状态
+     * 实现 ControlWrapper 接口
+     */
+    public void toggleFullScreen() {
+        if (mVideoView != null) {
+            if (mVideoView.isFullScreen() || mIsPortraitFullScreen) {
+                stopFullScreen();
+            } else {
+                startFullScreen();
+            }
+        }
+    }
+
+    /**
      * 进入竖屏全屏
      * Requirements: 2.8
      */

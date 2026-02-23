@@ -205,9 +205,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     mVideoScaleManager.applyVideoScale();
                 }
                 
-                // 智能全屏：根据视频宽高比自动选择全屏模式
-                applySmartFullscreen();
-                
                 if (mFullscreenHelper != null && mFullscreenHelper.getPendingSeekPosition() > 0) {
                     final long pendingPosition = mFullscreenHelper.getPendingSeekPosition();
                     final boolean pendingResume = mFullscreenHelper.isPendingResume();
@@ -708,15 +705,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             @Override
             public void toggleFullScreen() {
                 if (isFullScreen()) {
-                    Activity activity = videoView.getActivity();
-                    if (activity != null && mFullscreenHelper != null) {
-                        mFullscreenHelper.exitFullscreen(activity);
-                    }
+                    // 退出全屏
+                    videoView.stopFullScreen();
                 } else {
-                    Activity activity = videoView.getActivity();
-                    if (activity != null && mFullscreenHelper != null) {
-                        mFullscreenHelper.enterFullscreen(activity);
-                    }
+                    // 进入全屏 - 调用 videoView.startFullScreen() 以支持智能全屏
+                    videoView.startFullScreen();
                 }
             }
 
@@ -1628,9 +1621,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void startFullScreen() {
-        Activity activity = getActivity();
-        if (activity != null && mFullscreenHelper != null) {
-            mFullscreenHelper.enterFullscreen(activity);
+        // 检查智能全屏是否启用
+        PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+        if (settingsManager != null && settingsManager.isSmartFullscreenEnabled()) {
+            // 智能全屏：根据视频宽高比自动选择全屏模式
+            android.util.Log.d(TAG, "startFullScreen: 智能全屏已启用，检测视频宽高比");
+            
+            // 延迟执行，确保视频尺寸已经准备好
+            postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    applySmartFullscreen();
+                }
+            }, 100);
+        } else {
+            // 默认行为：横屏全屏
+            android.util.Log.d(TAG, "startFullScreen: 使用默认横屏全屏");
+            Activity activity = getActivity();
+            if (activity != null && mFullscreenHelper != null) {
+                mFullscreenHelper.enterFullscreen(activity);
+            }
         }
     }
 
@@ -1677,16 +1687,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 竖屏视频（高 > 宽）→ 竖屏全屏
      */
     private void applySmartFullscreen() {
-        // 检查智能全屏是否启用
-        PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
-        if (settingsManager == null || !settingsManager.isSmartFullscreenEnabled()) {
-            android.util.Log.d(TAG, "applySmartFullscreen: 智能全屏未启用");
-            return;
-        }
+        android.util.Log.d(TAG, "applySmartFullscreen: 开始智能全屏检测");
         
-        // 检查是否已经在全屏状态
-        if (isFullScreen() || isPortraitFullScreen()) {
-            android.util.Log.d(TAG, "applySmartFullscreen: 已经在全屏状态，跳过");
+        // 检查 mFullscreenHelper 是否为 null
+        if (mFullscreenHelper == null) {
+            android.util.Log.e(TAG, "applySmartFullscreen: mFullscreenHelper 为 null，无法执行全屏操作");
             return;
         }
         
@@ -1694,8 +1699,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         int videoWidth = getCurrentVideoWidth();
         int videoHeight = getCurrentVideoHeight();
         
+        android.util.Log.d(TAG, "applySmartFullscreen: 获取到视频尺寸 width=" + videoWidth + ", height=" + videoHeight);
+        
         if (videoWidth <= 0 || videoHeight <= 0) {
-            android.util.Log.w(TAG, "applySmartFullscreen: 视频尺寸无效 width=" + videoWidth + ", height=" + videoHeight);
+            android.util.Log.w(TAG, "applySmartFullscreen: 视频尺寸无效，使用默认横屏全屏");
+            // 视频尺寸无效，使用默认横屏全屏
+            Activity activity = getActivity();
+            if (activity != null) {
+                android.util.Log.d(TAG, "applySmartFullscreen: 调用 enterFullscreen()");
+                mFullscreenHelper.enterFullscreen(activity);
+            } else {
+                android.util.Log.e(TAG, "applySmartFullscreen: Activity 为 null");
+            }
             return;
         }
         
@@ -1707,11 +1722,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (videoWidth > videoHeight) {
             // 横屏视频 → 横屏全屏
             android.util.Log.d(TAG, "applySmartFullscreen: 检测到横屏视频，进入横屏全屏");
-            startFullScreen();
+            Activity activity = getActivity();
+            if (activity != null) {
+                android.util.Log.d(TAG, "applySmartFullscreen: 调用 enterFullscreen()");
+                mFullscreenHelper.enterFullscreen(activity);
+            } else {
+                android.util.Log.e(TAG, "applySmartFullscreen: Activity 为 null");
+            }
         } else {
             // 竖屏视频 → 竖屏全屏
             android.util.Log.d(TAG, "applySmartFullscreen: 检测到竖屏视频，进入竖屏全屏");
-            startPortraitFullScreen();
+            android.util.Log.d(TAG, "applySmartFullscreen: 调用 startPortraitFullScreen()");
+            mFullscreenHelper.startPortraitFullScreen();
         }
     }
     

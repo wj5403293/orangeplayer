@@ -51,7 +51,7 @@ dependencies {
     // 播放器内核（默认ijk,需要引入ijk架构支持gsyVideoPlayer-ex_so，全架构或者指定架构）
     implementation 'io.github.706412584:gsyVideoPlayer-java:+'    // IJK 播放器
     implementation 'io.github.706412584:gsyVideoPlayer-ex_so:+'
-    //EXOPlayer支持
+    //EXOPlayer播放器支持
     implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:+' // ExoPlayer
     // 阿里云播放器支持（排除内置版本，避免授权问题）- 请使用最新版本
     implementation('io.github.706412584:gsyVideoPlayer-aliplay:+') {
@@ -114,27 +114,28 @@ videoView.startPlayLogic();
 
 ### 智能全屏功能
 
-播放器会根据视频宽高比自动选择最佳全屏模式：
+点击全屏按钮时，播放器会根据视频宽高比自动选择最佳全屏模式：
 - **横屏视频**（宽 > 高）→ 自动进入横屏全屏
 - **竖屏视频**（高 > 宽）→ 自动进入竖屏全屏
 
 ```java
 // 智能全屏默认开启，无需额外配置
+// 用户点击全屏按钮时会自动根据视频比例选择全屏模式
 
 // 如需手动控制：
 videoView.setSmartFullscreenEnabled(true);   // 启用智能全屏（默认）
-videoView.setSmartFullscreenEnabled(false);  // 禁用智能全屏
+videoView.setSmartFullscreenEnabled(false);  // 禁用智能全屏（使用传统横屏全屏）
 
 // 查询状态
 boolean isEnabled = videoView.isSmartFullscreenEnabled();
 ```
 
 **智能全屏特性：**
-- ✅ 自动检测视频宽高比
+- ✅ 点击全屏按钮时自动检测视频宽高比
 - ✅ 默认开启，可手动关闭
-- ✅ 仅在视频准备完成后触发
-- ✅ 避免重复全屏（已在全屏状态时跳过）
+- ✅ 禁用后使用传统横屏全屏
 - ✅ 支持横屏/竖屏两种全屏模式
+- ✅ 视频尺寸无效时自动降级到横屏全屏
 
 ### 视频嗅探功能
 
