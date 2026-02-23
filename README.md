@@ -180,6 +180,20 @@ VideoSniffing.stop(true);
 - ✅ 并发控制，避免 ANR
 - ✅ URL 去重，避免重复检测
 - ✅ 调试模式，方便排查问题
+- ✅ 自动播放第一个视频（可选）
+
+**嗅探自动播放设置：**
+
+```java
+// 启用嗅探自动播放（默认关闭）
+PlayerSettingsManager.getInstance(context).setSniffingAutoPlayEnabled(true);
+
+// 启用后，嗅探完成时会自动播放第一个视频并隐藏嗅探组件
+videoView.startSniffing();
+
+// 查询状态
+boolean autoPlay = PlayerSettingsManager.getInstance(context).isSniffingAutoPlayEnabled();
+```
 
 **带自定义请求头的嗅探：**
 

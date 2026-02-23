@@ -2524,12 +2524,21 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mIsSniffing = false;
                 setOrangePlayState(STATE_ENDSNIFFING);
                 
+                // 检查是否启用嗅探自动播放
+                PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+                boolean autoPlay = settingsManager.isSniffingAutoPlayEnabled();
+                
                 // 完成嗅探
                 if (mOrangeController != null) {
                     com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
                     if (sniffingView != null) {
                         sniffingView.finishSniffing(videoSize);
                         sniffingView.setSniffingResults(videoList);
+                        
+                        // 如果启用自动播放，隐藏嗅探组件
+                        if (autoPlay && videoSize > 0) {
+                            sniffingView.hide();
+                        }
                     }
                     // 更新嗅探按钮状态
                     mOrangeController.updateSniffingButton();
@@ -2549,6 +2558,23 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                         mOrangeController.addVideo(name, info.url, info.headers);
                     }
+                }
+                
+                // 如果启用自动播放且有视频，自动播放第一个视频
+                if (autoPlay && videoList != null && !videoList.isEmpty()) {
+                    VideoSniffing.VideoInfo firstVideo = videoList.get(0);
+                    final String videoUrl = firstVideo.url;
+                    final String videoTitle = firstVideo.title != null && !firstVideo.title.isEmpty() 
+                        ? firstVideo.title : "视频 1";
+                    
+                    // 延迟播放，确保 UI 更新完成
+                    post(new Runnable() {
+                        @Override
+                        public void run() {
+                            setUp(videoUrl, false, videoTitle);
+                            startPlayLogic();
+                        }
+                    });
                 }
                 
                 if (mStateChangeListeners != null) {

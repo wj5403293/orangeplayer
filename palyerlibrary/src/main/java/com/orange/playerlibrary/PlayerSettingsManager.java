@@ -28,6 +28,9 @@ public class PlayerSettingsManager {
     // 智能全屏设置
     private static final String KEY_SMART_FULLSCREEN = "smart_fullscreen";
     
+    // 嗅探自动播放设置
+    private static final String KEY_SNIFFING_AUTO_PLAY = "sniffing_auto_play";
+    
     // 解码方式设置
     private static final String KEY_DECODE_MODE = "decode_mode";
     public static final String DECODE_HARDWARE = "hardware";  // 硬件解码
@@ -303,6 +306,28 @@ public class PlayerSettingsManager {
      */
     public boolean isSmartFullscreenEnabled() {
         return mPreferences.getBoolean(KEY_SMART_FULLSCREEN, true); // 默认启用
+    }
+    
+    // ===== 嗅探自动播放设置 =====
+    
+    /**
+     * 设置是否启用嗅探自动播放第一个视频
+     * 
+     * 启用后，嗅探完成时会自动播放第一个嗅探到的视频，并隐藏嗅探组件
+     * 
+     * @param enabled true 启用，false 禁用
+     */
+    public void setSniffingAutoPlayEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_SNIFFING_AUTO_PLAY, enabled).apply();
+    }
+    
+    /**
+     * 是否启用嗅探自动播放第一个视频
+     * 
+     * @return true 启用，false 禁用（默认禁用）
+     */
+    public boolean isSniffingAutoPlayEnabled() {
+        return mPreferences.getBoolean(KEY_SNIFFING_AUTO_PLAY, false); // 默认禁用
     }
     
     /**
