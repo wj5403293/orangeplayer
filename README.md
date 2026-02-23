@@ -103,14 +103,18 @@
 dependencies {
     // OrangePlayer 核心库（Maven Central）- 请使用最新版本
     implementation 'io.github.706412584:orangeplayer:+'
-    
-    // 必需依赖
-    implementation 'com.github.bumptech.glide:glide:4.16.0'  // 图片加载
-    
-    // 播放器内核（至少选择一个）- 请使用最新版本
-    implementation 'io.github.706412584:gsyVideoPlayer-java:+'      // IJK 播放器（推荐）
+
+    //以下均为可选功能
+    // 播放器内核（默认ijk,需要引入ijk架构支持gsyVideoPlayer-ex_so，全架构或者指定架构）
+    implementation 'io.github.706412584:gsyVideoPlayer-java:+'      // IJK 播放器
     implementation 'io.github.706412584:gsyVideoPlayer-exo_player2:+' // ExoPlayer
-    
+    // 阿里云播放器支持（排除内置版本，避免授权问题）- 请使用最新版本
+    implementation('io.github.706412584:gsyVideoPlayer-aliplay:+') {
+        exclude group: 'com.aliyun.sdk.android', module: 'AliyunPlayer'
+        exclude group: 'com.alivc.conan', module: 'AlivcConan'
+    }
+    // 使用 5.4.7.1 版本（无需授权）
+    implementation 'com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full'
     // 可选依赖（按需添加）
     implementation 'com.github.bilibili:DanmakuFlameMaster:0.9.25'  // 弹幕功能
     implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'  // OCR 识别

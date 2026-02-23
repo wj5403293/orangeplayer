@@ -7,6 +7,7 @@ import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -40,7 +41,7 @@ public class VideoSniffing {
     private static final String TAG = "VideoSniffing";
     
     /** 调试模式 */
-    public static boolean isDebug = false;
+    public static boolean isDebug = true;  // 启用调试日志
     
     @SuppressLint("StaticFieldLeak")
     private static WebView webView;
@@ -63,11 +64,11 @@ public class VideoSniffing {
     /** 当前回调 */
     private static Call currentCall;
     
-    /** 网络请求线程池（最多 2 个并发请求，减少资源占用）*/
-    private static ExecutorService networkExecutor = Executors.newFixedThreadPool(2);
+    /** 网络请求线程池（最多 1 个并发请求，最大限度减少资源占用）*/
+    private static ExecutorService networkExecutor = Executors.newFixedThreadPool(1);
     
-    /** 并发控制信号量（最多 3 个并发网络请求，进一步限制）*/
-    private static Semaphore concurrentRequestSemaphore = new Semaphore(3);
+    /** 并发控制信号量（最多 2 个并发网络请求，进一步限制）*/
+    private static Semaphore concurrentRequestSemaphore = new Semaphore(2);
     
     /** 已处理的 URL 集合（避免重复请求）*/
     private static Set<String> processedUrls = new HashSet<>();
@@ -105,9 +106,8 @@ public class VideoSniffing {
      */
     @SuppressLint("SetJavaScriptEnabled")
     private static void initWebView(WebView webView2) {
-        webView2.setLayoutParams(isDebug ?
-                new ViewGroup.LayoutParams(300, 300) :
-                new ViewGroup.LayoutParams(0, 0));
+        // 始终使用 0x0 尺寸，即使在调试模式下也最小化浏览器控件
+        webView2.setLayoutParams(new ViewGroup.LayoutParams(0, 0));
 
         WebSettings settings = webView2.getSettings();
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
@@ -179,9 +179,8 @@ public class VideoSniffing {
         webView = webView2;
         initWebView(webView2);
 
-        activity.addContentView(webView, isDebug ?
-                new LinearLayout.LayoutParams(300, 300) :
-                new LinearLayout.LayoutParams(0, 0));
+        // 始终使用 0x0 尺寸，即使在调试模式下也最小化浏览器控件
+        activity.addContentView(webView, new LinearLayout.LayoutParams(0, 0));
 
         // 加载 URL 时携带自定义请求头
         webView.setWebViewClient(new VideoWebViewClient(activity, call, customHeaders));
@@ -227,7 +226,7 @@ public class VideoSniffing {
 
         // 3. 释放所有信号量许可
         concurrentRequestSemaphore.drainPermits();
-        concurrentRequestSemaphore.release(3);  // 修改为 3 个许可
+        concurrentRequestSemaphore.release(2);  // 修改为 2 个许可
         
         // 4. 清空已处理 URL 集合
         processedUrls.clear();
@@ -320,24 +319,55 @@ public class VideoSniffing {
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
             String url = request.getUrl().toString();
             String reqContentType = request.getRequestHeaders().get("content-type");
+            String lowerUrl = url.toLowerCase();
 
-            // 过滤非必要资源
-            if (reqContentType != null && (reqContentType.contains("text/css")
-                    || reqContentType.contains("image/")
-                    || reqContentType.contains("font/"))
-                    || url.contains(".css") || url.contains(".gif")
-                    || url.contains(".ttf") || url.contains(".jpg")
-                    || url.contains(".jpeg") || url.contains(".svg")
-                    || url.contains(".ico") || url.contains(".png")
-                    || url.contains(".woff") || url.contains(".woff2")
-                    || url.contains(".eot")) {
+            // 1. 过滤图片资源（所有常见格式）
+            if (lowerUrl.contains(".jpg") || lowerUrl.contains(".jpeg") 
+                    || lowerUrl.contains(".png") || lowerUrl.contains(".gif")
+                    || lowerUrl.contains(".webp") || lowerUrl.contains(".bmp")
+                    || lowerUrl.contains(".svg") || lowerUrl.contains(".ico")
+                    || lowerUrl.contains(".avif") || lowerUrl.contains(".heic")) {
                 return createEmptyResource();
             }
 
-            // 过滤 JS、JSON 等非视频资源
-            if (url.contains(".js") || !"*/*".equals(request.getRequestHeaders().get("Accept"))
+            // 2. 过滤样式和字体资源
+            if (lowerUrl.contains(".css") || lowerUrl.contains(".ttf")
+                    || lowerUrl.contains(".woff") || lowerUrl.contains(".woff2")
+                    || lowerUrl.contains(".eot") || lowerUrl.contains(".otf")) {
+                return createEmptyResource();
+            }
+
+            // 3. 过滤广告和统计资源
+            if (lowerUrl.contains("analytics") || lowerUrl.contains("tracking")
+                    || lowerUrl.contains("advertisement") || lowerUrl.contains("/ads/")
+                    || lowerUrl.contains("google-analytics") || lowerUrl.contains("doubleclick")
+                    || lowerUrl.contains("facebook.com/tr") || lowerUrl.contains("baidu.com/hm.js")
+                    || lowerUrl.contains("cnzz.com") || lowerUrl.contains("umeng.com")) {
+                return createEmptyResource();
+            }
+
+            // 4. 过滤社交媒体插件
+            if (lowerUrl.contains("facebook.com/plugins") || lowerUrl.contains("twitter.com/widgets")
+                    || lowerUrl.contains("platform.linkedin") || lowerUrl.contains("connect.qq.com")
+                    || lowerUrl.contains("weibo.com/aj/") || lowerUrl.contains("share.baidu.com")) {
+                return createEmptyResource();
+            }
+
+            // 5. 过滤 Content-Type 为非视频的资源
+            if (reqContentType != null) {
+                if (reqContentType.contains("text/css") || reqContentType.contains("text/html")
+                        || reqContentType.contains("image/") || reqContentType.contains("font/")
+                        || reqContentType.contains("application/javascript")
+                        || reqContentType.contains("application/json")
+                        || reqContentType.contains("text/javascript")) {
+                    return createEmptyResource();
+                }
+            }
+
+            // 6. 过滤 JS 和 JSON 文件（但不阻止它们加载，只是不检查）
+            if (lowerUrl.contains(".js") || lowerUrl.contains(".json")
                     || "application/json".equals(reqContentType)) {
-                return super.shouldInterceptRequest(view, request);
+                return super.shouldInterceptRequest(view, request);  // 让它们正常加载
             }
 
             // 快速检查：如果 URL 明显不是视频，直接跳过
@@ -345,9 +375,16 @@ public class VideoSniffing {
                 return super.shouldInterceptRequest(view, request);
             }
             
+            if (isDebug) {
+                Log.d(TAG, "检查潜在视频 URL: " + url);
+            }
+            
             // 去重检查：如果已经处理过这个 URL，直接跳过
             synchronized (processedUrls) {
                 if (processedUrls.contains(url)) {
+                    if (isDebug) {
+                        Log.d(TAG, "URL 已处理，跳过: " + url);
+                    }
                     return createEmptyResource();
                 }
                 processedUrls.add(url);
@@ -356,10 +393,17 @@ public class VideoSniffing {
             // 尝试获取信号量许可（非阻塞）
             if (!concurrentRequestSemaphore.tryAcquire()) {
                 // 并发请求过多，跳过此请求
+                if (isDebug) {
+                    Log.d(TAG, "并发请求过多，跳过: " + url);
+                }
                 synchronized (processedUrls) {
                     processedUrls.remove(url);  // 移除标记，允许下次重试
                 }
                 return super.shouldInterceptRequest(view, request);
+            }
+
+            if (isDebug) {
+                Log.d(TAG, "开始异步检查视频: " + url);
             }
 
             // 在线程池中异步执行网络请求
@@ -379,21 +423,35 @@ public class VideoSniffing {
                             connection.setRequestProperty(header.getKey(), header.getValue());
                         }
                     }
-                    // 进一步减少超时时间：从 5 秒降到 3 秒
-                    connection.setConnectTimeout(3000);
-                    connection.setReadTimeout(3000);
+                    // 进一步减少超时时间：从 3 秒降到 2 秒
+                    connection.setConnectTimeout(2000);
+                    connection.setReadTimeout(2000);
                     connection.setInstanceFollowRedirects(true);
                     connection.connect();
 
                     int responseCode = connection.getResponseCode();
+                    if (isDebug) {
+                        Log.d(TAG, "响应码: " + responseCode + " URL: " + url);
+                    }
+                    
                     if (responseCode != HttpURLConnection.HTTP_OK && responseCode != HttpURLConnection.HTTP_PARTIAL) {
+                        if (isDebug) {
+                            Log.d(TAG, "响应码不匹配，跳过: " + url);
+                        }
                         return;
                     }
 
                     String respContentType = connection.getHeaderField("Content-Type");
+                    if (isDebug) {
+                        Log.d(TAG, "Content-Type: " + respContentType + " URL: " + url);
+                    }
                     
                     // 只处理视频资源
                     if (isVideoSource(respContentType) || isVideoSource(url)) {
+                        if (isDebug) {
+                            Log.d(TAG, "发现视频资源！Content-Type: " + respContentType + " URL: " + url);
+                        }
+                        
                         HashMap<String, String> headers = new HashMap<>();
                         for (int i = 0; ; i++) {
                             String key = connection.getHeaderFieldKey(i);
@@ -410,10 +468,16 @@ public class VideoSniffing {
                             }
                             handleResponse(respContentType, headers, currentTitle, url);
                         });
+                    } else {
+                        if (isDebug) {
+                            Log.d(TAG, "不是视频资源，跳过: " + url);
+                        }
                     }
 
                 } catch (Exception e) {
-                    // 忽略网络请求异常
+                    if (isDebug) {
+                        Log.e(TAG, "网络请求异常: " + url, e);
+                    }
                 } finally {
                     // 从已处理集合中移除（如果请求失败，允许重试）
                     synchronized (processedUrls) {
@@ -434,8 +498,8 @@ public class VideoSniffing {
                 }
             });
 
-            // 立即返回空资源，不阻塞 WebView
-            return createEmptyResource();
+            // 关键修复：让 WebView 正常加载资源，我们只是在后台异步检查
+            return super.shouldInterceptRequest(view, request);
         }
         
         /**

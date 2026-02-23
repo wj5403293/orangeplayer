@@ -54,6 +54,9 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     // ===== 字幕相关 =====
     private com.orange.playerlibrary.subtitle.SubtitleManager mSubtitleManager;
     
+    // ===== 嗅探相关 =====
+    private com.orange.playerlibrary.component.SniffingView mSniffingView;
+    
     // ===== 预览功能 =====
     private boolean mPreViewEnabled = false;
     
@@ -1048,5 +1051,51 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     @Override
     public void toggleLockState() {
         setLocked(!isLocked());
+    }
+    
+    // ===== 嗅探功能 =====
+    
+    /**
+     * 获取嗅探视图组件
+     */
+    public com.orange.playerlibrary.component.SniffingView getSniffingView() {
+        return mSniffingView;
+    }
+    
+    /**
+     * 设置嗅探视图组件
+     */
+    public void setSniffingView(com.orange.playerlibrary.component.SniffingView sniffingView) {
+        mSniffingView = sniffingView;
+    }
+    
+    /**
+     * 显示嗅探视图
+     */
+    public void showSniffingView() {
+        if (mSniffingView != null) {
+            mSniffingView.show();
+        }
+    }
+    
+    /**
+     * 隐藏嗅探视图
+     */
+    public void hideSniffingView() {
+        if (mSniffingView != null) {
+            mSniffingView.hide();
+        }
+    }
+    
+    /**
+     * 更新嗅探按钮状态（根据持久化记录）
+     */
+    public void updateSniffingButton() {
+        if (mVideoView != null) {
+            com.orange.playerlibrary.component.TitleView titleView = mVideoView.getTitleView();
+            if (titleView != null && mSniffingView != null) {
+                titleView.updateSniffingButton(mSniffingView.getResultCount() > 0);
+            }
+        }
     }
 }

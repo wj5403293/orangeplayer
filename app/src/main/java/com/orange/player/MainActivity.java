@@ -40,7 +40,7 @@ import java.util.List;
  * 演示如何使用 OrangevideoView SDK
  * 
  * 基于 GSYVideoPlayer 开源播放器框架
- * https://github.com/CarGuo/GSYVideoPlayer
+ * https://github.com/706412584/orangeplayer
  */
 public class MainActivity extends AppCompatActivity {
 

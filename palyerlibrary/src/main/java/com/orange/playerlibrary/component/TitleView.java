@@ -66,6 +66,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
     private ImageView mSettings;
     private ImageView mWindow;
     private ImageView mTimer;
+    private ImageView mSniffing;
     
     // 电池接收器
     private BatteryReceiver mBatteryReceiver;
@@ -79,6 +80,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
     private View.OnClickListener mOnCastClickListener;
     private View.OnClickListener mOnWindowClickListener;
     private View.OnClickListener mOnTimerClickListener;
+    private View.OnClickListener mOnSniffingClickListener;
 
     public TitleView(@NonNull Context context) {
         super(context);
@@ -125,6 +127,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
         mSettings = findViewById(R.id.iv_settings);
         mWindow = findViewById(R.id.iv_window);
         mTimer = findViewById(R.id.iv_timer);
+        mSniffing = findViewById(R.id.iv_sniffing);
         
         // 初始化直播标识为隐藏
         if (mLive != null) {
@@ -176,6 +179,11 @@ public class TitleView extends FrameLayout implements IControlComponent {
         // 设置定时按钮点击事件
         if (mTimer != null) {
             mTimer.setOnClickListener(v -> onTimerClick());
+        }
+        
+        // 设置嗅探按钮点击事件
+        if (mSniffing != null) {
+            mSniffing.setOnClickListener(v -> onSniffingClick());
         }
         
         // 初始化电池接收器
@@ -250,6 +258,15 @@ public class TitleView extends FrameLayout implements IControlComponent {
     }
     
     /**
+     * 嗅探按钮点击处理
+     */
+    private void onSniffingClick() {
+        if (mOnSniffingClickListener != null) {
+            mOnSniffingClickListener.onClick(mSniffing);
+        }
+    }
+    
+    /**
      * 设置设置按钮点击监听器
      */
     public void setOnSettingsClickListener(View.OnClickListener listener) {
@@ -275,6 +292,13 @@ public class TitleView extends FrameLayout implements IControlComponent {
      */
     public void setOnTimerClickListener(View.OnClickListener listener) {
         mOnTimerClickListener = listener;
+    }
+    
+    /**
+     * 设置嗅探按钮点击监听器
+     */
+    public void setOnSniffingClickListener(View.OnClickListener listener) {
+        mOnSniffingClickListener = listener;
     }
     
     // ===== 按钮显示控制 =====
@@ -348,6 +372,33 @@ public class TitleView extends FrameLayout implements IControlComponent {
     public void hideTimerButton() {
         if (mTimer != null) {
             mTimer.setVisibility(GONE);
+        }
+    }
+    
+    /**
+     * 显示嗅探按钮
+     */
+    public void showSniffingButton() {
+        if (mSniffing != null) {
+            mSniffing.setVisibility(VISIBLE);
+        }
+    }
+    
+    /**
+     * 隐藏嗅探按钮
+     */
+    public void hideSniffingButton() {
+        if (mSniffing != null) {
+            mSniffing.setVisibility(GONE);
+        }
+    }
+    
+    /**
+     * 更新嗅探按钮状态（根据是否有嗅探结果）
+     */
+    public void updateSniffingButton(boolean hasResults) {
+        if (mSniffing != null) {
+            mSniffing.setVisibility(hasResults ? VISIBLE : GONE);
         }
     }
 
@@ -589,6 +640,10 @@ public class TitleView extends FrameLayout implements IControlComponent {
     
     public ImageView getTimerButton() {
         return mTimer;
+    }
+    
+    public ImageView getSniffingButton() {
+        return mSniffing;
     }
 
     // ===== 调试相关 =====

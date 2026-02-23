@@ -55,6 +55,16 @@
                 android:contentDescription="@string/orange_live_indicator" />
         </LinearLayout>
 
+        <!-- 嗅探按钮 -->
+        <ImageView
+            android:id="@+id/iv_sniffing"
+            android:layout_width="@dimen/orange_controller_height"
+            android:layout_height="@dimen/orange_controller_height"
+            android:padding="@dimen/orange_controller_icon_padding"
+            android:src="@drawable/ic_sniffing"
+            android:visibility="gone"
+            android:contentDescription="视频嗅探" />
+
         <!-- 小窗按钮 -->
         <ImageView
             android:id="@+id/iv_window"

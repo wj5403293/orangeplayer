@@ -371,7 +371,7 @@
             android:textColor="#4FC3F7"
             android:textSize="11sp"
             android:autoLink="web"
-            android:text="GSY: https://github.com/CarGuo/GSYVideoPlayer" />
+            android:text="OrangePlayer: https://github.com/706412584/orangeplayer" />
 
         <TextView
             android:layout_width="match_parent"

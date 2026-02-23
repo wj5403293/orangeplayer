@@ -1998,6 +1998,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mVodControlView.setOrangeVideoController(controller);
             }
             
+            // 初始化嗅探组件
+            initSniffingView(controller);
+            
             ensureEventBinding();
         }
     }
@@ -2394,11 +2397,29 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mIsSniffing = true;
         setOrangePlayState(STATE_STARTSNIFFING);
         
+        // 显示嗅探组件并开始嗅探
+        if (mOrangeController != null) {
+            com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
+            if (sniffingView != null) {
+                sniffingView.show();
+                sniffingView.startSniffing();
+            }
+        }
+        
         Context context = getContext();
         VideoSniffing.startSniffing(context, url, headers, new VideoSniffing.Call() {
             @Override
             public void received(String contentType, java.util.HashMap<String, String> respHeaders, 
                                String title, String videoUrl) {
+                // 添加到嗅探组件
+                if (mOrangeController != null) {
+                    com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
+                    if (sniffingView != null) {
+                        VideoSniffing.VideoInfo videoInfo = new VideoSniffing.VideoInfo(videoUrl, contentType, title, respHeaders);
+                        sniffingView.addSniffingResult(videoInfo);
+                    }
+                }
+                
                 if (mStateChangeListeners != null) {
                     for (OnStateChangeListener listener : mStateChangeListeners) {
                         if (listener instanceof OnSniffingListener) {
@@ -2412,6 +2433,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize) {
                 mIsSniffing = false;
                 setOrangePlayState(STATE_ENDSNIFFING);
+                
+                // 完成嗅探
+                if (mOrangeController != null) {
+                    com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
+                    if (sniffingView != null) {
+                        sniffingView.finishSniffing(videoSize);
+                        sniffingView.setSniffingResults(videoList);
+                    }
+                    // 更新嗅探按钮状态
+                    mOrangeController.updateSniffingButton();
+                }
                 
                 // 将嗅探到的视频添加到选集列表
                 if (videoList != null && !videoList.isEmpty() && mOrangeController != null) {
@@ -3662,5 +3694,80 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     public void clearUserPausedState() {
         mUserPaused = false;
+    }
+    
+    /**
+     * 初始化嗅探视图组件
+     */
+    private void initSniffingView(OrangeVideoController controller) {
+        if (controller == null) {
+            return;
+        }
+        
+        // 创建嗅探视图
+        com.orange.playerlibrary.component.SniffingView sniffingView = 
+                new com.orange.playerlibrary.component.SniffingView(getContext());
+        
+        // 设置到控制器
+        controller.setSniffingView(sniffingView);
+        
+        // 添加到播放器容器
+        addView(sniffingView);
+        
+        // 设置视频选择监听器
+        sniffingView.setOnVideoSelectedListener(new com.orange.playerlibrary.component.SniffingView.OnVideoSelectedListener() {
+            @Override
+            public void onVideoSelected(VideoSniffing.VideoInfo videoInfo) {
+                // 播放选中的视频
+                String url = videoInfo.url;
+                String title = videoInfo.title;
+                if (title == null || title.isEmpty()) {
+                    title = "嗅探视频";
+                }
+                
+                // 释放旧的播放器
+                release();
+                
+                // 设置新视频
+                setUp(url, false, title);
+                
+                // 设置请求头
+                if (videoInfo.headers != null && !videoInfo.headers.isEmpty()) {
+                    setMapHeadData(videoInfo.headers);
+                }
+                
+                // 开始播放
+                post(new Runnable() {
+                    @Override
+                    public void run() {
+                        startPlayLogic();
+                    }
+                });
+                
+                // 更新标题
+                if (getTitleView() != null) {
+                    getTitleView().setTitle(title);
+                }
+            }
+        });
+        
+        // 绑定 TitleView 的嗅探按钮
+        if (mTitleView != null) {
+            mTitleView.setOnSniffingClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (sniffingView != null) {
+                        if (sniffingView.isShowing()) {
+                            sniffingView.hide();
+                        } else {
+                            sniffingView.show();
+                        }
+                    }
+                }
+            });
+            
+            // 初始化时更新嗅探按钮状态
+            mTitleView.updateSniffingButton(sniffingView.getResultCount() > 0);
+        }
     }
 }
