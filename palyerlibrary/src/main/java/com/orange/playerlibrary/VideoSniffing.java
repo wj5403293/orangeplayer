@@ -120,7 +120,6 @@ public class VideoSniffing {
         settings.setLoadsImagesAutomatically(false);  // 禁用图片加载
         settings.setGeolocationEnabled(false);  // 禁用地理位置
         settings.setDatabaseEnabled(false);  // 禁用数据库
-        settings.setAppCacheEnabled(false);  // 禁用应用缓存
 
         if (isDebug && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);

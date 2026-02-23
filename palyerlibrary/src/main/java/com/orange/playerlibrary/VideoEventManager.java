@@ -569,12 +569,12 @@ public class VideoEventManager {
         // 获取内容面板
         View contentLayout = dialogView.findViewById(R.id.content_layout);
         if (contentLayout != null) {
-            // 设置内容面板的宽度为播放器宽度的 55%，高度为播放器高度
+            // 设置内容面板的宽度为播放器宽度的 65%，高度为播放器高度
             android.view.ViewGroup.LayoutParams params = contentLayout.getLayoutParams();
             if (params instanceof android.widget.FrameLayout.LayoutParams) {
                 android.widget.FrameLayout.LayoutParams frameParams = 
                     (android.widget.FrameLayout.LayoutParams) params;
-                frameParams.width = (int) (playerWidth * 0.55f); // 55% 宽度
+                frameParams.width = (int) (playerWidth * 0.65f); // 65% 宽度
                 frameParams.height = playerHeight;
                 frameParams.topMargin = playerTop;
                 frameParams.gravity = android.view.Gravity.END | android.view.Gravity.TOP;

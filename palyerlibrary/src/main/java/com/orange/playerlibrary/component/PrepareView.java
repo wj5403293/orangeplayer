@@ -219,6 +219,31 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 android.util.Log.d(TAG, "PrepareView: STATE_PREPARING 处理完成，visibility=" + getVisibility());
                 break;
                 
+            case PlayerConstants.STATE_STARTSNIFFING:
+                // 嗅探开始 - 隐藏准备视图
+                android.util.Log.d(TAG, "PrepareView: 嗅探开始，隐藏准备视图");
+                setVisibility(GONE);
+                setClickable(false);
+                if (mStartPlay != null) {
+                    mStartPlay.setVisibility(GONE);
+                }
+                if (mNetWarning != null) {
+                    mNetWarning.setVisibility(GONE);
+                }
+                if (mThumb != null) {
+                    mThumb.setVisibility(GONE);
+                }
+                if (mLoadingProgress != null) {
+                    mLoadingProgress.setVisibility(GONE);
+                }
+                break;
+                
+            case PlayerConstants.STATE_ENDSNIFFING:
+                // 嗅探结束 - 不自动显示准备视图，等待其他状态变化
+                android.util.Log.d(TAG, "PrepareView: 嗅探结束");
+                // 保持隐藏状态，等待 STATE_IDLE 或其他状态来决定是否显示
+                break;
+                
             case 8: // 移动网络警告状态
                 android.util.Log.d(TAG, "PrepareView: 显示网络警告");
                 setVisibility(VISIBLE);
