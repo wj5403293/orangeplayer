@@ -244,6 +244,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initPlayer() {
+        // 关闭嗅探自动播放功能（默认行为）
+        com.orange.playerlibrary.PlayerSettingsManager.getInstance(this)
+            .setSniffingAutoPlayEnabled(false);
+        
         // 创建控制器
         mController = new OrangeVideoController(this);
         mVideoView.setVideoController(mController);

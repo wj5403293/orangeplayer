@@ -2487,11 +2487,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mIsSniffing = true;
         setOrangePlayState(STATE_STARTSNIFFING);
         
-        // 显示嗅探组件并开始嗅探
+        // 检查是否启用自动播放
+        PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+        boolean autoPlay = settingsManager.isSniffingAutoPlayEnabled();
+        
+        // 只有在未启用自动播放时才显示嗅探组件
         if (mOrangeController != null) {
             com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
             if (sniffingView != null) {
-                sniffingView.show();
+                if (!autoPlay) {
+                    // 未启用自动播放，显示嗅探组件
+                    sniffingView.show();
+                }
                 sniffingView.startSniffing();
             }
         }
@@ -3834,6 +3841,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         sniffingView.setOnVideoSelectedListener(new com.orange.playerlibrary.component.SniffingView.OnVideoSelectedListener() {
             @Override
             public void onVideoSelected(VideoSniffing.VideoInfo videoInfo) {
+                // 如果正在嗅探，立即停止
+                if (mIsSniffing) {
+                    stopSniffing();
+                }
+                
                 // 播放选中的视频
                 String url = videoInfo.url;
                 String title = videoInfo.title;
