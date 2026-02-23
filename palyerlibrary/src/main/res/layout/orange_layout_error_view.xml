@@ -23,7 +23,6 @@
         android:layout_marginRight="20dp"
         android:padding="@dimen/orange_controller_icon_padding"
         android:src="@drawable/ic_settings_player"
-        android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/orange_settings" />
 
     <LinearLayout
