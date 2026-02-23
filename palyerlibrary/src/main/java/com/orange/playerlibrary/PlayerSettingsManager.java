@@ -25,6 +25,9 @@ public class PlayerSettingsManager {
     // 自动选择播放器内核设置
     private static final String KEY_AUTO_SELECT_ENGINE = "auto_select_engine";
     
+    // 智能全屏设置
+    private static final String KEY_SMART_FULLSCREEN = "smart_fullscreen";
+    
     // 解码方式设置
     private static final String KEY_DECODE_MODE = "decode_mode";
     public static final String DECODE_HARDWARE = "hardware";  // 硬件解码
@@ -276,6 +279,30 @@ public class PlayerSettingsManager {
      */
     public boolean isAutoSelectEngine() {
         return mPreferences.getBoolean(KEY_AUTO_SELECT_ENGINE, false); // 默认禁用
+    }
+    
+    // ===== 智能全屏设置 =====
+    
+    /**
+     * 设置是否启用智能全屏
+     * 
+     * 启用后，播放器会根据视频宽高比自动选择全屏模式：
+     * - 横屏视频（宽 > 高）→ 横屏全屏
+     * - 竖屏视频（高 > 宽）→ 竖屏全屏
+     * 
+     * @param enabled true 启用，false 禁用
+     */
+    public void setSmartFullscreenEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_SMART_FULLSCREEN, enabled).apply();
+    }
+    
+    /**
+     * 是否启用智能全屏
+     * 
+     * @return true 启用，false 禁用（默认启用）
+     */
+    public boolean isSmartFullscreenEnabled() {
+        return mPreferences.getBoolean(KEY_SMART_FULLSCREEN, true); // 默认启用
     }
     
     /**
