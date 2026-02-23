@@ -25,6 +25,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 /**
  * 视频嗅探工具类
@@ -59,6 +62,12 @@ public class VideoSniffing {
     
     /** 当前回调 */
     private static Call currentCall;
+    
+    /** 网络请求线程池（最多 3 个并发请求）*/
+    private static ExecutorService networkExecutor = Executors.newFixedThreadPool(3);
+    
+    /** 并发控制信号量（最多 5 个并发网络请求）*/
+    private static Semaphore concurrentRequestSemaphore = new Semaphore(5);
 
     /**
      * 嗅探回调接口
@@ -100,14 +109,18 @@ public class VideoSniffing {
         WebSettings settings = webView2.getSettings();
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setDomStorageEnabled(true);
-        settings.setJavaScriptCanOpenWindowsAutomatically(true);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);  // 禁用弹窗
         settings.setJavaScriptEnabled(true);
-        settings.setAllowFileAccess(true);
+        settings.setAllowFileAccess(false);  // 禁用文件访问
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setBlockNetworkImage(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        settings.setLoadsImagesAutomatically(false);  // 禁用图片加载
+        settings.setGeolocationEnabled(false);  // 禁用地理位置
+        settings.setDatabaseEnabled(false);  // 禁用数据库
+        settings.setAppCacheEnabled(false);  // 禁用应用缓存
 
         if (isDebug && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
@@ -192,18 +205,28 @@ public class VideoSniffing {
      */
     public static void stop(boolean z) {
         // 1. 取消所有未完成的网络请求
-        for (HttpURLConnection conn : activeConnections) {
-            if (conn != null) {
-                conn.disconnect();
+        synchronized (activeConnections) {
+            for (HttpURLConnection conn : activeConnections) {
+                if (conn != null) {
+                    try {
+                        conn.disconnect();
+                    } catch (Exception e) {
+                        // 忽略断开连接时的异常
+                    }
+                }
             }
+            activeConnections.clear();
         }
-        activeConnections.clear();
 
         // 2. 清理延迟任务和回调引用
         finishHandler.removeCallbacksAndMessages(null);
         currentCall = null;
 
-        // 3. 销毁 WebView
+        // 3. 释放所有信号量许可
+        concurrentRequestSemaphore.drainPermits();
+        concurrentRequestSemaphore.release(5);
+
+        // 4. 销毁 WebView
         WebView webView2 = webView;
         if (webView2 != null) {
             webView2.stopLoading();
@@ -299,7 +322,9 @@ public class VideoSniffing {
                     || url.contains(".css") || url.contains(".gif")
                     || url.contains(".ttf") || url.contains(".jpg")
                     || url.contains(".jpeg") || url.contains(".svg")
-                    || url.contains(".ico") || url.contains(".png")) {
+                    || url.contains(".ico") || url.contains(".png")
+                    || url.contains(".woff") || url.contains(".woff2")
+                    || url.contains(".eot")) {
                 return createEmptyResource();
             }
 
@@ -309,59 +334,100 @@ public class VideoSniffing {
                 return super.shouldInterceptRequest(view, request);
             }
 
-            HttpURLConnection connection = null;
-            try {
-                URL requestUrl = new URL(url);
-                connection = (HttpURLConnection) requestUrl.openConnection();
-                activeConnections.add(connection);
+            // 快速检查：如果 URL 明显不是视频，直接跳过
+            if (!isPotentialVideoUrl(url)) {
+                return super.shouldInterceptRequest(view, request);
+            }
 
-                connection.setRequestMethod(request.getMethod());
-                if (customHeaders != null) {
-                    for (Map.Entry<String, String> header : customHeaders.entrySet()) {
-                        connection.setRequestProperty(header.getKey(), header.getValue());
+            // 尝试获取信号量许可（非阻塞）
+            if (!concurrentRequestSemaphore.tryAcquire()) {
+                // 并发请求过多，跳过此请求
+                return super.shouldInterceptRequest(view, request);
+            }
+
+            // 在线程池中异步执行网络请求
+            networkExecutor.execute(() -> {
+                HttpURLConnection connection = null;
+                try {
+                    URL requestUrl = new URL(url);
+                    connection = (HttpURLConnection) requestUrl.openConnection();
+                    
+                    synchronized (activeConnections) {
+                        activeConnections.add(connection);
                     }
-                }
-                connection.setConnectTimeout(15000);
-                connection.setReadTimeout(15000);
-                connection.connect();
 
-                int responseCode = connection.getResponseCode();
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    return super.shouldInterceptRequest(view, request);
-                }
-
-                String respContentType = connection.getHeaderField("Content-Type");
-                HashMap<String, String> headers = new HashMap<>();
-                for (int i = 0; ; i++) {
-                    String key = connection.getHeaderFieldKey(i);
-                    String value = connection.getHeaderField(i);
-                    if (key == null && value == null) break;
-                    if (key != null) {
-                        headers.put(key, value);
+                    connection.setRequestMethod(request.getMethod());
+                    if (customHeaders != null) {
+                        for (Map.Entry<String, String> header : customHeaders.entrySet()) {
+                            connection.setRequestProperty(header.getKey(), header.getValue());
+                        }
                     }
-                }
+                    // 减少超时时间：从 15 秒降到 5 秒
+                    connection.setConnectTimeout(5000);
+                    connection.setReadTimeout(5000);
+                    connection.setInstanceFollowRedirects(true);
+                    connection.connect();
 
-                HttpURLConnection finalConnection = connection;
-                mainHandler.post(() -> {
-                    if (webView == null || view != webView) {
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode != HttpURLConnection.HTTP_OK && responseCode != HttpURLConnection.HTTP_PARTIAL) {
                         return;
                     }
+
+                    String respContentType = connection.getHeaderField("Content-Type");
+                    
+                    // 只处理视频资源
                     if (isVideoSource(respContentType) || isVideoSource(url)) {
-                        handleResponse(respContentType, headers, currentTitle, url);
+                        HashMap<String, String> headers = new HashMap<>();
+                        for (int i = 0; ; i++) {
+                            String key = connection.getHeaderFieldKey(i);
+                            String value = connection.getHeaderField(i);
+                            if (key == null && value == null) break;
+                            if (key != null) {
+                                headers.put(key, value);
+                            }
+                        }
+
+                        mainHandler.post(() -> {
+                            if (webView == null || view != webView) {
+                                return;
+                            }
+                            handleResponse(respContentType, headers, currentTitle, url);
+                        });
                     }
-                });
 
-                return isVideoSource(respContentType) ? createEmptyResource() :
-                        new WebResourceResponse(respContentType, "utf-8", finalConnection.getInputStream());
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                return super.shouldInterceptRequest(view, request);
-            } finally {
-                if (connection != null) {
-                    activeConnections.remove(connection);
+                } catch (Exception e) {
+                    // 忽略网络请求异常
+                } finally {
+                    if (connection != null) {
+                        synchronized (activeConnections) {
+                            activeConnections.remove(connection);
+                        }
+                        try {
+                            connection.disconnect();
+                        } catch (Exception e) {
+                            // 忽略断开连接异常
+                        }
+                    }
+                    // 释放信号量许可
+                    concurrentRequestSemaphore.release();
                 }
-            }
+            });
+
+            // 立即返回空资源，不阻塞 WebView
+            return createEmptyResource();
+        }
+        
+        /**
+         * 快速检查 URL 是否可能是视频资源
+         */
+        private boolean isPotentialVideoUrl(String url) {
+            if (url == null) return false;
+            String lowerUrl = url.toLowerCase();
+            return lowerUrl.contains(".mp4") || lowerUrl.contains(".m3u8")
+                    || lowerUrl.contains(".flv") || lowerUrl.contains(".avi")
+                    || lowerUrl.contains(".mov") || lowerUrl.contains(".mkv")
+                    || lowerUrl.contains("video") || lowerUrl.contains("stream")
+                    || lowerUrl.contains("play");
         }
 
         @Override
