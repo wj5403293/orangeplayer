@@ -63,11 +63,14 @@ public class VideoSniffing {
     /** 当前回调 */
     private static Call currentCall;
     
-    /** 网络请求线程池（最多 3 个并发请求）*/
-    private static ExecutorService networkExecutor = Executors.newFixedThreadPool(3);
+    /** 网络请求线程池（最多 2 个并发请求，减少资源占用）*/
+    private static ExecutorService networkExecutor = Executors.newFixedThreadPool(2);
     
-    /** 并发控制信号量（最多 5 个并发网络请求）*/
-    private static Semaphore concurrentRequestSemaphore = new Semaphore(5);
+    /** 并发控制信号量（最多 3 个并发网络请求，进一步限制）*/
+    private static Semaphore concurrentRequestSemaphore = new Semaphore(3);
+    
+    /** 已处理的 URL 集合（避免重复请求）*/
+    private static Set<String> processedUrls = new HashSet<>();
 
     /**
      * 嗅探回调接口
@@ -161,6 +164,7 @@ public class VideoSniffing {
         videoInfoSet.clear();
         finishHandler.removeCallbacksAndMessages(null);
         activeConnections.clear();
+        processedUrls.clear();  // 清空已处理 URL 集合
         currentCall = call;
 
         if (!(context instanceof Activity)) {
@@ -223,9 +227,12 @@ public class VideoSniffing {
 
         // 3. 释放所有信号量许可
         concurrentRequestSemaphore.drainPermits();
-        concurrentRequestSemaphore.release(5);
+        concurrentRequestSemaphore.release(3);  // 修改为 3 个许可
+        
+        // 4. 清空已处理 URL 集合
+        processedUrls.clear();
 
-        // 4. 销毁 WebView
+        // 5. 销毁 WebView
         WebView webView2 = webView;
         if (webView2 != null) {
             webView2.stopLoading();
@@ -337,10 +344,21 @@ public class VideoSniffing {
             if (!isPotentialVideoUrl(url)) {
                 return super.shouldInterceptRequest(view, request);
             }
+            
+            // 去重检查：如果已经处理过这个 URL，直接跳过
+            synchronized (processedUrls) {
+                if (processedUrls.contains(url)) {
+                    return createEmptyResource();
+                }
+                processedUrls.add(url);
+            }
 
             // 尝试获取信号量许可（非阻塞）
             if (!concurrentRequestSemaphore.tryAcquire()) {
                 // 并发请求过多，跳过此请求
+                synchronized (processedUrls) {
+                    processedUrls.remove(url);  // 移除标记，允许下次重试
+                }
                 return super.shouldInterceptRequest(view, request);
             }
 
@@ -361,9 +379,9 @@ public class VideoSniffing {
                             connection.setRequestProperty(header.getKey(), header.getValue());
                         }
                     }
-                    // 减少超时时间：从 15 秒降到 5 秒
-                    connection.setConnectTimeout(5000);
-                    connection.setReadTimeout(5000);
+                    // 进一步减少超时时间：从 5 秒降到 3 秒
+                    connection.setConnectTimeout(3000);
+                    connection.setReadTimeout(3000);
                     connection.setInstanceFollowRedirects(true);
                     connection.connect();
 
@@ -397,6 +415,10 @@ public class VideoSniffing {
                 } catch (Exception e) {
                     // 忽略网络请求异常
                 } finally {
+                    // 从已处理集合中移除（如果请求失败，允许重试）
+                    synchronized (processedUrls) {
+                        processedUrls.remove(url);
+                    }
                     if (connection != null) {
                         synchronized (activeConnections) {
                             activeConnections.remove(connection);

@@ -271,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
         mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
         mVideoView.setLooping(false);
         mVideoView.setAutoRotateOnFullscreen(true);
-        mVideoView.startPlayLogic();
+        //mVideoView.startPlayLogic();
         // 设置标题
         if (mVideoView.getTitleView() != null) {
             mVideoView.getTitleView().setTitle(mCurrentTitle);

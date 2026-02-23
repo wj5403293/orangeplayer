@@ -107,7 +107,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         // 附加到窗口时，确保初始状态为 VISIBLE（准备视图应该默认显示）
-        android.util.Log.d(TAG, "PrepareView.onAttachedToWindow: 设置为 VISIBLE");
         setVisibility(VISIBLE);
     }
 
@@ -120,12 +119,10 @@ public class PrepareView extends FrameLayout implements IControlComponent {
         setOnClickListener(v -> {
             // 只有在可见状态下才响应点击，避免横竖屏切换后误触发
             if (getVisibility() != VISIBLE) {
-                android.util.Log.d(TAG, "PrepareView: 不可见，忽略点击事件");
                 return;
             }
             
             if (mControlWrapper != null) {
-                android.util.Log.d(TAG, "PrepareView: 点击播放");
                 mControlWrapper.start();
             }
         });
@@ -148,12 +145,6 @@ public class PrepareView extends FrameLayout implements IControlComponent {
 
     @Override
     public void onPlayStateChanged(int playState) {
-        // 添加日志追踪
-        android.util.Log.d(TAG, "PrepareView.onPlayStateChanged: playState=" + playState + 
-            ", visibility=" + getVisibility() + 
-            ", isAttachedToWindow=" + (getWindowToken() != null) +
-            ", size=" + getWidth() + "x" + getHeight());
-        
         switch (playState) {
             case PlayerConstants.STATE_ERROR:
             case PlayerConstants.STATE_PLAYING:
@@ -162,96 +153,80 @@ public class PrepareView extends FrameLayout implements IControlComponent {
             case PlayerConstants.STATE_BUFFERING:
             case PlayerConstants.STATE_BUFFERED:
             case PlayerConstants.STATE_PREPARED:
-                // 隐藏准备视图
-                android.util.Log.d(TAG, "PrepareView: 隐藏准备视图 (state=" + playState + ")");
-                setVisibility(GONE);
-                // 禁用点击事件，避免横竖屏切换后误触发
-                setClickable(false);
-                if (mThumb != null) {
-                    mThumb.setVisibility(GONE);
-                    mThumb.setImageBitmap(null);
-                }
+            case PlayerConstants.STATE_PREPARING:
+                // 隐藏准备视图（包括准备中状态）
+                hideAllViews();
                 break;
                 
             case PlayerConstants.STATE_IDLE:
                 // 显示准备视图
-                android.util.Log.d(TAG, "PrepareView: 显示准备视图 (STATE_IDLE)");
-                if (mLoadingProgress != null) {
-                    mLoadingProgress.setVisibility(GONE);
-                }
-                setVisibility(VISIBLE);
-                // 启用点击事件
-                setClickable(true);
-                bringToFront();
-                if (mNetWarning != null) {
-                    mNetWarning.setVisibility(GONE);
-                }
-                if (mStartPlay != null) {
-                    mStartPlay.setVisibility(VISIBLE);
-                }
-                if (mThumb != null) {
-                    mThumb.setVisibility(VISIBLE);
-                }
-                break;
-                
-            case PlayerConstants.STATE_PREPARING:
-                // 准备中 - 立即完全隐藏 PrepareView 及其所有子视图
-                // 确保不会遮挡 OrangevideoView 的加载动画
-                android.util.Log.d(TAG, "PrepareView: 收到 STATE_PREPARING，开始隐藏");
-                if (mStartPlay != null) {
-                    mStartPlay.setVisibility(GONE);
-                }
-                if (mNetWarning != null) {
-                    mNetWarning.setVisibility(GONE);
-                }
-                if (mThumb != null) {
-                    mThumb.setVisibility(GONE);
-                }
-                if (mLoadingProgress != null) {
-                    mLoadingProgress.setVisibility(GONE);
-                }
-                // 最后隐藏整个 PrepareView，确保不会遮挡加载动画
-                setVisibility(GONE);
-                // 禁用点击事件
-                setClickable(false);
-                // 强制请求布局更新，确保立即生效
-                requestLayout();
-                android.util.Log.d(TAG, "PrepareView: STATE_PREPARING 处理完成，visibility=" + getVisibility());
+                showPrepareView();
                 break;
                 
             case PlayerConstants.STATE_STARTSNIFFING:
                 // 嗅探开始 - 隐藏准备视图
-                android.util.Log.d(TAG, "PrepareView: 嗅探开始，隐藏准备视图");
-                setVisibility(GONE);
-                setClickable(false);
-                if (mStartPlay != null) {
-                    mStartPlay.setVisibility(GONE);
-                }
-                if (mNetWarning != null) {
-                    mNetWarning.setVisibility(GONE);
-                }
-                if (mThumb != null) {
-                    mThumb.setVisibility(GONE);
-                }
-                if (mLoadingProgress != null) {
-                    mLoadingProgress.setVisibility(GONE);
-                }
+                hideAllViews();
                 break;
                 
             case PlayerConstants.STATE_ENDSNIFFING:
-                // 嗅探结束 - 不自动显示准备视图，等待其他状态变化
-                android.util.Log.d(TAG, "PrepareView: 嗅探结束");
-                // 保持隐藏状态，等待 STATE_IDLE 或其他状态来决定是否显示
+                // 嗅探结束 - 保持隐藏，等待其他状态决定是否显示
                 break;
                 
             case 8: // 移动网络警告状态
-                android.util.Log.d(TAG, "PrepareView: 显示网络警告");
-                setVisibility(VISIBLE);
-                if (mNetWarning != null) {
-                    mNetWarning.setVisibility(VISIBLE);
-                    mNetWarning.bringToFront();
-                }
+                showNetWarning();
                 break;
+        }
+    }
+    
+    /**
+     * 隐藏所有视图
+     */
+    private void hideAllViews() {
+        setVisibility(GONE);
+        setClickable(false);
+        if (mStartPlay != null) {
+            mStartPlay.setVisibility(GONE);
+        }
+        if (mNetWarning != null) {
+            mNetWarning.setVisibility(GONE);
+        }
+        if (mThumb != null) {
+            mThumb.setVisibility(GONE);
+        }
+        if (mLoadingProgress != null) {
+            mLoadingProgress.setVisibility(GONE);
+        }
+    }
+    
+    /**
+     * 显示准备视图
+     */
+    private void showPrepareView() {
+        if (mLoadingProgress != null) {
+            mLoadingProgress.setVisibility(GONE);
+        }
+        if (mNetWarning != null) {
+            mNetWarning.setVisibility(GONE);
+        }
+        if (mStartPlay != null) {
+            mStartPlay.setVisibility(VISIBLE);
+        }
+        if (mThumb != null) {
+            mThumb.setVisibility(VISIBLE);
+        }
+        setVisibility(VISIBLE);
+        setClickable(true);
+        bringToFront();
+    }
+    
+    /**
+     * 显示网络警告
+     */
+    private void showNetWarning() {
+        setVisibility(VISIBLE);
+        if (mNetWarning != null) {
+            mNetWarning.setVisibility(VISIBLE);
+            mNetWarning.bringToFront();
         }
     }
 
