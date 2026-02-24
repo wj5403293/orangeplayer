@@ -39,8 +39,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            minifyEnabled true  // Debug 也启用代码压缩
-            shrinkResources true  // Debug 也启用资源压缩
+            minifyEnabled false  // Debug 不启用代码压缩，方便调试
+            shrinkResources false  // Debug 不启用资源压缩
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

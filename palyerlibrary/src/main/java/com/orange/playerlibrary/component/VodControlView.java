@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
@@ -242,6 +243,26 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         mVideoProgress = findViewById(R.id.seekBar);
         if (mVideoProgress != null) {
             mVideoProgress.setOnSeekBarChangeListener(this);
+            
+            // 优化触摸事件处理，防止父容器拦截
+            mVideoProgress.setOnTouchListener(new OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            // 请求父容器不要拦截触摸事件
+                            v.getParent().requestDisallowInterceptTouchEvent(true);
+                            break;
+                        case MotionEvent.ACTION_UP:
+                        case MotionEvent.ACTION_CANCEL:
+                            // 恢复父容器的触摸事件拦截
+                            v.getParent().requestDisallowInterceptTouchEvent(false);
+                            break;
+                    }
+                    // 返回 false 让 SeekBar 自己处理触摸事件
+                    return false;
+                }
+            });
         }
 
         mCurrTime = findViewById(R.id.curr_time);
@@ -980,6 +1001,13 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             // 预览功能：仅在全屏模式且长时间拖动时显示
             if (sPreviewEnabled && isFullScreen() && mIsDragging && mIsLongDrag) {
                 updatePreview(seekBar, progress, position, duration);
+            } else {
+                // 调试日志：帮助排查预览不显示的原因
+                android.util.Log.d("VodControlView", "Preview not shown - enabled:" + sPreviewEnabled 
+                    + " fullscreen:" + isFullScreen() 
+                    + " dragging:" + mIsDragging 
+                    + " longDrag:" + mIsLongDrag
+                    + " videoUrl:" + (TextUtils.isEmpty(sVideoUrl) ? "empty" : "set"));
             }
         }
     }
@@ -1205,6 +1233,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * 更新预览
      */
     private void updatePreview(SeekBar seekBar, int progress, long position, long duration) {
+        android.util.Log.d("VodControlView", "updatePreview called - position:" + position + " videoUrl:" + sVideoUrl);
+        
         // 更新预览时间
         if (mPreviewTime != null) {
             mPreviewTime.setText(stringForTime((int) position));
@@ -1229,6 +1259,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     
     /**
      * 更新预览容器位置（跟随拖动位置）
+     * 优化版本：减少布局重绘，使用 translationX 代替 margin
      */
     private void updatePreviewPosition(SeekBar seekBar, int progress) {
         if (mPreviewContainer == null || seekBar == null) return;
@@ -1239,35 +1270,48 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         int availableWidth = seekBarWidth - seekBarPaddingLeft - seekBarPaddingRight;
         
         // 计算拖动位置
-        int thumbPosition = (int) (availableWidth * (progress / 1000f));
+        float thumbPosition = availableWidth * (progress / 1000f);
         
-        // 获取 SeekBar 在父容器中的位置
+        // 获取 SeekBar 在父容器中的位置（使用 getLocationOnScreen 更准确）
         int[] seekBarLocation = new int[2];
-        seekBar.getLocationInWindow(seekBarLocation);
+        seekBar.getLocationOnScreen(seekBarLocation);
         
         int[] containerLocation = new int[2];
-        ((View) mPreviewContainer.getParent()).getLocationInWindow(containerLocation);
+        ((View) mPreviewContainer.getParent()).getLocationOnScreen(containerLocation);
         
-        int thumbCenterX = seekBarLocation[0] - containerLocation[0] + seekBarPaddingLeft + thumbPosition;
+        float thumbCenterX = seekBarLocation[0] - containerLocation[0] + seekBarPaddingLeft + thumbPosition;
         
         // 计算预览容器位置
         int previewWidth = mPreviewContainer.getWidth();
-        if (previewWidth == 0) previewWidth = 340; // 默认宽度
-        
-        int parentWidth = ((View) mPreviewContainer.getParent()).getWidth();
-        int leftPosition = thumbCenterX - previewWidth / 2;
-        
-        // 边界检查
-        if (leftPosition < 0) {
-            leftPosition = 0;
-        } else if (leftPosition + previewWidth > parentWidth) {
-            leftPosition = parentWidth - previewWidth;
+        if (previewWidth == 0) {
+            // 强制测量获取宽度
+            mPreviewContainer.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            );
+            previewWidth = mPreviewContainer.getMeasuredWidth();
+            if (previewWidth == 0) previewWidth = 340; // 默认宽度
         }
         
-        // 更新位置
+        int parentWidth = ((View) mPreviewContainer.getParent()).getWidth();
+        float targetX = thumbCenterX - previewWidth / 2f;
+        
+        // 边界检查
+        if (targetX < 0) {
+            targetX = 0;
+        } else if (targetX + previewWidth > parentWidth) {
+            targetX = parentWidth - previewWidth;
+        }
+        
+        // 使用 translationX 代替 setLayoutParams，避免触发布局重绘
+        // 这样性能更好，拖动更流畅
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mPreviewContainer.getLayoutParams();
-        params.leftMargin = leftPosition;
-        mPreviewContainer.setLayoutParams(params);
+        if (params.leftMargin != 0) {
+            // 如果之前设置过 leftMargin，需要重置
+            params.leftMargin = 0;
+            mPreviewContainer.setLayoutParams(params);
+        }
+        mPreviewContainer.setTranslationX(targetX);
     }
     
     /**
