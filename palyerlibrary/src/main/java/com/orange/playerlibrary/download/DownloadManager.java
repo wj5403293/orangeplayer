@@ -34,6 +34,9 @@ public class DownloadManager {
     private Map<String, DownloadWorker> mWorkers;
     private List<DownloadListener> mListeners;
     
+    // 数据库
+    private DownloadDatabase mDatabase;
+    
     // 配置
     private int mMaxConcurrentDownloads = 3;
     private String mDefaultSavePath;
@@ -46,8 +49,27 @@ public class DownloadManager {
         mWorkers = new ConcurrentHashMap<>();
         mListeners = new ArrayList<>();
         
+        // 初始化数据库
+        mDatabase = DownloadDatabase.getInstance(mContext);
+        
         // 默认保存路径：/sdcard/Android/data/包名/files/Download
         mDefaultSavePath = mContext.getExternalFilesDir("Download").getAbsolutePath();
+        
+        // 从数据库恢复未完成的任务
+        restoreTasksFromDatabase();
+    }
+    
+    /**
+     * 从数据库恢复未完成的任务
+     */
+    private void restoreTasksFromDatabase() {
+        List<DownloadTask> tasks = mDatabase.queryDownloadingTasks();
+        for (DownloadTask task : tasks) {
+            // 将状态改为暂停，等待用户手动恢复
+            task.setState(DownloadTask.STATE_PAUSED);
+            mDatabase.updateTask(task);
+            mTasks.put(task.getTaskId(), task);
+        }
     }
     
     public static DownloadManager getInstance(Context context) {
@@ -74,6 +96,11 @@ public class DownloadManager {
     public String addDownload(String url, String title, String savePath) {
         DownloadTask task = new DownloadTask(url, title, savePath);
         mTasks.put(task.getTaskId(), task);
+        
+        // 保存到数据库
+        if (mDatabase != null) {
+            mDatabase.insertTask(task);
+        }
         
         // 通知监听器
         notifyDownloadStart(task);
@@ -112,6 +139,12 @@ public class DownloadManager {
         }
         
         task.setState(DownloadTask.STATE_PAUSED);
+        
+        // 更新数据库
+        if (mDatabase != null) {
+            mDatabase.updateTask(task);
+        }
+        
         notifyDownloadPaused(task);
     }
     
@@ -144,6 +177,11 @@ public class DownloadManager {
         File file = new File(task.getFullPath());
         if (file.exists() && task.getProgress() < 100) {
             file.delete();
+        }
+        
+        // 从数据库删除
+        if (mDatabase != null) {
+            mDatabase.deleteTask(taskId);
         }
         
         mTasks.remove(taskId);
@@ -369,12 +407,24 @@ public class DownloadManager {
                 // 下载完成
                 mTask.setState(DownloadTask.STATE_COMPLETED);
                 mTask.setProgress(100);
+                
+                // 更新数据库
+                if (mDatabase != null) {
+                    mDatabase.updateTask(mTask);
+                }
+                
                 notifyDownloadCompleted(mTask);
                 
             } catch (Exception e) {
                 android.util.Log.e(TAG, "Download failed: " + mTask.getUrl(), e);
                 mTask.setState(DownloadTask.STATE_FAILED);
                 mTask.setErrorMessage(e.getMessage());
+                
+                // 更新数据库
+                if (mDatabase != null) {
+                    mDatabase.updateTask(mTask);
+                }
+                
                 notifyDownloadFailed(mTask, e.getMessage());
             } finally {
                 try {
