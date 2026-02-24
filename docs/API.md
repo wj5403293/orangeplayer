@@ -697,6 +697,51 @@ void showDanmaku()
 void hideDanmaku()
 ```
 
+### 进度条拖动预览
+
+#### 功能说明
+
+在全屏模式下拖动进度条时，会显示预览窗口，展示目标时间点的视频帧。
+
+**特性：**
+- ✅ 仅在全屏模式下启用
+- ✅ 拖动超过 400ms 后显示预览窗口
+- ✅ 三级加载策略，优化加载速度
+- ✅ 播放状态下不会随控制器自动隐藏
+
+**加载策略：**
+
+1. **Glide（最高优先级）** - 50-200ms
+   - 支持：MP4, AVI, MKV, MOV 等本地格式
+   - 不支持：M3U8/HLS, RTSP, RTMP, FLV 等流媒体
+
+2. **ScreenshotManager（中优先级）** - 200-500ms
+   - 支持所有播放器能播放的格式
+   - 需要播放器已准备就绪
+
+3. **VideoThumbnailHelper（兜底）** - 200-500ms
+   - 使用 MediaMetadataRetriever
+   - 支持所有格式
+
+**性能对比：**
+
+| 格式 | 加载方式 | 耗时 | 说明 |
+|------|---------|------|------|
+| MP4 | Glide | 50-200ms | 最快 |
+| HLS/M3U8 | ScreenshotManager | 200-500ms | 流媒体 |
+| RTSP/RTMP | VideoThumbnailHelper | 200-500ms | 直播流 |
+
+**自动优化：**
+- 复用 MediaMetadataRetriever 实例
+- Android 8.0+ 使用缩略图 API
+- 使用 OPTION_CLOSEST_SYNC 快速定位关键帧
+- 200ms 节流防止频繁请求
+
+**用户体验：**
+- 拖动时实时显示预览
+- 松手后预览窗口延迟 500ms 消失
+- 播放状态下预览窗口不会自动隐藏
+
 ### 播放列表
 
 #### addVideo()
