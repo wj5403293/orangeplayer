@@ -1175,12 +1175,60 @@ public class VideoEventManager {
             return;
         }
         
-        // 通知外部处理下载
+        // 优先使用外部监听器
         if (mOnDownloadClickListener != null) {
             mOnDownloadClickListener.onDownloadClick(url, title);
-        } else {
-            showToast("下载功能未配置");
+            return;
         }
+        
+        // 使用内置下载功能
+        showDownloadDialog(url, title);
+    }
+    
+    /**
+     * 显示下载对话框
+     */
+    private void showDownloadDialog(String url, String title) {
+        // 创建确认对话框
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(mContext);
+        builder.setTitle("下载视频");
+        builder.setMessage("确定要下载这个视频吗？\n\n" + (title != null ? title : "未命名视频"));
+        
+        builder.setPositiveButton("下载", (dialog, which) -> {
+            // 启动下载服务
+            android.content.Intent intent = new android.content.Intent(mContext, 
+                    com.orange.playerlibrary.download.DownloadService.class);
+            intent.setAction(com.orange.playerlibrary.download.DownloadService.ACTION_START_DOWNLOAD);
+            intent.putExtra(com.orange.playerlibrary.download.DownloadService.EXTRA_URL, url);
+            intent.putExtra(com.orange.playerlibrary.download.DownloadService.EXTRA_TITLE, 
+                    title != null ? title : "未命名视频");
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                mContext.startForegroundService(intent);
+            } else {
+                mContext.startService(intent);
+            }
+            
+            showToast("已添加到下载队列");
+            
+            // 显示下载管理界面
+            showDownloadManagerDialog();
+        });
+        
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+    
+    /**
+     * 显示下载管理对话框
+     */
+    private com.orange.playerlibrary.component.DownloadDialogView mDownloadDialog;
+    
+    private void showDownloadManagerDialog() {
+        if (mDownloadDialog == null) {
+            mDownloadDialog = new com.orange.playerlibrary.component.DownloadDialogView(mContext);
+        }
+        mDownloadDialog.show();
     }
     
     // 下载点击监听器
