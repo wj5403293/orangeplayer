@@ -216,6 +216,16 @@ public class OrangeVideoController extends OrangeStandardVideoController {
         mVideoList.add(video);
         
         debug("addVideo: name=" + name + ", url=" + url);
+        
+        // 如果是第一个视频且播放器还没有设置视频地址，自动设置第一个视频
+        if (mVideoList.size() == 1 && mVideoView != null) {
+            String currentUrl = mVideoView.getUrl();
+            if (currentUrl == null || currentUrl.isEmpty()) {
+                mVideoView.setUrl(url, headers);
+                setVideoTitle(name);
+                debug("Auto set first video: " + name);
+            }
+        }
     }
 
     /**
@@ -277,6 +287,24 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             }
         }
         mVideoList = list;
+        
+        // 如果列表不为空且播放器还没有设置视频地址，自动设置第一个视频
+        if (list != null && !list.isEmpty() && mVideoView != null) {
+            String currentUrl = mVideoView.getUrl();
+            if (currentUrl == null || currentUrl.isEmpty()) {
+                HashMap<String, Object> firstVideo = list.get(0);
+                String url = firstVideo.get("url") != null ? firstVideo.get("url").toString() : "";
+                String name = firstVideo.get("name") != null ? firstVideo.get("name").toString() : "";
+                @SuppressWarnings("unchecked")
+                HashMap<String, String> headers = (HashMap<String, String>) firstVideo.get("headers");
+                
+                if (!url.isEmpty()) {
+                    mVideoView.setUrl(url, headers);
+                    setVideoTitle(name);
+                    debug("Auto set first video from list: " + name);
+                }
+            }
+        }
     }
 
     /**
@@ -506,16 +534,12 @@ public class OrangeVideoController extends OrangeStandardVideoController {
     }
 
     /**
-     * 设置标题（兼容原 API）
+     * 设置标题（兼容原 API，现在直接设置标题）
      * 
      * @param title 标题
      */
     public void setTitle(String title) {
-        if (mVideoTitle != null && !mVideoTitle.isEmpty()) {
-            mVideoTitle = mVideoTitle + "|" + title;
-        } else {
-            mVideoTitle = title;
-        }
+        mVideoTitle = title;
         // 更新 TitleView 显示
         updateTitleViewDisplay(mVideoTitle);
     }

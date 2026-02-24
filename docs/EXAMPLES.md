@@ -290,42 +290,45 @@ settings.setDanmakuAlpha(0.8f);        // 透明度
 import java.util.ArrayList;
 import java.util.HashMap;
 
-// 创建播放列表
+// 方式1：使用 addVideo() 逐个添加
+OrangeVideoController controller = mVideoView.getVideoController();
+controller.addVideo("第1集", "https://example.com/video1.mp4");
+controller.addVideo("第2集", "https://example.com/video2.mp4");
+controller.addVideo("第3集", "https://example.com/video3.mp4");
+
+// 第一个视频会自动设置到播放器，直接播放即可
+mVideoView.startPlayLogic();
+
+// 方式2：使用 setVideoList() 批量设置
 ArrayList<HashMap<String, Object>> playlist = new ArrayList<>();
 
 HashMap<String, Object> video1 = new HashMap<>();
+video1.put("name", "第1集");
 video1.put("url", "https://example.com/video1.mp4");
-video1.put("title", "视频 1");
 playlist.add(video1);
 
 HashMap<String, Object> video2 = new HashMap<>();
+video2.put("name", "第2集");
 video2.put("url", "https://example.com/video2.mp4");
-video2.put("title", "视频 2");
 playlist.add(video2);
 
-// 设置播放列表
-mVideoView.getVideoController().setVideoList(playlist);
-
-// 播放第一个视频（手动设置 URL）
-HashMap<String, Object> firstVideo = playlist.get(0);
-String url = (String) firstVideo.get("url");
-String title = (String) firstVideo.get("title");
-mVideoView.setUp(url, true, title);
+// 设置播放列表（第一个视频会自动设置到播放器）
+controller.setVideoList(playlist);
 mVideoView.startPlayLogic();
 
-// 播放下一个（通过 VideoEventManager）
-VideoEventManager eventManager = mVideoView.getVideoController().getVideoEventManager();
+// 播放下一集
+VideoEventManager eventManager = controller.getVideoEventManager();
 if (eventManager != null) {
     eventManager.playNextEpisode();
 }
 
-// 监听播放完成，自动播放下一个
-mVideoView.setOnPlayCompleteListener(() -> {
-    VideoEventManager eventManager = mVideoView.getVideoController().getVideoEventManager();
-    if (eventManager != null) {
-        eventManager.playNextEpisode();
-    }
-});
+// 设置播放模式（在设置界面配置，或通过代码设置）
+PlayerSettingsManager.getInstance(this).setPlayMode("sequential"); // 顺序播放
+
+// 播放完成后会根据播放模式自动处理（已内置，无需手动监听）
+// - sequential: 自动播放下一集
+// - single_loop: 重新播放当前视频
+// - play_pause: 停止播放
 ```
 
 ---

@@ -261,6 +261,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 if (mPlayCompleteListener != null) {
                     mPlayCompleteListener.onPlayComplete();
                 }
+                
+                // 处理播放模式（顺序播放、单集循环等）
+                if (mOrangeController != null) {
+                    VideoEventManager eventManager = mOrangeController.getVideoEventManager();
+                    if (eventManager != null) {
+                        eventManager.handlePlaybackCompleted();
+                    }
+                }
             }
 
             @Override

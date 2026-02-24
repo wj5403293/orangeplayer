@@ -268,21 +268,23 @@ public class MainActivity extends AppCompatActivity {
         // 设置嗅探监听器
         setupSniffingListener();
       
-        // 设置测试视频列表
+        // 设置测试视频列表（会自动设置第一个视频）
         setupVideoList();
 
-        // 设置视频
-        mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
+        // 注释掉直接设置视频，改为从选集自动设置
+        // mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
         mVideoView.setLooping(false);
         mVideoView.setAutoRotateOnFullscreen(true);
         //mVideoView.startPlayLogic();
-        // 设置标题
-        if (mVideoView.getTitleView() != null) {
-            mVideoView.getTitleView().setTitle(mCurrentTitle);
-        }
+        
+        // 设置标题（已在 setupVideoList 中自动设置）
+        // if (mVideoView.getTitleView() != null) {
+        //     mVideoView.getTitleView().setTitle(mCurrentTitle);
+        // }
 
         log("✓ 播放器初始化完成");
         log("✓ 加载动画: LINE_SCALE_PULSE_OUT");
+        log("✓ 已从选集自动设置第一个视频");
     }
 
     /**
@@ -364,14 +366,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupVideoList() {
+        // 使用不同的测试视频URL
+        String[] videoUrls = {
+            "http://player.alicdn.com/video/aliyunmedia.mp4",
+            "https://media.w3.org/2010/05/sintel/trailer.mp4",
+            "https://media.w3.org/2010/05/bunny/trailer.mp4",
+            "http://clips.vorwaerts-gmbh.de/big_buck_bunny.mp4",
+            "https://www.w3schools.com/html/mov_bbb.mp4"
+        };
+        
         ArrayList<HashMap<String, Object>> videoList = new ArrayList<>();
-        for (int i = 1; i <= 5; i++) {
+        for (int i = 0; i < videoUrls.length; i++) {
             HashMap<String, Object> video = new HashMap<>();
-            video.put("name", "第" + i + "集");
-            video.put("url", mCurrentUrl);
+            video.put("name", "第" + (i + 1) + "集");
+            video.put("url", videoUrls[i]);
             videoList.add(video);
         }
+        
+        // setVideoList 会自动设置第一个视频到播放器
         mController.setVideoList(videoList);
+        log("✓ 已添加 " + videoUrls.length + " 个选集");
+        log("✓ 第一集已自动设置到播放器");
     }
 
     // ===== 弹幕测试方法 =====

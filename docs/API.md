@@ -699,16 +699,69 @@ void hideDanmaku()
 
 ### 播放列表
 
+#### addVideo()
+
+添加视频到播放列表。
+
+```java
+// 基础方法
+void addVideo(String name, String url)
+
+// 带请求头
+void addVideo(String name, String url, HashMap<String, String> headers)
+
+// 独立视频（不拼接系列标题）
+void addVideo(String name, String url, boolean isIndependent)
+
+// 独立视频 + 请求头
+void addVideo(String name, String url, boolean isIndependent, HashMap<String, String> headers)
+```
+
+**参数：**
+- `name` - 视频名称（如"第1集"）
+- `url` - 视频地址
+- `headers` - 可选的 HTTP 请求头
+- `isIndependent` - 是否为独立视频（已废弃，现在所有视频都直接显示名称）
+
+**特性：**
+- 添加第一个视频时，如果播放器还没有设置视频地址，会自动设置第一个视频
+- 支持自定义 HTTP 请求头（如 Referer、User-Agent 等）
+
+**示例：**
+
+```java
+OrangeVideoController controller = videoView.getVideoController();
+
+// 添加基础视频
+controller.addVideo("第1集", "https://example.com/video1.mp4");
+controller.addVideo("第2集", "https://example.com/video2.mp4");
+
+// 添加带请求头的视频
+HashMap<String, String> headers = new HashMap<>();
+headers.put("Referer", "https://example.com");
+controller.addVideo("第3集", "https://example.com/video3.mp4", headers);
+
+// 第一个视频会自动设置到播放器，可以直接播放
+videoView.startPlayLogic();
+```
+
 #### setVideoList()
 
-设置播放列表。
+设置播放列表（批量设置）。
 
 ```java
 void setVideoList(ArrayList<HashMap<String, Object>> list)
 ```
 
 **参数：**
-- `list` - 视频列表，每个元素包含 `url` 和 `title` 字段
+- `list` - 视频列表，每个元素包含以下字段：
+  - `name` (String) - 视频名称
+  - `url` (String) - 视频地址
+  - `headers` (HashMap<String, String>) - 可选的请求头
+
+**特性：**
+- 设置列表时，如果播放器还没有设置视频地址，会自动设置第一个视频
+- 自动为每个视频添加空的 headers 字段（如果不存在）
 
 **示例：**
 
@@ -716,16 +769,23 @@ void setVideoList(ArrayList<HashMap<String, Object>> list)
 ArrayList<HashMap<String, Object>> playlist = new ArrayList<>();
 
 HashMap<String, Object> video1 = new HashMap<>();
+video1.put("name", "第1集");
 video1.put("url", "https://example.com/video1.mp4");
-video1.put("title", "视频 1");
 playlist.add(video1);
 
 HashMap<String, Object> video2 = new HashMap<>();
+video2.put("name", "第2集");
 video2.put("url", "https://example.com/video2.mp4");
-video2.put("title", "视频 2");
+// 可选：添加请求头
+HashMap<String, String> headers = new HashMap<>();
+headers.put("Referer", "https://example.com");
+video2.put("headers", headers);
 playlist.add(video2);
 
 controller.setVideoList(playlist);
+
+// 第一个视频会自动设置到播放器
+videoView.startPlayLogic();
 ```
 
 #### getVideoList()
@@ -736,37 +796,85 @@ controller.setVideoList(playlist);
 ArrayList<HashMap<String, Object>> getVideoList()
 ```
 
-#### playIndex()
+**返回：** 视频列表，如果没有设置则返回 null
 
-播放指定索引的视频。
+#### removeVideoList()
+
+清空播放列表。
 
 ```java
-void playIndex(int index)
+void removeVideoList()
 ```
-
-**参数：**
-- `index` - 视频索引（从 0 开始）
 
 **示例：**
 
 ```java
-// 播放第一个视频
-controller.playIndex(0);
-
-// 播放最后一个视频
-int lastIndex = controller.getVideoList().size() - 1;
-controller.playIndex(lastIndex);
+controller.removeVideoList();
 ```
 
-#### playNext()
+### 播放控制
 
-播放下一个视频。
+#### playNextEpisode()
+
+播放下一集（通过 VideoEventManager）。
 
 ```java
-void playNext()
+VideoEventManager eventManager = controller.getVideoEventManager();
+if (eventManager != null) {
+    eventManager.playNextEpisode();
+}
 ```
 
-**注意：** 如果已是最后一个视频，会根据播放模式决定是否循环。
+**行为：**
+- 自动查找当前视频在列表中的位置
+- 播放下一个视频
+- 如果已是最后一集，显示提示"已经是最后一集了"
+
+#### hasNextEpisode()
+
+检查是否有下一集。
+
+```java
+VideoEventManager eventManager = controller.getVideoEventManager();
+if (eventManager != null) {
+    boolean hasNext = eventManager.hasNextEpisode();
+}
+```
+
+#### handlePlaybackCompleted()
+
+处理播放完成事件（根据播放模式自动处理）。
+
+```java
+VideoEventManager eventManager = controller.getVideoEventManager();
+if (eventManager != null) {
+    eventManager.handlePlaybackCompleted();
+}
+```
+
+**播放模式：**
+- `sequential` - 顺序播放：自动播放下一集
+- `single_loop` - 单集循环：重新播放当前视频
+- `play_pause` - 播放暂停：停止播放
+
+**注意：** 此方法会在播放完成时自动调用，通常不需要手动调用。
+
+### 播放模式设置
+
+播放模式通过设置界面配置，保存在 `PlayerSettingsManager` 中：
+
+```java
+// 获取当前播放模式
+String mode = PlayerSettingsManager.getInstance(context).getPlayMode();
+
+// 设置播放模式
+PlayerSettingsManager.getInstance(context).setPlayMode("sequential");
+```
+
+**可用模式：**
+- `"sequential"` - 顺序播放
+- `"single_loop"` - 单集循环
+- `"play_pause"` - 播放暂停（默认）
 
 ### UI 控制
 

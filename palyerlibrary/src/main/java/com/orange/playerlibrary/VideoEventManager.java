@@ -1988,18 +1988,8 @@ public class VideoEventManager {
             return;
         }
         
-        // 设置标题
-        String isIndependent = item.get("dlsp") != null ? item.get("dlsp").toString() : "";
-        if ("独立".equals(isIndependent)) {
-            mController.setVideoTitle(name);
-        } else {
-            String currentTitle = mController.getVideoTitle();
-            if (currentTitle != null && !currentTitle.isEmpty()) {
-                mController.setTitle(currentTitle + " - " + name);
-            } else {
-                mController.setVideoTitle(name);
-            }
-        }
+        // 直接设置标题，不拼接
+        mController.setVideoTitle(name);
         
         // 播放视频
         @SuppressWarnings("unchecked")
@@ -2072,18 +2062,8 @@ public class VideoEventManager {
             return;
         }
         
-        // 设置标题
-        String isIndependent = item.get("dlsp") != null ? item.get("dlsp").toString() : "";
-        if ("独立".equals(isIndependent)) {
-            mController.setVideoTitle(name);
-        } else {
-            String currentTitle = mController.getVideoTitle();
-            if (currentTitle != null && !currentTitle.isEmpty()) {
-                mController.setTitle(currentTitle + " - " + name);
-            } else {
-                mController.setVideoTitle(name);
-            }
-        }
+        // 直接设置标题，不拼接
+        mController.setVideoTitle(name);
         
         // 播放视频
         @SuppressWarnings("unchecked")
