@@ -178,6 +178,14 @@ public class MainActivity extends AppCompatActivity {
         btnClearEpisodes.setOnClickListener(v -> clearEpisodes());
         btnTestFeature.setOnClickListener(v -> showMoreTestDialog());
 
+        // Activity 跳转测试按钮
+        Button btnJumpTest = findViewById(R.id.btn_jump_test);
+        btnJumpTest.setOnClickListener(v -> {
+            log("🔄 跳转到测试页面");
+            android.content.Intent intent = new android.content.Intent(this, TestActivity.class);
+            startActivity(intent);
+        });
+
         log("🍊 橘子播放器 SDK Demo 启动");
         log("基于 GSYVideoPlayer 开源框架");
     }

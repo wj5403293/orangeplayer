@@ -38,6 +38,12 @@
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>
+		
+		<!-- 测试 Activity - 用于测试播放器生命周期 -->
+		<activity
+				android:name=".TestActivity"
+				android:exported="false"
+				android:screenOrientation="portrait" />
 	</application>
 
 </manifest>
