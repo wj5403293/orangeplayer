@@ -31,6 +31,10 @@ public class VideoThumbnailHelper {
     
     /** 最大缓存数量 */
     private static final int MAX_CACHE_SIZE = 50;
+    
+    /** 复用的 MediaMetadataRetriever（用于拖动预览） */
+    private static MediaMetadataRetriever sReusableRetriever = null;
+    private static String sReusableRetrieverUrl = null;
 
     /**
      * 缩略图回调接口
@@ -197,32 +201,127 @@ public class VideoThumbnailHelper {
      * @return 帧图片
      */
     public static Bitmap getFrameAtTime(String videoUrl, long timeUs, Map<String, String> headers) {
+        return getFrameAtTime(videoUrl, timeUs, headers, false);
+    }
+    
+    /**
+     * 同步获取指定时间的帧（支持复用 retriever）
+     * @param videoUrl 视频地址
+     * @param timeUs 时间（微秒）
+     * @param headers 请求头
+     * @param reuseRetriever 是否复用 retriever（用于拖动预览优化）
+     * @return 帧图片
+     */
+    public static synchronized Bitmap getFrameAtTime(String videoUrl, long timeUs, Map<String, String> headers, boolean reuseRetriever) {
+        long startTime = System.currentTimeMillis();
+        
         if (videoUrl == null || videoUrl.isEmpty()) {
             return null;
         }
 
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        MediaMetadataRetriever retriever = null;
+        boolean shouldRelease = true;
+        
         try {
-            if (videoUrl.startsWith("http://") || videoUrl.startsWith("https://")) {
-                if (headers != null && !headers.isEmpty()) {
-                    retriever.setDataSource(videoUrl, headers);
-                } else {
-                    retriever.setDataSource(videoUrl, new HashMap<>());
-                }
+            long setDataSourceStart = System.currentTimeMillis();
+            
+            // 如果启用复用且 URL 相同，复用现有的 retriever
+            if (reuseRetriever && sReusableRetriever != null && videoUrl.equals(sReusableRetrieverUrl)) {
+                retriever = sReusableRetriever;
+                shouldRelease = false;
+                android.util.Log.d(TAG, "Reusing existing retriever");
             } else {
-                retriever.setDataSource(videoUrl);
+                // 创建新的 retriever
+                if (reuseRetriever && sReusableRetriever != null) {
+                    // 释放旧的 retriever
+                    try {
+                        sReusableRetriever.release();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    sReusableRetriever = null;
+                    sReusableRetrieverUrl = null;
+                }
+                
+                retriever = new MediaMetadataRetriever();
+                if (videoUrl.startsWith("http://") || videoUrl.startsWith("https://")) {
+                    if (headers != null && !headers.isEmpty()) {
+                        retriever.setDataSource(videoUrl, headers);
+                    } else {
+                        retriever.setDataSource(videoUrl, new HashMap<>());
+                    }
+                } else {
+                    retriever.setDataSource(videoUrl);
+                }
+                
+                long setDataSourceTime = System.currentTimeMillis() - setDataSourceStart;
+                android.util.Log.d(TAG, "setDataSource took: " + setDataSourceTime + "ms");
+                
+                // 如果启用复用，保存 retriever
+                if (reuseRetriever) {
+                    sReusableRetriever = retriever;
+                    sReusableRetrieverUrl = videoUrl;
+                    shouldRelease = false;
+                }
             }
             
-            return retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            // 获取帧 - 使用 OPTION_CLOSEST_SYNC 更快（只定位到关键帧）
+            long getFrameStart = System.currentTimeMillis();
+            Bitmap bitmap;
+            
+            // Android 8.0+ 支持直接获取缩放后的帧，性能更好
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                // 直接获取 320x180 的缩略图，避免获取全分辨率后再缩放
+                bitmap = retriever.getScaledFrameAtTime(timeUs, 
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 320, 180);
+                android.util.Log.d(TAG, "Using getScaledFrameAtTime (320x180)");
+            } else {
+                // Android 8.0 以下使用原始方法
+                bitmap = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            }
+            
+            long getFrameTime = System.currentTimeMillis() - getFrameStart;
+            
+            long totalTime = System.currentTimeMillis() - startTime;
+            android.util.Log.d(TAG, "getFrameAtTime - timeUs:" + timeUs + " getFrame:" + getFrameTime + "ms total:" + totalTime + "ms");
+            
+            return bitmap;
         } catch (Exception e) {
             e.printStackTrace();
+            // 出错时释放复用的 retriever
+            if (reuseRetriever && sReusableRetriever != null) {
+                try {
+                    sReusableRetriever.release();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                sReusableRetriever = null;
+                sReusableRetrieverUrl = null;
+            }
             return null;
         } finally {
+            if (shouldRelease && retriever != null) {
+                try {
+                    retriever.release();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    
+    /**
+     * 释放复用的 retriever
+     */
+    public static synchronized void releaseReusableRetriever() {
+        if (sReusableRetriever != null) {
             try {
-                retriever.release();
+                sReusableRetriever.release();
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            sReusableRetriever = null;
+            sReusableRetrieverUrl = null;
         }
     }
 

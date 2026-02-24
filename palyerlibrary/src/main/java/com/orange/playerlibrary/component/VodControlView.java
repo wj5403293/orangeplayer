@@ -35,8 +35,12 @@ import com.orange.playerlibrary.OrangeVideoController;
 import com.orange.playerlibrary.OrangevideoView;
 import com.orange.playerlibrary.PlayerConstants;
 import com.orange.playerlibrary.R;
+import com.orange.playerlibrary.VideoThumbnailHelper;
 import com.orange.playerlibrary.interfaces.ControlWrapper;
 import com.orange.playerlibrary.interfaces.IControlComponent;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 视频点播控制视图
@@ -46,6 +50,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         View.OnClickListener, SeekBar.OnSeekBarChangeListener {
 
     private static final String TAG = "VodControlView";
+    
+    // 线程池和主线程 Handler（用于异步加载预览）
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     // 双击防抖：记录上次状态变化时间，避免双击后的单击事件干扰
     private long mLastStateChangeTime = 0;
@@ -155,7 +163,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     private static final int PREVIEW_WIDTH = 320;
     private static final int PREVIEW_HEIGHT = 180;
     private static final long PREVIEW_DELAY_MS = 400;  // 拖动多久后显示预览
-    private static final long PREVIEW_THROTTLE_MS = 500;  // 预览图加载节流
+    private static final long PREVIEW_THROTTLE_MS = 200;  // 预览图加载节流（降低到200ms提高响应速度）
     
     private Runnable mShowPreviewRunnable;
 
@@ -771,6 +779,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onVisibilityChanged(boolean isVisible, Animation anim) {
+        // 如果正在拖动进度条，不隐藏控制器
+        if (!isVisible && mIsDragging) {
+            android.util.Log.d("VodControlView", "onVisibilityChanged - dragging, skip hide");
+            return;
+        }
+        
         // 锁定状态下，只显示/隐藏锁定按钮
         if (mIsLocked) {
             if (mLockButton != null && isFullScreen()) {
@@ -998,6 +1012,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 mCurrTime.setText(stringForTime((int) position));
             }
             
+            // 拖动时持续阻止控制器自动隐藏
+            if (mIsDragging) {
+                mControlWrapper.stopFadeOut();
+                android.util.Log.d("VodControlView", "onProgressChanged - stopFadeOut called, showing: " + mControlWrapper.isShowing());
+            }
+            
             // 预览功能：仅在全屏模式且长时间拖动时显示
             if (sPreviewEnabled && isFullScreen() && mIsDragging && mIsLongDrag) {
                 updatePreview(seekBar, progress, position, duration);
@@ -1014,6 +1034,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onStartTrackingTouch(SeekBar seekBar) {
+        android.util.Log.d("VodControlView", "onStartTrackingTouch - stopping fadeout");
         mIsDragging = true;
         mIsLongDrag = false;
         
@@ -1025,6 +1046,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (mControlWrapper != null) {
             mControlWrapper.stopProgress();
             mControlWrapper.stopFadeOut();
+            android.util.Log.d("VodControlView", "onStartTrackingTouch - controller showing: " + mControlWrapper.isShowing());
         }
     }
 
@@ -1035,6 +1057,9 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             mDelayHandler.removeCallbacks(mShowPreviewRunnable);
         }
         cancelPreviewLoad();
+        
+        // 释放复用的 MediaMetadataRetriever
+        VideoThumbnailHelper.releaseReusableRetriever();
         
         // 隐藏预览
         if (mIsLongDrag) {
@@ -1097,6 +1122,14 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     public boolean isFullScreen() {
         return mControlWrapper != null && mControlWrapper.isFullScreen();
+    }
+
+    /**
+     * 是否正在拖动进度条
+     * @return true 正在拖动
+     */
+    public boolean isDragging() {
+        return mIsDragging;
     }
 
     public ImageView getPlayButton() { return mPlayButton; }
@@ -1216,6 +1249,11 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         if (mPreviewContainer != null) {
             mPreviewContainer.setVisibility(VISIBLE);
             mIsPreviewShowing = true;
+            
+            // 显示预览时阻止控制器自动隐藏
+            if (mControlWrapper != null) {
+                mControlWrapper.stopFadeOut();
+            }
         }
     }
     
@@ -1224,6 +1262,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      */
     private void hidePreviewContainer() {
         if (mPreviewContainer != null) {
+            android.util.Log.d("VodControlView", "hidePreviewContainer called");
             mPreviewContainer.setVisibility(GONE);
             mIsPreviewShowing = false;
         }
@@ -1272,12 +1311,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         // 计算拖动位置
         float thumbPosition = availableWidth * (progress / 1000f);
         
-        // 获取 SeekBar 在父容器中的位置（使用 getLocationOnScreen 更准确）
+        // 获取 SeekBar 在父容器中的位置
         int[] seekBarLocation = new int[2];
-        seekBar.getLocationOnScreen(seekBarLocation);
+        seekBar.getLocationInWindow(seekBarLocation);
         
         int[] containerLocation = new int[2];
-        ((View) mPreviewContainer.getParent()).getLocationOnScreen(containerLocation);
+        ((View) mPreviewContainer.getParent()).getLocationInWindow(containerLocation);
         
         float thumbCenterX = seekBarLocation[0] - containerLocation[0] + seekBarPaddingLeft + thumbPosition;
         
@@ -1303,20 +1342,20 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             targetX = parentWidth - previewWidth;
         }
         
-        // 使用 translationX 代替 setLayoutParams，避免触发布局重绘
-        // 这样性能更好，拖动更流畅
+        // 更新位置
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mPreviewContainer.getLayoutParams();
-        if (params.leftMargin != 0) {
-            // 如果之前设置过 leftMargin，需要重置
-            params.leftMargin = 0;
-            mPreviewContainer.setLayoutParams(params);
-        }
-        mPreviewContainer.setTranslationX(targetX);
+        params.leftMargin = (int) targetX;
+        mPreviewContainer.setLayoutParams(params);
     }
     
     /**
      * 加载预览图
-     * 优先使用 ScreenshotManager 截取当前画面，失败时回退到 Glide
+     * 优先级：Glide > ScreenshotManager > VideoThumbnailHelper
+     * 
+     * 支持情况：
+     * - Glide: 支持 mp4, avi, mkv, mov 等常规视频格式，不支持 m3u8/HLS 流
+     * - ScreenshotManager: 支持所有播放器能播放的格式（直接截图）
+     * - VideoThumbnailHelper: 支持所有本地和网络视频格式（MediaMetadataRetriever）
      */
     private void loadPreviewImage(long timeMs) {
         // 避免重复加载相同位置
@@ -1328,27 +1367,61 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         // 显示加载状态
         showPreviewLoading();
         
-        // 方案选择：
-        // 1. 如果拖动位置接近当前播放位置（±3秒），使用 ScreenshotManager 截取当前画面
-        // 2. 否则使用 Glide 的 frame 提取功能
+        // 检测视频格式
+        boolean isHlsStream = isHlsStream(sVideoUrl);
+        boolean isLiveStream = isLiveStream(sVideoUrl);
         
         OrangevideoView videoView = getVideoView();
         long currentPosition = videoView != null ? videoView.getCurrentPositionWhenPlaying() : -1;
         long positionDiff = Math.abs(timeMs - currentPosition);
         
-        // 如果拖动位置接近当前播放位置（3秒内），使用实时截图
-        if (videoView != null && positionDiff < 3000) {
-            loadPreviewWithScreenshot(videoView, timeMs);
-        } else {
-            // 否则使用 Glide 提取视频帧
+        // 优先级 1: Glide（最快，但不支持 HLS 和直播流）
+        if (!isHlsStream && !isLiveStream) {
+            android.util.Log.d("VodControlView", "Using Glide (highest priority)");
             loadPreviewImageWithGlide(timeMs);
         }
+        // 优先级 2: ScreenshotManager（如果接近当前播放位置）
+        else if (videoView != null && positionDiff < 3000) {
+            android.util.Log.d("VodControlView", "Using ScreenshotManager (near current position)");
+            loadPreviewWithScreenshot(videoView, timeMs);
+        }
+        // 优先级 3: VideoThumbnailHelper（兜底，支持所有格式）
+        else {
+            android.util.Log.d("VodControlView", "Using VideoThumbnailHelper (fallback)");
+            loadPreviewWithThumbnailHelper(timeMs);
+        }
+    }
+    
+    /**
+     * 检测是否为 HLS 流
+     */
+    private boolean isHlsStream(String url) {
+        if (TextUtils.isEmpty(url)) {
+            return false;
+        }
+        String lowerUrl = url.toLowerCase();
+        return lowerUrl.contains(".m3u8") || lowerUrl.contains("/hls/");
+    }
+    
+    /**
+     * 检测是否为直播流
+     */
+    private boolean isLiveStream(String url) {
+        if (TextUtils.isEmpty(url)) {
+            return false;
+        }
+        String lowerUrl = url.toLowerCase();
+        return lowerUrl.startsWith("rtsp://") 
+            || lowerUrl.startsWith("rtmp://") 
+            || lowerUrl.contains(".flv");
     }
     
     /**
      * 使用 ScreenshotManager 截取当前画面作为预览
      */
     private void loadPreviewWithScreenshot(OrangevideoView videoView, long timeMs) {
+        android.util.Log.d(TAG, "loadPreviewWithScreenshot - timeMs:" + timeMs + " (near current position)");
+        
         try {
             com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
                 new com.orange.playerlibrary.screenshot.ScreenshotManager(getContext(), videoView);
@@ -1356,13 +1429,23 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             screenshotManager.takeScreenshot(false, new com.orange.playerlibrary.screenshot.ScreenshotManager.ScreenshotCallback() {
                 @Override
                 public void onSuccess(Bitmap bitmap, String message) {
-                    if (mPreviewImage != null && mCurrentPreviewPosition == timeMs) {
+                    android.util.Log.d(TAG, "Screenshot success - bitmap:" + bitmap.getWidth() + "x" + bitmap.getHeight()
+                        + " isDragging:" + mIsDragging + " isPreviewShowing:" + mIsPreviewShowing);
+                    
+                    // 只要还在拖动中，就显示预览
+                    if (mPreviewImage != null && mCurrentPreviewPosition == timeMs && mIsDragging) {
                         // 缩放 Bitmap 到预览尺寸
                         Bitmap scaledBitmap = Bitmap.createScaledBitmap(
                             bitmap, PREVIEW_WIDTH, PREVIEW_HEIGHT, true);
                         
                         mPreviewImage.setImageBitmap(scaledBitmap);
                         hidePreviewLoading();
+                        
+                        // 确保预览容器可见
+                        if (!mIsPreviewShowing) {
+                            showPreviewContainer();
+                        }
+                        
                         animatePreviewChange();
                         
                         // 回收原始 Bitmap
@@ -1374,14 +1457,77 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 
                 @Override
                 public void onError(String error) {
-                    // 截图失败，回退到 Glide 方案
-                    android.util.Log.w(TAG, "Screenshot failed, fallback to Glide: " + error);
-                    loadPreviewImageWithGlide(timeMs);
+                    // 截图失败，回退到 VideoThumbnailHelper 方案
+                    android.util.Log.w(TAG, "Screenshot failed, fallback to VideoThumbnailHelper: " + error);
+                    loadPreviewWithThumbnailHelper(timeMs);
                 }
             });
         } catch (Exception e) {
             android.util.Log.e(TAG, "loadPreviewWithScreenshot error", e);
-            // 回退到 Glide 方案
+            // 回退到 VideoThumbnailHelper 方案
+            loadPreviewWithThumbnailHelper(timeMs);
+        }
+    }
+    
+    /**
+     * 使用 VideoThumbnailHelper 加载预览图（从视频文件提取帧）
+     * 使用 MediaMetadataRetriever，比 Glide 更轻量高效
+     */
+    private void loadPreviewWithThumbnailHelper(long timeMs) {
+        android.util.Log.d(TAG, "loadPreviewWithThumbnailHelper - timeMs:" + timeMs + " url:" + sVideoUrl);
+        
+        if (TextUtils.isEmpty(sVideoUrl)) {
+            showPreviewError("无法加载预览");
+            return;
+        }
+        
+        try {
+            // 使用 VideoThumbnailHelper 异步获取指定时间的帧
+            // timeMs 是毫秒，需要转换为微秒
+            long timeUs = timeMs * 1000;
+            
+            // 使用复用模式，避免每次都重新打开视频文件
+            executor.execute(() -> {
+                Bitmap bitmap = VideoThumbnailHelper.getFrameAtTime(sVideoUrl, timeUs, null, true);
+                mainHandler.post(() -> {
+                    if (bitmap != null) {
+                        android.util.Log.d(TAG, "VideoThumbnailHelper success - bitmap:" + bitmap.getWidth() + "x" + bitmap.getHeight() 
+                            + " isDragging:" + mIsDragging + " isPreviewShowing:" + mIsPreviewShowing);
+                        
+                        // 只要还在拖动中，就显示预览（不依赖 mIsLongDrag，因为图片是异步加载的）
+                        if (mPreviewImage != null && mCurrentPreviewPosition == timeMs && mIsDragging) {
+                            // 缩放 Bitmap 到预览尺寸
+                            Bitmap scaledBitmap = Bitmap.createScaledBitmap(
+                                bitmap, PREVIEW_WIDTH, PREVIEW_HEIGHT, true);
+                            
+                            mPreviewImage.setImageBitmap(scaledBitmap);
+                            hidePreviewLoading();
+                            
+                            // 确保预览容器可见
+                            if (!mIsPreviewShowing) {
+                                showPreviewContainer();
+                            }
+                            
+                            animatePreviewChange();
+                            
+                            // 回收原始 Bitmap
+                            if (bitmap != scaledBitmap) {
+                                bitmap.recycle();
+                            }
+                        } else {
+                            // 不需要显示，回收 bitmap
+                            bitmap.recycle();
+                        }
+                    } else {
+                        // VideoThumbnailHelper 失败，最后尝试 Glide
+                        android.util.Log.w(TAG, "VideoThumbnailHelper failed, fallback to Glide");
+                        loadPreviewImageWithGlide(timeMs);
+                    }
+                });
+            });
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "loadPreviewWithThumbnailHelper error", e);
+            // 最后回退到 Glide 方案
             loadPreviewImageWithGlide(timeMs);
         }
     }
@@ -1390,6 +1536,8 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      * 使用 Glide 加载预览图（从视频文件提取帧）
      */
     private void loadPreviewImageWithGlide(long timeMs) {
+        android.util.Log.d(TAG, "loadPreviewImageWithGlide - timeMs:" + timeMs + " (fallback method)");
+        
         if (TextUtils.isEmpty(sVideoUrl)) {
             showPreviewError("无法加载预览");
             return;
@@ -1408,9 +1556,19 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 @Override
                 public void onResourceReady(@NonNull Bitmap resource,
                         @Nullable Transition<? super Bitmap> transition) {
-                    if (mPreviewImage != null && mCurrentPreviewPosition == timeMs) {
+                    android.util.Log.d(TAG, "Glide success - bitmap:" + resource.getWidth() + "x" + resource.getHeight()
+                        + " isDragging:" + mIsDragging + " isPreviewShowing:" + mIsPreviewShowing);
+                    
+                    // 只要还在拖动中，就显示预览
+                    if (mPreviewImage != null && mCurrentPreviewPosition == timeMs && mIsDragging) {
                         mPreviewImage.setImageBitmap(resource);
                         hidePreviewLoading();
+                        
+                        // 确保预览容器可见
+                        if (!mIsPreviewShowing) {
+                            showPreviewContainer();
+                        }
+                        
                         animatePreviewChange();
                     }
                 }
@@ -1423,6 +1581,7 @@ public class VodControlView extends FrameLayout implements IControlComponent,
                 @Override
                 public void onLoadFailed(@Nullable Drawable errorDrawable) {
                     // 加载失败时静默处理，不显示错误
+                    android.util.Log.w(TAG, "Glide failed to load preview");
                     hidePreviewLoading();
                 }
             };

@@ -3505,6 +3505,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     public void hideController() {
+        // 检查是否正在拖动进度条，如果是则不隐藏
+        if (mVodControlView != null && mVodControlView.isDragging()) {
+            android.util.Log.d("OrangevideoView", "hideController() - VodControlView is dragging, skip hide");
+            return;
+        }
+        
         // 检查锁定状态
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
         if (mVodControlView != null) {

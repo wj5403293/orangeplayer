@@ -219,6 +219,19 @@ public class OrangeStandardVideoController extends FrameLayout {
      */
     public void hide() {
         android.util.Log.d("OrangeStandard", "hide() called, mIsLocked=" + mIsLocked + ", mIsShowing=" + mIsShowing);
+        
+        // 检查是否有组件正在拖动进度条，如果是则不隐藏
+        for (IControlComponent component : mControlComponents) {
+            if (component instanceof com.orange.playerlibrary.component.VodControlView) {
+                com.orange.playerlibrary.component.VodControlView vodView = 
+                    (com.orange.playerlibrary.component.VodControlView) component;
+                if (vodView.isDragging()) {
+                    android.util.Log.d("OrangeStandard", "hide() - VodControlView is dragging, skip hide");
+                    return;
+                }
+            }
+        }
+        
         if (mIsShowing) {
             mIsShowing = false;
             startHideAnimation();
