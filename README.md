@@ -99,14 +99,38 @@ dependencies {
 
 ### 基本使用
 
-```java
-// 1. 布局文件
+#### 1. 配置 AndroidManifest.xml
+
+在使用播放器的 Activity 中添加以下配置（**必需**）：
+
+```xml
+<activity
+    android:name=".YourActivity"
+    android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+    android:screenOrientation="portrait"
+    android:supportsPictureInPicture="true"
+    android:resizeableActivity="true">
+</activity>
+```
+
+**配置说明：**
+- `configChanges` - 防止横竖屏切换时 Activity 重建（**必需**）
+- `screenOrientation` - 设置屏幕方向（portrait/landscape/unspecified）
+- `supportsPictureInPicture` - 启用画中画模式（可选）
+- `resizeableActivity` - 允许调整窗口大小（可选）
+
+#### 2. 布局文件
+
+```xml
 <com.orange.playerlibrary.OrangevideoView
     android:id="@+id/video_player"
     android:layout_width="match_parent"
     android:layout_height="200dp" />
+```
 
-// 2. Activity 代码
+#### 3. Activity 代码
+
+```java
 OrangevideoView videoView = findViewById(R.id.video_player);
 videoView.setUp("https://example.com/video.mp4", true, "视频标题");
 videoView.startPlayLogic();
