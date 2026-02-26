@@ -238,10 +238,12 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     
     /**
      * 加载缩略图
-     * 优先级：封面URL > 本地视频第一帧 > 默认图标
+     * 优先级：封面URL > 视频URL(Glide提取帧) > 本地视频第一帧 > 默认图标
+     * Glide 支持直接从视频URL提取帧，包括m3u8
      */
     private void loadThumbnail(ViewHolder holder, VideoTaskItem item) {
         String coverUrl = item.getCoverUrl();
+        String videoUrl = item.getUrl();
         String filePath = item.getFilePath();
         
         // 1. 优先使用封面 URL
@@ -255,44 +257,56 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
             return;
         }
         
-        // 2. 已完成的视频，提取第一帧
-        if (item.isCompleted() && filePath != null && new File(filePath).exists()) {
-            holder.ivThumbnail.setImageResource(R.drawable.ic_download);
-            mExecutor.execute(() -> {
-                Bitmap bitmap = extractVideoFrame(filePath);
-                if (bitmap != null && holder.ivThumbnail != null) {
-                    holder.ivThumbnail.post(() -> {
+        // 2. 使用 Glide 从视频 URL 提取帧（支持 m3u8）
+        if (videoUrl != null && !videoUrl.isEmpty()) {
+            Glide.with(mContext)
+                .asBitmap()
+                .load(videoUrl)
+                .placeholder(R.drawable.ic_download)
+                .error(R.drawable.ic_download)
+                .centerCrop()
+                .timeout(5000)  // 5秒超时
+                .into(new com.bumptech.glide.request.target.CustomTarget<Bitmap>() {
+                    @Override
+                    public void onResourceReady(@androidx.annotation.NonNull Bitmap resource, @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super Bitmap> transition) {
                         if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
-                            holder.ivThumbnail.setImageBitmap(bitmap);
+                            holder.ivThumbnail.setImageBitmap(resource);
                         }
-                    });
-                }
-            });
+                    }
+                    @Override
+                    public void onLoadCleared(@androidx.annotation.Nullable android.graphics.drawable.Drawable placeholder) {
+                        holder.ivThumbnail.setImageResource(R.drawable.ic_download);
+                    }
+                });
             return;
         }
         
-        // 3. 默认图标
-        holder.ivThumbnail.setImageResource(R.drawable.ic_download);
-    }
-    
-    /**
-     * 提取视频第一帧
-     */
-    private Bitmap extractVideoFrame(String filePath) {
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        try {
-            retriever.setDataSource(filePath);
-            return retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-        } catch (Exception e) {
-            android.util.Log.e(TAG, "Failed to extract video frame: " + filePath, e);
-            return null;
-        } finally {
-            try {
-                retriever.release();
-            } catch (Exception e) {
-                // Ignore
-            }
+        // 3. 已完成的本地视频，提取第一帧
+        if (item.isCompleted() && filePath != null && new File(filePath).exists()) {
+            // 使用 Glide 加载本地视频帧
+            Glide.with(mContext)
+                .asBitmap()
+                .load(new File(filePath))
+                .placeholder(R.drawable.ic_download)
+                .error(R.drawable.ic_download)
+                .centerCrop()
+                .into(new com.bumptech.glide.request.target.CustomTarget<Bitmap>() {
+                    @Override
+                    public void onResourceReady(@androidx.annotation.NonNull Bitmap resource, @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super Bitmap> transition) {
+                        if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
+                            holder.ivThumbnail.setImageBitmap(resource);
+                        }
+                    }
+                    @Override
+                    public void onLoadCleared(@androidx.annotation.Nullable android.graphics.drawable.Drawable placeholder) {
+                        holder.ivThumbnail.setImageResource(R.drawable.ic_download);
+                    }
+                });
+            return;
         }
+        
+        // 4. 默认图标
+        holder.ivThumbnail.setImageResource(R.drawable.ic_download);
     }
     
     /**

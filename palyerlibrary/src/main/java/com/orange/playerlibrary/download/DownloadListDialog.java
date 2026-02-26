@@ -297,8 +297,12 @@ public class DownloadListDialog extends Dialog {
                     if (items == null) return;
                     int paused = 0;
                     for (VideoTaskItem item : items) {
-                        // 只暂停正在下载的任务
-                        if (item.isRunningTask()) {
+                        int state = item.getTaskState();
+                        // 暂停所有进行中的任务（包括等待、准备、下载中）
+                        if (state == VideoTaskState.PENDING || 
+                            state == VideoTaskState.PREPARE || 
+                            state == VideoTaskState.START || 
+                            state == VideoTaskState.DOWNLOADING) {
                             manager.pauseDownloadTask(item.getUrl());
                             paused++;
                         }
@@ -308,6 +312,8 @@ public class DownloadListDialog extends Dialog {
                         mRecyclerView.post(() -> {
                             if (count > 0) {
                                 showToast("已暂停 " + count + " 个任务");
+                                // 刷新列表显示暂停状态
+                                fetchDownloadItems();
                             } else {
                                 showToast("没有可暂停的任务");
                             }
