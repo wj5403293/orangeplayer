@@ -33,7 +33,7 @@ public class DownloadDialogView {
     private Dialog mDialog;
     private RecyclerView mRecyclerView;
     private DownloadAdapter mAdapter;
-    private TextView mEmptyView;
+    private View mEmptyView;
     
     private DownloadManager mDownloadManager;
     private DownloadDatabase mDatabase;
@@ -46,13 +46,13 @@ public class DownloadDialogView {
     }
     
     private void initDialog() {
-        mDialog = new Dialog(mContext, R.style.orange_style_dialog_progress);
+        mDialog = new Dialog(mContext, android.R.style.Theme_Translucent_NoTitleBar);
         View view = LayoutInflater.from(mContext).inflate(R.layout.orange_dialog_download_list, null);
         
         mRecyclerView = view.findViewById(R.id.recycler_view);
         mEmptyView = view.findViewById(R.id.empty_view);
-        Button closeButton = view.findViewById(R.id.btn_close);
-        Button clearButton = view.findViewById(R.id.btn_clear);
+        ImageView closeButton = view.findViewById(R.id.btn_close);
+        ImageView clearButton = view.findViewById(R.id.btn_clear);
         
         mRecyclerView.setLayoutManager(new LinearLayoutManager(mContext));
         mAdapter = new DownloadAdapter();

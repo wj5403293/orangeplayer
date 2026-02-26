@@ -205,12 +205,17 @@ public class DownloadService extends Service {
         String title = intent.getStringExtra(EXTRA_TITLE);
         String savePath = intent.getStringExtra(EXTRA_SAVE_PATH);
         
+        android.util.Log.d(TAG, "handleStartDownload: url=" + url + ", title=" + title + ", savePath=" + savePath);
+        
         if (url != null && mDownloadManager != null) {
+            android.util.Log.d(TAG, "Starting download task...");
             if (savePath != null) {
                 mDownloadManager.addDownload(url, title, savePath);
             } else {
                 mDownloadManager.addDownload(url, title);
             }
+        } else {
+            android.util.Log.e(TAG, "Cannot start download: url=" + url + ", manager=" + mDownloadManager);
         }
     }
     

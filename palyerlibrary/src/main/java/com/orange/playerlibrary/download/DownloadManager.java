@@ -94,19 +94,26 @@ public class DownloadManager {
      * 添加下载任务
      */
     public String addDownload(String url, String title, String savePath) {
+        android.util.Log.d(TAG, "addDownload: url=" + url + ", title=" + title + ", savePath=" + savePath);
+        
         DownloadTask task = new DownloadTask(url, title, savePath);
         mTasks.put(task.getTaskId(), task);
+        
+        android.util.Log.d(TAG, "Created task: " + task.getTaskId() + ", state=" + task.getState());
         
         // 保存到数据库
         if (mDatabase != null) {
             mDatabase.insertTask(task);
+            android.util.Log.d(TAG, "Task saved to database");
         }
         
         // 通知监听器
         notifyDownloadStart(task);
+        android.util.Log.d(TAG, "Notified listeners");
         
         // 开始下载
         startDownload(task);
+        android.util.Log.d(TAG, "Download started");
         
         return task.getTaskId();
     }

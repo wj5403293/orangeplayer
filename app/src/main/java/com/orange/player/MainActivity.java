@@ -1,6 +1,7 @@
 package com.orange.player;
 
 import android.content.res.Configuration;
+import android.app.Dialog;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -523,6 +524,12 @@ public class MainActivity extends AppCompatActivity {
             mController.getVideoEventManager().handleMediaProjectionResult(requestCode, resultCode, data);
         }
     }
+    
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // 下载功能使用系统 DownloadManager，不需要权限处理
+    }
 
     @Override
     public void onPictureInPictureModeChanged(boolean isInPiP, Configuration newConfig) {
@@ -951,24 +958,79 @@ public class MainActivity extends AppCompatActivity {
      * 测试下载视频功能
      */
     private void testDownloadVideo() {
-        new AlertDialog.Builder(this)
-            .setTitle("下载视频")
-            .setMessage("当前视频：\n" + mCurrentTitle + "\n\n" +
-                       "URL: " + getShortUrl(mCurrentUrl) + "\n\n" +
-                       "下载功能需要自行实现，可以使用：\n" +
-                       "1. Android DownloadManager\n" +
-                       "2. OkHttp 下载\n" +
-                       "3. 第三方下载库")
-            .setPositiveButton("复制链接", (dialog, which) -> {
-                android.content.ClipboardManager clipboard = 
-                    (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                android.content.ClipData clip = 
-                    android.content.ClipData.newPlainText("video_url", mCurrentUrl);
-                clipboard.setPrimaryClip(clip);
-                log("✓ 视频链接已复制到剪贴板");
-            })
-            .setNegativeButton("取消", null)
-            .show();
+        // 检查 URL 是否有效
+        if (mCurrentUrl == null || mCurrentUrl.isEmpty()) {
+            log("✗ 无法下载：视频 URL 为空");
+            return;
+        }
+        
+        // 创建自定义对话框（使用 AlertDialog）
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = getLayoutInflater().inflate(
+            com.orange.playerlibrary.R.layout.dialog_download_confirm, null);
+        builder.setView(view);
+        
+        AlertDialog dialog = builder.create();
+        
+        // 设置对话框背景透明
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        // 设置视频信息
+        TextView tvTitle = view.findViewById(com.orange.playerlibrary.R.id.tv_video_title);
+        tvTitle.setText(mCurrentTitle);
+        
+        // 下载管理按钮
+        view.findViewById(com.orange.playerlibrary.R.id.btn_download_manager).setOnClickListener(v -> {
+            dialog.dismiss();
+            showDownloadManager();
+        });
+        
+        // 取消按钮
+        view.findViewById(com.orange.playerlibrary.R.id.btn_cancel).setOnClickListener(v -> {
+            dialog.dismiss();
+        });
+        
+        // 确认下载按钮
+        view.findViewById(com.orange.playerlibrary.R.id.btn_download).setOnClickListener(v -> {
+            try {
+                // 使用系统 DownloadManager 下载
+                com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = 
+                    new com.orange.playerlibrary.download.SimpleDownloadManager(this);
+                
+                long downloadId = downloadManager.startDownload(
+                    mCurrentUrl,
+                    mCurrentTitle,
+                    "OrangePlayer 视频下载"
+                );
+                
+                if (downloadId != -1) {
+                    log("✓ 下载已开始");
+                    log("  下载ID: " + downloadId);
+                    log("  保存位置: Downloads/orangeplayer 文件夹");
+                    log("  可在下载管理中查看进度");
+                } else {
+                    log("✗ 下载失败");
+                }
+            } catch (Exception e) {
+                log("✗ 下载失败: " + e.getMessage());
+                e.printStackTrace();
+            }
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+    }
+
+    /**
+     * 显示下载管理对话框
+     */
+    private void showDownloadManager() {
+        com.orange.playerlibrary.component.SimpleDownloadDialogView downloadDialog = 
+            new com.orange.playerlibrary.component.SimpleDownloadDialogView(this);
+        downloadDialog.show();
+        log("📥 打开下载管理");
     }
 
     /**

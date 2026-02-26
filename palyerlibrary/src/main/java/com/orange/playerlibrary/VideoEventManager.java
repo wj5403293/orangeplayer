@@ -1167,8 +1167,24 @@ public class VideoEventManager {
         }
         
         // 获取当前视频URL和标题
+        // getUrl() 会返回 mOriginUrl（当前播放的 URL）或 mVideoUrl
         String url = mVideoView.getUrl();
-        String title = mController.getVideoTitle();
+        
+        // 优先从 TitleView 获取标题（最新的显示标题）
+        // 如果为空，再从 Controller 获取
+        String title = null;
+        if (mVideoView.getTitleView() != null) {
+            title = mVideoView.getTitleView().getTitle();
+        }
+        if (title == null || title.isEmpty()) {
+            title = mController.getVideoTitle();
+        }
+        if (title == null || title.isEmpty()) {
+            title = "未命名视频";
+        }
+        
+        android.util.Log.d(TAG, "onDownloadVideoClick - Current URL: " + url);
+        android.util.Log.d(TAG, "onDownloadVideoClick - Current title: " + title);
         
         if (url == null || url.isEmpty()) {
             showToast("无法获取视频地址");
@@ -1189,46 +1205,89 @@ public class VideoEventManager {
      * 显示下载对话框
      */
     private void showDownloadDialog(String url, String title) {
-        // 创建确认对话框
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(mContext);
-        builder.setTitle("下载视频");
-        builder.setMessage("确定要下载这个视频吗？\n\n" + (title != null ? title : "未命名视频"));
+        android.util.Log.d(TAG, "showDownloadDialog: url=" + url + ", title=" + title);
         
-        builder.setPositiveButton("下载", (dialog, which) -> {
-            // 启动下载服务
-            android.content.Intent intent = new android.content.Intent(mContext, 
-                    com.orange.playerlibrary.download.DownloadService.class);
-            intent.setAction(com.orange.playerlibrary.download.DownloadService.ACTION_START_DOWNLOAD);
-            intent.putExtra(com.orange.playerlibrary.download.DownloadService.EXTRA_URL, url);
-            intent.putExtra(com.orange.playerlibrary.download.DownloadService.EXTRA_TITLE, 
-                    title != null ? title : "未命名视频");
-            
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                mContext.startForegroundService(intent);
-            } else {
-                mContext.startService(intent);
-            }
-            
-            showToast("已添加到下载队列");
-            
-            // 显示下载管理界面
+        // 创建自定义对话框（使用透明背景主题）
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(mContext);
+        android.view.View view = android.view.LayoutInflater.from(mContext).inflate(
+            R.layout.dialog_download_confirm, null);
+        builder.setView(view);
+        
+        android.app.AlertDialog dialog = builder.create();
+        
+        // 设置对话框背景透明，让自定义布局的背景生效
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        // 设置视频信息
+        android.widget.TextView tvTitle = view.findViewById(R.id.tv_video_title);
+        tvTitle.setText(title != null ? title : "未命名视频");
+        
+        // 下载管理按钮
+        view.findViewById(R.id.btn_download_manager).setOnClickListener(v -> {
+            dialog.dismiss();
             showDownloadManagerDialog();
         });
         
-        builder.setNegativeButton("取消", null);
-        builder.show();
+        // 复制链接按钮 - 已移除，简化对话框
+        
+        // 取消按钮
+        view.findViewById(R.id.btn_cancel).setOnClickListener(v -> {
+            dialog.dismiss();
+        });
+        
+        // 确认下载按钮
+        view.findViewById(R.id.btn_download).setOnClickListener(v -> {
+            android.util.Log.d(TAG, "User confirmed download");
+            dialog.dismiss();
+            
+            // 使用系统 DownloadManager 下载到公共 Downloads 目录
+            // 不需要任何权限（Android 所有版本）
+            startDownload(url, title);
+        });
+        
+        dialog.show();
+        dialog.show();
     }
     
     /**
      * 显示下载管理对话框
      */
-    private com.orange.playerlibrary.component.DownloadDialogView mDownloadDialog;
+    private com.orange.playerlibrary.component.SimpleDownloadDialogView mDownloadDialog;
     
     private void showDownloadManagerDialog() {
         if (mDownloadDialog == null) {
-            mDownloadDialog = new com.orange.playerlibrary.component.DownloadDialogView(mContext);
+            mDownloadDialog = new com.orange.playerlibrary.component.SimpleDownloadDialogView(mContext);
         }
         mDownloadDialog.show();
+    }
+    
+    /**
+     * 开始下载（使用 VideoDownloader）
+     */
+    private void startDownload(String url, String title) {
+        android.util.Log.d(TAG, "startDownload: url=" + url + ", title=" + title);
+        
+        try {
+            // 使用 VideoDownloader 下载（支持 M3U8、MP4、FLV 等所有格式）
+            com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = 
+                new com.orange.playerlibrary.download.SimpleDownloadManager(mContext);
+            
+            downloadManager.startDownload(
+                url,
+                title != null ? title : "未命名视频",
+                "OrangePlayer 视频下载"
+            );
+            
+            // VideoDownloader 会在全局监听器中显示进度和结果 Toast
+            // 这里只显示开始下载的提示
+            showToast("开始下载视频");
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "Download failed", e);
+            showToast("下载失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     // 下载点击监听器

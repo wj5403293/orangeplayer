@@ -32,6 +32,14 @@ public class OrangeApplication extends MultiDexApplication {
         Log.d(TAG, "设备型号: " + android.os.Build.MODEL);
         Log.d(TAG, "设备厂商: " + android.os.Build.MANUFACTURER);
         
+        // 初始化 VideoDownloader（用于 M3U8、MP4 等视频下载）
+        try {
+            com.orange.playerlibrary.download.VideoDownloaderWrapper.getInstance(this).init();
+            Log.d(TAG, "VideoDownloader initialized successfully");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to initialize VideoDownloader", e);
+        }
+        
         // 注意：播放器核心的初始化不在这里进行
         // 因为 GSYVideoManager 需要 Activity Context
         // 播放核心会在 OrangevideoView 第一次初始化时设置

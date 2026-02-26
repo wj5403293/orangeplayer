@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="?android:attr/selectableItemBackground">
+    android:background="?attr/selectableItemBackground"
+    android:padding="12dp">
     
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,20 +13,32 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
         
+        <!-- 缩略图 -->
+        <ImageView
+            android:id="@+id/iv_thumbnail"
+            android:layout_width="80dp"
+            android:layout_height="45dp"
+            android:scaleType="centerCrop"
+            android:background="#222222"
+            android:src="@drawable/ic_download"
+            android:contentDescription="缩略图" />
+        
         <!-- 标题和状态 -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
             
             <TextView
                 android:id="@+id/tv_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="视频标题"
-                android:textSize="14sp"
-                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textColor="@android:color/white"
+                android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
             
@@ -35,28 +48,30 @@
                 android:layout_height="wrap_content"
                 android:text="下载中"
                 android:textSize="12sp"
-                android:textColor="#666666"
+                android:textColor="#99FFFFFF"
                 android:layout_marginTop="4dp" />
         </LinearLayout>
         
         <!-- 操作按钮 -->
         <ImageView
             android:id="@+id/btn_action"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@android:drawable/ic_media_pause"
-            android:padding="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:layout_marginLeft="8dp" />
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_marginStart="8dp"
+            android:contentDescription="暂停/恢复" />
         
         <ImageView
             android:id="@+id/btn_delete"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@android:drawable/ic_menu_delete"
-            android:padding="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:layout_marginLeft="4dp" />
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_delete"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_marginStart="4dp"
+            android:contentDescription="删除" />
     </LinearLayout>
     
     <!-- 进度条 -->
@@ -67,7 +82,9 @@
         android:layout_height="4dp"
         android:layout_marginTop="8dp"
         android:max="100"
-        android:progress="0" />
+        android:progress="0"
+        android:progressTint="@color/orange_theme_color"
+        android:progressBackgroundTint="#33FFFFFF" />
     
     <!-- 进度文本 -->
     <TextView
@@ -76,14 +93,7 @@
         android:layout_height="wrap_content"
         android:text="0 MB / 100 MB (0%)"
         android:textSize="11sp"
-        android:textColor="#999999"
+        android:textColor="#99FFFFFF"
         android:layout_marginTop="4dp" />
-    
-    <!-- 分割线 -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#E0E0E0"
-        android:layout_marginTop="12dp" />
     
 </LinearLayout>
