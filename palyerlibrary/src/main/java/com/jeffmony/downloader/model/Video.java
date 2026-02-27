@@ -11,6 +11,7 @@ public class Video {
         public static final int QUICKTIME_TYPE = 5;
         public static final int GP3_TYPE = 6;
         public static final int MKV_TYPE = 7;
+        public static final int TS_TYPE = 8;
     }
 
     public static class Mime {

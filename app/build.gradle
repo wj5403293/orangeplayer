@@ -104,7 +104,6 @@ dependencies {
     // VideoDownloader 依赖（M3U8 下载功能需要）
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation 'com.google.code.gson:gson:2.10.1'
-    implementation files('../palyerlibrary/libs/JeffVideoLib-2.5.1.aar')  // M3U8 处理库
     
     // DialogX 弹窗库（下载管理界面需要）
     // 注意：DialogX 包含 DialogXInterface，需排除传递依赖避免重复类

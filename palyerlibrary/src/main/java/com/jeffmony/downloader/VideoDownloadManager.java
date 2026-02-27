@@ -28,8 +28,6 @@ import com.jeffmony.downloader.utils.LogUtils;
 import com.jeffmony.downloader.utils.VideoDownloadUtils;
 import com.jeffmony.downloader.utils.VideoStorageUtils;
 import com.jeffmony.downloader.utils.WorkerThreadHandler;
-import com.jeffmony.m3u8library.VideoProcessManager;
-import com.jeffmony.m3u8library.listener.IVideoTransformListener;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -736,120 +734,122 @@ public class VideoDownloadManager {
             listener.onCallback(taskItem);
             return;
         }
-        if (TextUtils.isEmpty(taskItem.getFilePath())) {
-            LogUtils.e(DownloadConstants.TAG, "[MERGE] filePath is null or empty, saveDir=" + taskItem.getSaveDir() + ", fileHash=" + taskItem.getFileHash());
+        if (TextUtils.isEmpty(taskItem.getSaveDir())) {
+            LogUtils.e(DownloadConstants.TAG, "[MERGE] saveDir is null, skip merge");
             listener.onCallback(taskItem);
             return;
         }
-        LogUtils.i(DownloadConstants.TAG, "[MERGE] taskItem url=" + taskItem.getUrl() + ", filePath=" + taskItem.getFilePath());
         
-        // 检查输入文件是否存在
-        File inputFile = new File(taskItem.getFilePath());
-        if (!inputFile.exists()) {
-            LogUtils.e(DownloadConstants.TAG, "[MERGE] Input file not exists: " + taskItem.getFilePath());
-            listener.onCallback(taskItem);
-            return;
-        }
-        LogUtils.i(DownloadConstants.TAG, "[MERGE] Input file exists, size=" + inputFile.length());
-        
-        String inputPath = taskItem.getFilePath();
+        String saveDir = taskItem.getSaveDir();
         if (TextUtils.isEmpty(taskItem.getFileHash())) {
             taskItem.setFileHash(VideoDownloadUtils.computeMD5(taskItem.getUrl()));
         }
-        String outputPath = inputPath.substring(0, inputPath.lastIndexOf("/")) + File.separator + taskItem.getFileHash() + "_" + VideoDownloadUtils.OUTPUT_VIDEO;
-        File outputFile = new File(outputPath);
-        if (outputFile.exists()) {
-            outputFile.delete();
-        }
-
-        VideoProcessManager.getInstance().transformM3U8ToMp4(inputPath, outputPath, new IVideoTransformListener() {
-            @Override
-            public void onTransformProgress(float progress) {
-
-            }
-
-            @Override
-            public void onTransformFailed(int err) {
-                LogUtils.e(DownloadConstants.TAG, "[MERGE] onTransformFailed err=" + err + ", inputPath=" + inputPath + ", outputPath=" + outputPath);
-                retryMerge(taskItem, listener);
-                // LogUtils.i(DownloadConstants.TAG, "VideoMerge onTransformFailed err=" + err);
-                // File outputFile = new File(outputPath);
-                // if (outputFile.exists()) {
-                //     outputFile.delete();
-                // }
-                // listener.onCallback(taskItem);
-            }
-
-            @Override
-            public void onTransformFinished() {
-                LogUtils.i(DownloadConstants.TAG, "VideoMerge onTransformFinished outputPath=" + outputPath);
-                taskItem.setFileName(VideoDownloadUtils.OUTPUT_VIDEO);
-                taskItem.setFilePath(outputPath);
-                taskItem.setMimeType(Video.Mime.MIME_TYPE_MP4);
-                taskItem.setVideoType(Video.Type.MP4_TYPE);
-                listener.onCallback(taskItem);
-
-                /// delete source file
-                File outputFile = new File(outputPath);
-                File[] files = outputFile.getParentFile().listFiles();
-                for (File subFile : files) {
-                    String subFilePath = subFile.getAbsolutePath();
-                    if (!subFilePath.endsWith(VideoDownloadUtils.OUTPUT_VIDEO)) {
-                        subFile.delete();
+        String fileHash = taskItem.getFileHash();
+        
+        // 使用纯Java合并TS文件，不依赖FFmpeg
+        new Thread(() -> {
+            try {
+                File dir = new File(saveDir);
+                if (!dir.exists() || !dir.isDirectory()) {
+                    LogUtils.e(DownloadConstants.TAG, "[MERGE] Save directory not found: " + saveDir);
+                    listener.onCallback(taskItem);
+                    return;
+                }
+                
+                // 读取local.m3u8获取TS文件列表
+                File localM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8);
+                if (!localM3U8.exists()) {
+                    localM3U8 = new File(dir, fileHash + "_local.m3u8");
+                }
+                
+                if (!localM3U8.exists()) {
+                    LogUtils.e(DownloadConstants.TAG, "[MERGE] Local m3u8 file not found");
+                    listener.onCallback(taskItem);
+                    return;
+                }
+                
+                // 解析m3u8获取TS文件列表
+                List<String> tsFiles = parseM3U8ForTsFiles(localM3U8);
+                if (tsFiles.isEmpty()) {
+                    LogUtils.e(DownloadConstants.TAG, "[MERGE] No TS files found in m3u8");
+                    listener.onCallback(taskItem);
+                    return;
+                }
+                
+                LogUtils.i(DownloadConstants.TAG, "[MERGE] Found " + tsFiles.size() + " TS files to merge");
+                
+                // 合并输出文件路径
+                String outputFileName = fileHash + ".ts";  // 合并为单个TS文件
+                File outputFile = new File(dir, outputFileName);
+                
+                // 合并TS文件
+                long totalSize = 0;
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(outputFile);
+                byte[] buffer = new byte[8192];
+                
+                for (String tsPath : tsFiles) {
+                    File tsFile = new File(tsPath);
+                    if (tsFile.exists()) {
+                        java.io.FileInputStream fis = new java.io.FileInputStream(tsFile);
+                        int len;
+                        while ((len = fis.read(buffer)) > 0) {
+                            fos.write(buffer, 0, len);
+                            totalSize += len;
+                        }
+                        fis.close();
                     }
                 }
+                fos.flush();
+                fos.close();
+                
+                LogUtils.i(DownloadConstants.TAG, "[MERGE] Merged " + tsFiles.size() + " files, total size: " + totalSize);
+                
+                // 更新任务信息
+                taskItem.setFileName(outputFileName);
+                taskItem.setFilePath(outputFile.getAbsolutePath());
+                taskItem.setMimeType("video/mp2t");
+                taskItem.setVideoType(Video.Type.TS_TYPE);
+                
+                // 删除原始TS文件和m3u8文件
+                for (String tsPath : tsFiles) {
+                    new File(tsPath).delete();
+                }
+                localM3U8.delete();
+                File remoteM3U8 = new File(dir, VideoDownloadUtils.REMOTE_M3U8);
+                if (remoteM3U8.exists()) remoteM3U8.delete();
+                File keyM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY);
+                if (keyM3U8.exists()) keyM3U8.delete();
+                
+                LogUtils.i(DownloadConstants.TAG, "[MERGE] Cleanup completed, output: " + outputFile.getAbsolutePath());
+                listener.onCallback(taskItem);
+                
+            } catch (Exception e) {
+                LogUtils.e(DownloadConstants.TAG, "[MERGE] Merge failed: " + e.getMessage());
+                listener.onCallback(taskItem);
             }
-        });
+        }).start();
     }
-
-    private void retryMerge(VideoTaskItem taskItem, IM3U8MergeResultListener listener) {
-        LogUtils.i(DownloadConstants.TAG, "VideoMerge retryMerge taskItem=" + taskItem);
-        String inputPath = taskItem.getFilePath();
-        if (TextUtils.isEmpty(taskItem.getFileHash())) {
-            taskItem.setFileHash(VideoDownloadUtils.computeMD5(taskItem.getUrl()));
-        }
-        String outputPath = inputPath.substring(0, inputPath.lastIndexOf("/")) + File.separator + taskItem.getFileHash() + "_" + VideoDownloadUtils.OUTPUT_VIDEO;
-        File outputFile = new File(outputPath);
-        if (outputFile.exists()) {
-            outputFile.delete();
-        }
-        inputPath = inputPath.substring(0, inputPath.lastIndexOf("/")) + File.separator + taskItem.getFileHash() + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY;
-        VideoProcessManager.getInstance().transformM3U8ToMp4(inputPath, outputPath, new IVideoTransformListener() {
-            @Override
-            public void onTransformProgress(float progress) {
-
-            }
-
-            @Override
-            public void onTransformFailed(int err) {
-                LogUtils.i(DownloadConstants.TAG, "VideoMerge onTransformFailed err=" + err);
-                File outputFile = new File(outputPath);
-                if (outputFile.exists()) {
-                    outputFile.delete();
-                }
-                listener.onCallback(taskItem);
-            }
-
-            @Override
-            public void onTransformFinished() {
-                LogUtils.i(DownloadConstants.TAG, "VideoMerge onTransformFinished outputPath=" + outputPath);
-                taskItem.setFileName(VideoDownloadUtils.OUTPUT_VIDEO);
-                taskItem.setFilePath(outputPath);
-                taskItem.setMimeType(Video.Mime.MIME_TYPE_MP4);
-                taskItem.setVideoType(Video.Type.MP4_TYPE);
-                listener.onCallback(taskItem);
-
-                /// delete source file
-                File outputFile = new File(outputPath);
-                File[] files = outputFile.getParentFile().listFiles();
-                for (File subFile : files) {
-                    String subFilePath = subFile.getAbsolutePath();
-                    if (!subFilePath.endsWith(VideoDownloadUtils.OUTPUT_VIDEO)) {
-                        subFile.delete();
-                    }
+    
+    /**
+     * 解析m3u8文件获取TS文件路径列表
+     */
+    private List<String> parseM3U8ForTsFiles(File m3u8File) {
+        List<String> tsFiles = new java.util.ArrayList<>();
+        try {
+            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(m3u8File));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.startsWith("#") && line.endsWith(".ts")) {
+                    // TS文件路径
+                    tsFiles.add(line);
                 }
             }
-        });
+            reader.close();
+        } catch (Exception e) {
+            LogUtils.e(DownloadConstants.TAG, "[MERGE] Failed to parse m3u8: " + e.getMessage());
+        }
+        return tsFiles;
     }
 
     private void markDownloadInfoAddEvent(VideoTaskItem taskItem) {
