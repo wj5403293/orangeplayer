@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * 下载任务列表适配器
@@ -31,6 +32,7 @@ import java.util.concurrent.Executors;
 public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapter.ViewHolder> {
     
     private static final String TAG = "DownloadListAdapter";
+    private static final Object sLock = new Object();  // 同步锁
     
     private Context mContext;
     private List<VideoTaskItem> mItems = new ArrayList<>();
@@ -46,33 +48,39 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     }
     
     public void setItems(List<VideoTaskItem> items) {
-        mItems.clear();
-        if (items != null) {
-            mItems.addAll(items);
+        synchronized (sLock) {
+            mItems.clear();
+            if (items != null) {
+                mItems.addAll(items);
+            }
         }
         notifyDataSetChanged();
     }
     
     public void updateItem(VideoTaskItem item) {
-        for (int i = 0; i < mItems.size(); i++) {
-            if (mItems.get(i).getUrl().equals(item.getUrl())) {
-                mItems.set(i, item);
-                notifyItemChanged(i);
-                return;
+        synchronized (sLock) {
+            for (int i = 0; i < mItems.size(); i++) {
+                if (mItems.get(i).getUrl().equals(item.getUrl())) {
+                    mItems.set(i, item);
+                    notifyItemChanged(i);
+                    return;
+                }
             }
+            // 新任务，添加到列表
+            mItems.add(0, item);
+            notifyItemInserted(0);
         }
-        // 新任务，添加到列表
-        mItems.add(0, item);
-        notifyItemInserted(0);
     }
     
     public void removeItem(VideoTaskItem item) {
-        for (int i = 0; i < mItems.size(); i++) {
-            if (mItems.get(i).getUrl().equals(item.getUrl())) {
-                mItems.remove(i);
-                notifyItemRemoved(i);
-                notifyItemRangeChanged(i, mItems.size());
-                return;
+        synchronized (sLock) {
+            for (int i = 0; i < mItems.size(); i++) {
+                if (mItems.get(i).getUrl().equals(item.getUrl())) {
+                    mItems.remove(i);
+                    notifyItemRemoved(i);
+                    notifyItemRangeChanged(i, mItems.size());
+                    return;
+                }
             }
         }
     }
@@ -90,7 +98,14 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        VideoTaskItem item = mItems.get(position);
+        // 防止并发修改导致崩溃
+        VideoTaskItem item;
+        synchronized (sLock) {
+            if (position < 0 || position >= mItems.size()) {
+                return;
+            }
+            item = mItems.get(position);
+        }
         
         // 标题
         holder.tvTitle.setText(item.getTitle() != null ? item.getTitle() : "未知视频");
@@ -199,7 +214,9 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
                 btnAction.setImageResource(android.R.drawable.ic_media_play);
                 break;
             case VideoTaskState.SUCCESS:
+                // 下载完成显示播放图标
                 btnAction.setImageResource(android.R.drawable.ic_media_play);
+                btnAction.setColorFilter(0xFF4CAF50);  // 绿色
                 break;
             default:
                 btnAction.setImageResource(android.R.drawable.ic_media_play);
@@ -231,7 +248,9 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     
     @Override
     public int getItemCount() {
-        return mItems.size();
+        synchronized (sLock) {
+            return mItems.size();
+        }
     }
     
     // 线程池用于提取视频帧
@@ -239,13 +258,14 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     
     /**
      * 加载缩略图
-     * 优先级：封面URL > 视频URL(Glide提取帧) > 本地视频第一帧 > 默认图标
-     * Glide 支持直接从视频URL提取帧，包括m3u8
+     * 优先级：封面URL > 本地视频帧 > 视频URL(Glide) > 默认图标
+     * 对于m3u8类型，从本地ts分片或合并后的mp4提取帧
      */
     private void loadThumbnail(ViewHolder holder, VideoTaskItem item) {
         String coverUrl = item.getCoverUrl();
-        String videoUrl = item.getUrl();
         String filePath = item.getFilePath();
+        String saveDir = item.getSaveDir();
+        int videoType = item.getVideoType();
         
         // 1. 优先使用封面 URL
         if (coverUrl != null && !coverUrl.isEmpty()) {
@@ -258,56 +278,72 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
             return;
         }
         
-        // 2. 使用 Glide 从视频 URL 提取帧（支持 m3u8）
-        if (videoUrl != null && !videoUrl.isEmpty()) {
-            Glide.with(mContext)
-                .asBitmap()
-                .load(videoUrl)
-                .placeholder(R.drawable.ic_download)
-                .error(R.drawable.ic_download)
-                .centerCrop()
-                .timeout(5000)  // 5秒超时
-                .into(new com.bumptech.glide.request.target.CustomTarget<Bitmap>() {
-                    @Override
-                    public void onResourceReady(@androidx.annotation.NonNull Bitmap resource, @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super Bitmap> transition) {
-                        if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
-                            holder.ivThumbnail.setImageBitmap(resource);
-                        }
-                    }
-                    @Override
-                    public void onLoadCleared(@androidx.annotation.Nullable android.graphics.drawable.Drawable placeholder) {
-                        holder.ivThumbnail.setImageResource(R.drawable.ic_download);
-                    }
-                });
+        // 2. 已完成的本地视频，提取第一帧
+        if (item.isCompleted() && filePath != null && new File(filePath).exists()) {
+            loadLocalVideoFrame(holder, filePath);
             return;
         }
         
-        // 3. 已完成的本地视频，提取第一帧
-        if (item.isCompleted() && filePath != null && new File(filePath).exists()) {
-            // 使用 Glide 加载本地视频帧
-            Glide.with(mContext)
-                .asBitmap()
-                .load(new File(filePath))
-                .placeholder(R.drawable.ic_download)
-                .error(R.drawable.ic_download)
-                .centerCrop()
-                .into(new com.bumptech.glide.request.target.CustomTarget<Bitmap>() {
-                    @Override
-                    public void onResourceReady(@androidx.annotation.NonNull Bitmap resource, @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super Bitmap> transition) {
-                        if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
-                            holder.ivThumbnail.setImageBitmap(resource);
-                        }
-                    }
-                    @Override
-                    public void onLoadCleared(@androidx.annotation.Nullable android.graphics.drawable.Drawable placeholder) {
-                        holder.ivThumbnail.setImageResource(R.drawable.ic_download);
-                    }
-                });
-            return;
+        // 3. m3u8类型，尝试从本地ts分片提取帧
+        if (videoType == com.jeffmony.downloader.model.Video.Type.HLS_TYPE && saveDir != null) {
+            File tsFile = findFirstTsFile(saveDir);
+            if (tsFile != null && tsFile.exists()) {
+                loadLocalVideoFrame(holder, tsFile.getAbsolutePath());
+                return;
+            }
         }
         
         // 4. 默认图标
         holder.ivThumbnail.setImageResource(R.drawable.ic_download);
+    }
+    
+    /**
+     * 从本地视频文件提取第一帧
+     */
+    private void loadLocalVideoFrame(ViewHolder holder, String filePath) {
+        // 检查线程池是否已终止
+        if (mExecutor == null || mExecutor.isShutdown()) {
+            return;
+        }
+        try {
+            mExecutor.execute(() -> {
+                try {
+                    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                    retriever.setDataSource(filePath);
+                    Bitmap bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                    retriever.release();
+                    
+                    if (bitmap != null && holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
+                        Bitmap finalBitmap = bitmap;
+                        holder.ivThumbnail.post(() -> {
+                            if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
+                                holder.ivThumbnail.setImageBitmap(finalBitmap);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "Failed to extract frame from: " + filePath + ", " + e.getMessage());
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            // 线程池已终止，忽略
+        }
+    }
+    
+    /**
+     * 查找目录下第一个ts文件
+     */
+    private File findFirstTsFile(String saveDir) {
+        File dir = new File(saveDir);
+        if (!dir.exists() || !dir.isDirectory()) return null;
+        
+        File[] files = dir.listFiles((d, name) -> 
+            name.endsWith(".ts") || name.endsWith(".TS") || name.endsWith(".mp4") || name.endsWith(".MP4"));
+        
+        if (files != null && files.length > 0) {
+            return files[0];
+        }
+        return null;
     }
     
     /**

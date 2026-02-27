@@ -29,7 +29,7 @@ public class SingleVideoCacheThread implements Runnable {
     private Handler mMsgHandler;
     private int mId;
 
-    public SingleVideoCacheThread(String url, Map<String, String> headers, VideoRange range, long totalSize, String saveDir) {
+    public SingleVideoCacheThread(String url, Map<String, String> headers, VideoRange range, long totalSize, String saveDir, String saveName) {
         mUrl = url;
         if (headers == null) {
             headers = new HashMap<>();
@@ -37,7 +37,7 @@ public class SingleVideoCacheThread implements Runnable {
         mHeaders = headers;
         mRange = range;
         mTotalSize = totalSize;
-        mMd5 = VideoDownloadUtils.computeMD5(url);
+        mMd5 = saveName;  // 使用传入的saveName，保持与父类一致
         mSaveDir = new File(saveDir);
         if (!mSaveDir.exists()) {
             mSaveDir.mkdirs();  // 使用 mkdirs() 创建所有必需的父目录

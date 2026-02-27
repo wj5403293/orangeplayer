@@ -141,7 +141,7 @@ public class MultiSegVideoDownloadTask extends VideoDownloadTask {
             
             try {
                 LogUtils.i(DownloadConstants.TAG, "Creating thread " + i + " for range: " + mRangeList.get(i));
-                SingleVideoCacheThread thread = new SingleVideoCacheThread(mFinalUrl, mHeaders, mRangeList.get(i), mTotalLength, mSaveDir.getAbsolutePath());
+                SingleVideoCacheThread thread = new SingleVideoCacheThread(mFinalUrl, mHeaders, mRangeList.get(i), mTotalLength, mSaveDir.getAbsolutePath(), mSaveName);
 
                 thread.setHandler(mMultiMsgHandler);
 

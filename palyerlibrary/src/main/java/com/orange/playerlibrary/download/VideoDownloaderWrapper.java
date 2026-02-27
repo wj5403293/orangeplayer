@@ -262,9 +262,7 @@ public class VideoDownloaderWrapper {
             manager.startDownload(taskItem);
             android.util.Log.d("VideoDownloaderWrapper", "startDownload() called successfully");
             android.util.Log.d("VideoDownloaderWrapper", "========== downloadM3U8() END ==========");
-            
-            Toast.makeText(mContext, "开始下载视频\n文件名: " + fileName, 
-                Toast.LENGTH_LONG).show();
+            // Toast由事件管理器统一处理，此处不再显示
         } catch (Exception e) {
             android.util.Log.e("VideoDownloaderWrapper", "Exception in startDownload()", e);
             if (callback != null) {

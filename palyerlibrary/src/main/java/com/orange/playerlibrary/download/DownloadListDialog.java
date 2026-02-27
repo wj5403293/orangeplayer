@@ -68,6 +68,15 @@ public class DownloadListDialog extends Dialog {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             // 设置在锁屏和全屏模式下正常显示
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            // 保持沉浸模式，不触发系统UI显示
+            window.getDecorView().setSystemUiVisibility(
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
         }
         
         // 初始化视图
@@ -339,57 +348,15 @@ public class DownloadListDialog extends Dialog {
      * 显示删除确认对话框
      */
     private void showDeleteConfirmDialog(VideoTaskItem item) {
-        try {
-            Class<?> popTipClass = Class.forName("com.kongzue.dialogx.dialogs.PopTip");
-            java.lang.reflect.Method showMethod = popTipClass.getMethod("show", 
-                int.class, String.class, String.class);
-            Object popTip = showMethod.invoke(null, 
-                R.drawable.ic_delete, 
-                "确定删除该下载任务？", 
-                "删除");
-            
-            // 使用反射设置按钮点击监听
-            Class<?> listenerClass = Class.forName("com.kongzue.dialogx.interfaces.OnDialogButtonClickListener");
-            java.lang.reflect.Method setButtonMethod = popTipClass.getMethod("setButton", listenerClass);
-            
-            // 创建动态代理实现监听器接口
-            Object listener = java.lang.reflect.Proxy.newProxyInstance(
-                listenerClass.getClassLoader(),
-                new Class<?>[]{listenerClass},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("onClick")) {
-                        // 删除任务
-                        VideoDownloadManager.getInstance().deleteVideoTask(item.getUrl(), true);
-                        mAdapter.removeItem(item);
-                        showEmpty(mAdapter.getItemCount() == 0);
-                        showToast("已删除");
-                        return false;
-                    }
-                    return null;
-                });
-            setButtonMethod.invoke(popTip, listener);
-            
-            // 显示
-            java.lang.reflect.Method showLongMethod = popTipClass.getMethod("showLong");
-            showLongMethod.invoke(popTip);
-            
-        } catch (Exception e) {
-            // DialogX 不可用，使用原生对话框
-            showNativeDeleteConfirmDialog(item);
-        }
-    }
-    
-    /**
-     * 原生删除确认对话框（DialogX 不可用时使用）
-     */
-    private void showNativeDeleteConfirmDialog(VideoTaskItem item) {
         new android.app.AlertDialog.Builder(mContext)
+            .setIcon(R.drawable.ic_delete)
             .setTitle("删除下载任务")
             .setMessage("确定删除该下载任务？")
             .setPositiveButton("删除", (dialog, which) -> {
                 VideoDownloadManager.getInstance().deleteVideoTask(item.getUrl(), true);
                 mAdapter.removeItem(item);
                 showEmpty(mAdapter.getItemCount() == 0);
+                showToast("已删除");
             })
             .setNegativeButton("取消", null)
             .show();
@@ -399,55 +366,15 @@ public class DownloadListDialog extends Dialog {
      * 显示清空确认对话框
      */
     private void showClearAllConfirmDialog() {
-        try {
-            Class<?> popTipClass = Class.forName("com.kongzue.dialogx.dialogs.PopTip");
-            java.lang.reflect.Method showMethod = popTipClass.getMethod("show", 
-                int.class, String.class, String.class);
-            Object popTip = showMethod.invoke(null, 
-                R.drawable.ic_delete_all, 
-                "确定清空所有下载任务？", 
-                "清空");
-            
-            // 使用反射设置按钮点击监听
-            Class<?> listenerClass = Class.forName("com.kongzue.dialogx.interfaces.OnDialogButtonClickListener");
-            java.lang.reflect.Method setButtonMethod = popTipClass.getMethod("setButton", listenerClass);
-            
-            // 创建动态代理实现监听器接口
-            Object listener = java.lang.reflect.Proxy.newProxyInstance(
-                listenerClass.getClassLoader(),
-                new Class<?>[]{listenerClass},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("onClick")) {
-                        VideoDownloadManager.getInstance().deleteAllVideoFiles();
-                        mAdapter.setItems(null);
-                        showEmpty(true);
-                        showToast("已清空");
-                        return false;
-                    }
-                    return null;
-                });
-            setButtonMethod.invoke(popTip, listener);
-            
-            java.lang.reflect.Method showLongMethod = popTipClass.getMethod("showLong");
-            showLongMethod.invoke(popTip);
-            
-        } catch (Exception e) {
-            // DialogX 不可用，使用原生对话框
-            showNativeClearAllConfirmDialog();
-        }
-    }
-    
-    /**
-     * 原生清空确认对话框
-     */
-    private void showNativeClearAllConfirmDialog() {
         new android.app.AlertDialog.Builder(mContext)
+            .setIcon(R.drawable.ic_delete_all)
             .setTitle("清空下载任务")
             .setMessage("确定清空所有下载任务？")
             .setPositiveButton("清空", (dialog, which) -> {
                 VideoDownloadManager.getInstance().deleteAllVideoFiles();
                 mAdapter.setItems(null);
                 showEmpty(true);
+                showToast("已清空");
             })
             .setNegativeButton("取消", null)
             .show();

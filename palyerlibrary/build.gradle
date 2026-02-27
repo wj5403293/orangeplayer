@@ -46,7 +46,7 @@ dependencies {
     api project(':gsyVideoPlayer-proxy_cache')
     api project(':gsyVideoPlayer-java')
     
-    // Native so 文件模块 - compileOnly（让用户按需选择架构）
+    // Native so 文件模块 - compileOnly（让用户按需选择架构 ex_so为全架构）
     compileOnly project(':gsyVideoPlayer-armv7a')
     compileOnly project(':gsyVideoPlayer-armv64')
     compileOnly project(':gsyVideoPlayer-x86')
@@ -70,15 +70,10 @@ dependencies {
     // Vosk 离线语音识别 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly 'com.alphacephei:vosk-android:0.3.47'
     
-    // VideoDownloader 依赖（M3U8 下载需要）- compileOnly（用户按需添加）
+    // VideoDownloader 依赖
     // 注意：VideoDownloader 源码已集成到项目中，这些是它的依赖
     compileOnly 'com.squareup.okhttp3:okhttp:4.9.3'
     compileOnly 'com.google.code.gson:gson:2.10.1'
-
-    // DialogX 弹窗库
-    implementation('com.github.kongzue:DialogX:0.0.50') {
-        transitive = false
-    }
 }
 
 
