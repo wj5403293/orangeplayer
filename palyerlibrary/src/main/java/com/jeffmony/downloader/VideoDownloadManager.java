@@ -779,7 +779,7 @@ public class VideoDownloadManager {
                 LogUtils.i(DownloadConstants.TAG, "[MERGE] Found " + tsFiles.size() + " TS files to merge");
                 
                 // 合并输出文件路径
-                String outputFileName = fileHash + ".ts";  // 合并为单个TS文件
+                String outputFileName = fileHash + ".mp4";  // 扩展名用.mp4，播放器自动识别TS内容
                 File outputFile = new File(dir, outputFileName);
                 
                 // 合并TS文件
