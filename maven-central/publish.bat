@@ -99,8 +99,17 @@ if not exist "..\..\..\temp_bundle_build" mkdir "..\..\..\temp_bundle_build"
 xcopy /E /I /Y "io" "..\..\..\temp_bundle_build\io"
 cd ..\..\..
 
+REM Wait for file handles to release
+timeout /t 3 /nobreak >nul
+
 cd temp_bundle_build
-powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+REM Use 7z if available, otherwise PowerShell
+where 7z >nul 2>&1
+if errorlevel 1 (
+    powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+) else (
+    7z a -tzip "..\maven-central\bundle.zip" io -mx=5
+)
 cd ..
 rmdir /s /q temp_bundle_build
 
@@ -172,8 +181,17 @@ if not exist "..\..\..\temp_bundle_build" mkdir "..\..\..\temp_bundle_build"
 xcopy /E /I /Y "io" "..\..\..\temp_bundle_build\io"
 cd ..\..\..
 
+REM Wait for file handles to release
+timeout /t 3 /nobreak >nul
+
 cd temp_bundle_build
-powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+REM Use 7z if available, otherwise PowerShell
+where 7z >nul 2>&1
+if errorlevel 1 (
+    powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+) else (
+    7z a -tzip "..\maven-central\bundle.zip" io -mx=5
+)
 cd ..
 rmdir /s /q temp_bundle_build
 
@@ -311,8 +329,17 @@ for %%m in (base proxy_cache java exo_player2 aliplay armv7a armv64 x86 x86_64 e
 
 echo.
 echo [3/4] Creating Bundle...
+REM Wait for file handles to release
+timeout /t 3 /nobreak >nul
+
 cd temp_bundle_build
-powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+REM Use 7z if available, otherwise PowerShell
+where 7z >nul 2>&1
+if errorlevel 1 (
+    powershell -Command "Compress-Archive -Path io -DestinationPath ..\maven-central\bundle.zip -Force"
+) else (
+    7z a -tzip "..\maven-central\bundle.zip" io -mx=5
+)
 cd ..
 rmdir /s /q temp_bundle_build
 
