@@ -44,6 +44,9 @@ public class OrangeStandardVideoController extends FrameLayout {
     // UI 显示状态
     protected boolean mIsShowing = false;
     
+    // 控制器可见性开关（临时禁用显示，但保留功能）
+    protected boolean mControllerVisibilityEnabled = true;
+    
     // 显示/隐藏动画
     protected Animation mShowAnim;
     protected Animation mHideAnim;
@@ -195,6 +198,11 @@ public class OrangeStandardVideoController extends FrameLayout {
      * Requirements: 2.3
      */
     public void show() {
+        // 如果控制器可见性被禁用，直接返回
+        if (!mControllerVisibilityEnabled) {
+            android.util.Log.d("OrangeStandard", "show() - controller visibility disabled, skip");
+            return;
+        }
         android.util.Log.d("OrangeStandard", "show() called, mIsLocked=" + mIsLocked + ", mIsShowing=" + mIsShowing);
         if (!mIsShowing) {
             mIsShowing = true;
@@ -288,6 +296,33 @@ public class OrangeStandardVideoController extends FrameLayout {
         } else {
             show();
         }
+    }
+    
+    // ==================== 控制器可见性控制 ====================
+    
+    /**
+     * 设置控制器可见性是否启用
+     * 用于某些播放模式需要保留控制器功能但不显示UI
+     * 
+     * @param enabled true: 允许显示控制器(默认), false: 禁止显示控制器
+     */
+    public void setControllerVisibilityEnabled(boolean enabled) {
+        mControllerVisibilityEnabled = enabled;
+        android.util.Log.d("OrangeStandard", "setControllerVisibilityEnabled: " + enabled);
+        
+        // 如果禁用可见性，立即隐藏控制器
+        if (!enabled && mIsShowing) {
+            hide();
+        }
+    }
+    
+    /**
+     * 控制器可见性是否启用
+     * 
+     * @return true: 允许显示, false: 禁止显示
+     */
+    public boolean isControllerVisibilityEnabled() {
+        return mControllerVisibilityEnabled;
     }
 
     /**

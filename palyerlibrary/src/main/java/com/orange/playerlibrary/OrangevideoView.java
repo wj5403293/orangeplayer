@@ -2102,6 +2102,30 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             ensureEventBinding();
         }
     }
+    
+    /**
+     * 设置控制器可见性是否启用
+     * 用于某些播放模式需要保留控制器功能但不显示UI
+     * 
+     * @param enabled true: 允许显示控制器(默认), false: 禁止显示控制器UI
+     */
+    public void setControllerVisibilityEnabled(boolean enabled) {
+        if (mOrangeController != null) {
+            mOrangeController.setControllerVisibilityEnabled(enabled);
+        }
+    }
+    
+    /**
+     * 控制器可见性是否启用
+     * 
+     * @return true: 允许显示, false: 禁止显示
+     */
+    public boolean isControllerVisibilityEnabled() {
+        if (mOrangeController != null) {
+            return mOrangeController.isControllerVisibilityEnabled();
+        }
+        return true;
+    }
 
     public void setAutoThumbnailEnabled(boolean enabled) {
         this.mAutoThumbnailEnabled = enabled;

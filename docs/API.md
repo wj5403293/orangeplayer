@@ -1021,6 +1021,58 @@ void setLocked(boolean locked)
 boolean isLocked()
 ```
 
+#### setControllerVisibilityEnabled()
+
+设置控制器可见性是否启用。用于某些播放模式需要保留控制器功能但不显示UI。
+
+```java
+void setControllerVisibilityEnabled(boolean enabled)
+```
+
+**参数：**
+- `enabled` - true: 允许显示控制器(默认), false: 禁止显示控制器UI
+
+**说明：** 
+- 禁用后，控制器UI不会显示，但控制器功能仍然可用
+- 适用于需要后台控制但不希望用户看到UI的场景
+- 可通过 `OrangevideoView.setControllerVisibilityEnabled()` 或 `OrangeVideoController.setControllerVisibilityEnabled()` 调用
+
+**示例：**
+
+```java
+// 方式1：通过播放器视图设置
+videoView.setControllerVisibilityEnabled(false);  // 禁用控制器UI显示
+
+// 方式2：通过控制器设置
+OrangeVideoController controller = videoView.getVideoController();
+if (controller != null) {
+    controller.setControllerVisibilityEnabled(false);
+}
+
+// 恢复控制器UI显示
+videoView.setControllerVisibilityEnabled(true);
+```
+
+#### isControllerVisibilityEnabled()
+
+检查控制器可见性是否启用。
+
+```java
+boolean isControllerVisibilityEnabled()
+```
+
+**返回值：** true: 允许显示, false: 禁止显示
+
+**示例：**
+
+```java
+if (videoView.isControllerVisibilityEnabled()) {
+    // 控制器UI可以显示
+} else {
+    // 控制器UI被禁用
+}
+```
+
 ### 事件管理器
 
 #### getVideoEventManager()
