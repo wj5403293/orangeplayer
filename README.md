@@ -246,6 +246,7 @@ VideoSniffing.isDebug = true;
 
 查看完整文档了解更多功能：
 
+- [更新日志](docs/CHANGELOG.md) - 版本更新历史
 - [播放内核切换](docs/PLAYER_ENGINES.md) - 系统/ExoPlayer/IJK/阿里云
 - [OCR 字幕翻译](docs/OCR_GUIDE.md) - 硬字幕识别与翻译
 - [语音识别字幕](docs/SPEECH_RECOGNITION.md) - 实时语音转字幕
