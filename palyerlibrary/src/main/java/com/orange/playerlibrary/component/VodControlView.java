@@ -779,6 +779,12 @@ public class VodControlView extends FrameLayout implements IControlComponent,
 
     @Override
     public void onVisibilityChanged(boolean isVisible, Animation anim) {
+        // 如果控制器可见性被禁用，不显示UI
+        if (isVisible && mOrangeController != null && !mOrangeController.isControllerVisibilityEnabled()) {
+            android.util.Log.d("VodControlView", "onVisibilityChanged - controller visibility disabled, skip show");
+            return;
+        }
+        
         // 如果正在拖动进度条，不隐藏控制器
         if (!isVisible && mIsDragging) {
             android.util.Log.d("VodControlView", "onVisibilityChanged - dragging, skip hide");

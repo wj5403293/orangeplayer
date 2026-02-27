@@ -2113,6 +2113,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null) {
             mOrangeController.setControllerVisibilityEnabled(enabled);
         }
+        
+        // 立即触发显示或隐藏控制器
+        if (enabled) {
+            // 启用时立即显示控制器
+            showController();
+            android.util.Log.d("OrangevideoView", "setControllerVisibilityEnabled(true) - show controller");
+        } else {
+            // 禁用时立即隐藏控制器
+            hideController();
+            android.util.Log.d("OrangevideoView", "setControllerVisibilityEnabled(false) - hide controller");
+        }
     }
     
     /**
@@ -3490,6 +3501,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void onClickUiToggle(android.view.MotionEvent e) {
+        // 检查控制器可见性是否被禁用
+        if (!isControllerVisibilityEnabled()) {
+            android.util.Log.d("OrangevideoView", "onClickUiToggle - controller visibility disabled, ignore click");
+            return;
+        }
+        
         if (mCurrentPlayState != PlayerConstants.STATE_PLAYING && 
             mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
             mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
@@ -3506,6 +3523,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     public void showController() {
+        // 检查控制器可见性是否被禁用
+        if (!isControllerVisibilityEnabled()) {
+            android.util.Log.d("OrangevideoView", "showController - controller visibility disabled, skip show");
+            return;
+        }
+        
         // 检查锁定状态
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
         if (mVodControlView != null) {

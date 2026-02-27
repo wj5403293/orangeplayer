@@ -179,6 +179,10 @@ public class MainActivity extends AppCompatActivity {
         btnClearEpisodes.setOnClickListener(v -> clearEpisodes());
         btnTestFeature.setOnClickListener(v -> showMoreTestDialog());
 
+        // 控制器可见性测试按钮
+        Button btnControllerVisibility = findViewById(R.id.btn_controller_visibility);
+        btnControllerVisibility.setOnClickListener(v -> toggleControllerVisibility(btnControllerVisibility));
+
         // Activity 跳转测试按钮
         Button btnJumpTest = findViewById(R.id.btn_jump_test);
         btnJumpTest.setOnClickListener(v -> {
@@ -449,6 +453,17 @@ public class MainActivity extends AppCompatActivity {
             btn.setText(enabled ? "关闭弹幕" : "开启弹幕");
             log("弹幕: " + (enabled ? "开启" : "关闭"));
         }
+    }
+
+    /**
+     * 切换控制器可见性（测试临时禁用控制器UI功能）
+     */
+    private void toggleControllerVisibility(Button btn) {
+        boolean currentEnabled = mVideoView.isControllerVisibilityEnabled();
+        boolean newEnabled = !currentEnabled;
+        mVideoView.setControllerVisibilityEnabled(newEnabled);
+        btn.setText(newEnabled ? "禁用控制器UI" : "启用控制器UI");
+        log("控制器UI: " + (newEnabled ? "已启用" : "已禁用（功能保留）"));
     }
 
     private void setupBackPressedHandler() {
