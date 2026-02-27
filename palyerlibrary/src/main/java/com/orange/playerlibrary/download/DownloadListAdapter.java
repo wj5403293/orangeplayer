@@ -71,6 +71,7 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
             if (mItems.get(i).getUrl().equals(item.getUrl())) {
                 mItems.remove(i);
                 notifyItemRemoved(i);
+                notifyItemRangeChanged(i, mItems.size());
                 return;
             }
         }

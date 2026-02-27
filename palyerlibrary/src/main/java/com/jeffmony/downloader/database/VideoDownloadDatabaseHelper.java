@@ -90,6 +90,7 @@ public class VideoDownloadDatabaseHelper {
             values.put(VideoDownloadSQLiteHelper.Columns.COMPLETED, item.isCompleted());
             values.put(VideoDownloadSQLiteHelper.Columns.FILE_NAME, item.getFileName());
             values.put(VideoDownloadSQLiteHelper.Columns.FILE_PATH, item.getFilePath());
+            values.put(VideoDownloadSQLiteHelper.Columns.SAVE_DIR, item.getSaveDir());
             values.put(VideoDownloadSQLiteHelper.Columns.COVER_URL, item.getCoverUrl());
             values.put(VideoDownloadSQLiteHelper.Columns.COVER_PATH, item.getCoverPath());
             values.put(VideoDownloadSQLiteHelper.Columns.VIDEO_TITLE, item.getTitle());
@@ -123,6 +124,9 @@ public class VideoDownloadDatabaseHelper {
             values.put(VideoDownloadSQLiteHelper.Columns.CACHED_TS, item.getCurTs());
             values.put(VideoDownloadSQLiteHelper.Columns.TOTAL_TS, item.getTotalTs());
             values.put(VideoDownloadSQLiteHelper.Columns.COMPLETED, item.isCompleted());
+            values.put(VideoDownloadSQLiteHelper.Columns.FILE_NAME, item.getFileName());
+            values.put(VideoDownloadSQLiteHelper.Columns.FILE_PATH, item.getFilePath());
+            values.put(VideoDownloadSQLiteHelper.Columns.SAVE_DIR, item.getSaveDir());
             values.put(VideoDownloadSQLiteHelper.Columns.COVER_URL, item.getCoverUrl());
             values.put(VideoDownloadSQLiteHelper.Columns.COVER_PATH, item.getCoverPath());
             values.put(VideoDownloadSQLiteHelper.Columns.VIDEO_TITLE, item.getTitle());
@@ -188,6 +192,7 @@ public class VideoDownloadDatabaseHelper {
                     item.setIsCompleted(cursor.getInt(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.COMPLETED)) == 1 ? true : false);
                     item.setFileName(cursor.getString(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.FILE_NAME)));
                     item.setFilePath(cursor.getString(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.FILE_PATH)));
+                    item.setSaveDir(cursor.getString(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.SAVE_DIR)));
                     item.setCoverUrl(cursor.getString(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.COVER_URL)));
                     item.setCoverPath(cursor.getString(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.COVER_PATH)));
                     item.setTitle(cursor.getString(cursor.getColumnIndex(VideoDownloadSQLiteHelper.Columns.VIDEO_TITLE)));

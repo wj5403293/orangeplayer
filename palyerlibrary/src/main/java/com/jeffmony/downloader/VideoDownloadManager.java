@@ -184,20 +184,26 @@ public class VideoDownloadManager {
     }
 
     public void startDownload(VideoTaskItem taskItem) {
-        if (taskItem == null || TextUtils.isEmpty(taskItem.getUrl()))
+        LogUtils.i(DownloadConstants.TAG, "[QUEUE] startDownload() called, url=" + (taskItem != null ? taskItem.getUrl() : "null"));
+        if (taskItem == null || TextUtils.isEmpty(taskItem.getUrl())) {
+            LogUtils.w(DownloadConstants.TAG, "[QUEUE] startDownload() rejected: taskItem or url is null");
             return;
+        }
 
         synchronized (mQueueLock) {
             if (mVideoDownloadQueue.contains(taskItem)) {
                 taskItem = mVideoDownloadQueue.getTaskItem(taskItem.getUrl());
+                LogUtils.i(DownloadConstants.TAG, "[QUEUE] Task already in queue, using existing item");
             } else {
                 mVideoDownloadQueue.offer(taskItem);
+                LogUtils.i(DownloadConstants.TAG, "[QUEUE] Task added to queue, queueSize=" + mVideoDownloadQueue.size());
             }
         }
         
         taskItem.setPaused(false);
         taskItem.setDownloadCreateTime(taskItem.getDownloadCreateTime());
         taskItem.setTaskState(VideoTaskState.PENDING);
+        LogUtils.i(DownloadConstants.TAG, "[QUEUE] Task state set to PENDING, fileHash=" + taskItem.getFileHash());
         VideoTaskItem tempTaskItem = (VideoTaskItem) taskItem.clone();
         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PENDING, tempTaskItem).sendToTarget();
         startDownload(taskItem, null);
@@ -262,6 +268,13 @@ public class VideoDownloadManager {
             @Override
             public void onM3U8InfoSuccess(VideoTaskItem info, M3U8 m3u8) {
                 taskItem.setMimeType(info.getMimeType());
+                taskItem.setSaveDir(info.getSaveDir());
+                taskItem.setVideoType(info.getVideoType());
+                // 设置filePath用于后续合并
+                if (!TextUtils.isEmpty(info.getSaveDir()) && !TextUtils.isEmpty(info.getFileHash())) {
+                    taskItem.setFileHash(info.getFileHash());
+                    taskItem.setFilePath(info.getSaveDir() + File.separator + info.getFileHash() + "_" + VideoDownloadUtils.LOCAL_M3U8);
+                }
                 startM3U8VideoDownloadTask(taskItem, m3u8, headers);
             }
 
@@ -285,12 +298,21 @@ public class VideoDownloadManager {
     }
 
     private void startM3U8VideoDownloadTask(final VideoTaskItem taskItem, M3U8 m3u8, Map<String, String> headers) {
+        LogUtils.i(DownloadConstants.TAG, "[M3U8] startM3U8VideoDownloadTask called, url=" + taskItem.getUrl());
+        LogUtils.i(DownloadConstants.TAG, "[M3U8] saveDir=" + taskItem.getSaveDir() + ", fileHash=" + taskItem.getFileHash() + ", filePath=" + taskItem.getFilePath());
         taskItem.setTaskState(VideoTaskState.PREPARE);
         mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
         VideoTaskItem tempTaskItem = (VideoTaskItem) taskItem.clone();
         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PREPARE, tempTaskItem).sendToTarget();
         synchronized (mQueueLock) {
-            if (mVideoDownloadQueue.getDownloadingCount() >= mConfig.getConcurrentCount()) {
+            if (!mVideoDownloadQueue.contains(taskItem)) {
+                mVideoDownloadQueue.offer(taskItem);
+            }
+            int downloadingCount = mVideoDownloadQueue.getDownloadingCount();
+            int concurrentCount = mConfig.getConcurrentCount();
+            LogUtils.i(DownloadConstants.TAG, "[M3U8] downloadingCount=" + downloadingCount + ", concurrentCount=" + concurrentCount);
+            if (downloadingCount >= concurrentCount) {
+                LogUtils.w(DownloadConstants.TAG, "[M3U8] Concurrent limit reached, task will wait");
                 return;
             }
         }
@@ -303,12 +325,21 @@ public class VideoDownloadManager {
     }
 
     private void startBaseVideoDownloadTask(VideoTaskItem taskItem, Map<String, String> headers) {
+        LogUtils.i(DownloadConstants.TAG, "[BASE] startBaseVideoDownloadTask called, url=" + taskItem.getUrl());
+        LogUtils.i(DownloadConstants.TAG, "[BASE] mimeType=" + taskItem.getMimeType() + ", fileHash=" + taskItem.getFileHash());
         taskItem.setTaskState(VideoTaskState.PREPARE);
         mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
         VideoTaskItem tempTaskItem = (VideoTaskItem) taskItem.clone();
         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PREPARE, tempTaskItem).sendToTarget();
         synchronized (mQueueLock) {
-            if (mVideoDownloadQueue.getDownloadingCount() >= mConfig.getConcurrentCount()) {
+            if (!mVideoDownloadQueue.contains(taskItem)) {
+                mVideoDownloadQueue.offer(taskItem);
+            }
+            int downloadingCount = mVideoDownloadQueue.getDownloadingCount();
+            int concurrentCount = mConfig.getConcurrentCount();
+            LogUtils.i(DownloadConstants.TAG, "[BASE] downloadingCount=" + downloadingCount + ", concurrentCount=" + concurrentCount);
+            if (downloadingCount >= concurrentCount) {
+                LogUtils.w(DownloadConstants.TAG, "[BASE] Concurrent limit reached, task will wait");
                 return;
             }
         }
@@ -321,6 +352,33 @@ public class VideoDownloadManager {
         startDownloadTask(downloadTask, taskItem);
     }
 
+    private void tryStartNextPendingTask() {
+        LogUtils.i(DownloadConstants.TAG, "[SCHEDULE] tryStartNextPendingTask called");
+        VideoTaskItem pendingTask;
+        synchronized (mQueueLock) {
+            if (mConfig == null) {
+                LogUtils.w(DownloadConstants.TAG, "[SCHEDULE] mConfig is null, cannot start next");
+                return;
+            }
+            int downloadingCount = mVideoDownloadQueue.getDownloadingCount();
+            int concurrentCount = mConfig.getConcurrentCount();
+            int pendingCount = mVideoDownloadQueue.getPendingCount();
+            LogUtils.i(DownloadConstants.TAG, "[SCHEDULE] downloading=" + downloadingCount + ", concurrent=" + concurrentCount + ", pending=" + pendingCount);
+            if (downloadingCount >= concurrentCount) {
+                LogUtils.w(DownloadConstants.TAG, "[SCHEDULE] Concurrent limit reached, no new task started");
+                return;
+            }
+            pendingTask = mVideoDownloadQueue.peekPendingTask();
+        }
+
+        if (pendingTask == null) {
+            LogUtils.i(DownloadConstants.TAG, "[SCHEDULE] No pending task found");
+            return;
+        }
+        LogUtils.i(DownloadConstants.TAG, "[SCHEDULE] Starting pending task: " + pendingTask.getUrl());
+        startDownload(pendingTask, null);
+    }
+
     private void startDownloadTask(VideoDownloadTask downloadTask, VideoTaskItem taskItem) {
         LogUtils.i(DownloadConstants.TAG, "startDownloadTask() called for URL: " + taskItem.getUrl());
         if (downloadTask != null) {
@@ -330,6 +388,7 @@ public class VideoDownloadManager {
                     LogUtils.i(DownloadConstants.TAG, "onTaskStart: " + url);
                     taskItem.setTaskState(VideoTaskState.START);
                     mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_START, taskItem).sendToTarget();
+                    tryStartNextPendingTask();
                 }
 
                 @Override
@@ -364,8 +423,8 @@ public class VideoDownloadManager {
                         taskItem.setTaskState(VideoTaskState.PAUSE);
                         taskItem.setPaused(true);
                         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PAUSE, taskItem).sendToTarget();
-                        mVideoDownloadHandler.removeMessages(DownloadConstants.MSG_DOWNLOAD_PROCESSING);
                     }
+                    tryStartNextPendingTask();
                 }
 
                 @Override
@@ -380,7 +439,6 @@ public class VideoDownloadManager {
                             taskItem.setFilePath(taskItem.getSaveDir() + File.separator + taskItem.getFileHash() + "_" + VideoDownloadUtils.LOCAL_M3U8);
                             taskItem.setFileName(taskItem.getFileHash() + "_" + VideoDownloadUtils.LOCAL_M3U8);
                         } else {
-                            // 根据 MimeType 确定文件扩展名
                             String extension = getFileExtensionFromMimeType(taskItem.getMimeType());
                             taskItem.setFilePath(taskItem.getSaveDir() + File.separator + taskItem.getFileHash() + extension);
                             taskItem.setFileName(taskItem.getFileHash() + extension);
@@ -388,6 +446,8 @@ public class VideoDownloadManager {
                         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_SUCCESS, taskItem).sendToTarget();
                         mVideoDownloadHandler.removeMessages(DownloadConstants.MSG_DOWNLOAD_PROCESSING);
                     }
+                    removeDownloadQueue(taskItem);
+                    tryStartNextPendingTask();
                 }
 
                 @Override
@@ -670,11 +730,28 @@ public class VideoDownloadManager {
     }
 
     private void doMergeTs(VideoTaskItem taskItem, IM3U8MergeResultListener listener) {
-        if (taskItem == null || TextUtils.isEmpty(taskItem.getFilePath())) {
+        LogUtils.i(DownloadConstants.TAG, "[MERGE] doMergeTs called");
+        if (taskItem == null) {
+            LogUtils.e(DownloadConstants.TAG, "[MERGE] taskItem is null, skip merge");
             listener.onCallback(taskItem);
             return;
         }
-        LogUtils.i(DownloadConstants.TAG, "VideoMerge doMergeTs taskItem=" + taskItem);
+        if (TextUtils.isEmpty(taskItem.getFilePath())) {
+            LogUtils.e(DownloadConstants.TAG, "[MERGE] filePath is null or empty, saveDir=" + taskItem.getSaveDir() + ", fileHash=" + taskItem.getFileHash());
+            listener.onCallback(taskItem);
+            return;
+        }
+        LogUtils.i(DownloadConstants.TAG, "[MERGE] taskItem url=" + taskItem.getUrl() + ", filePath=" + taskItem.getFilePath());
+        
+        // 检查输入文件是否存在
+        File inputFile = new File(taskItem.getFilePath());
+        if (!inputFile.exists()) {
+            LogUtils.e(DownloadConstants.TAG, "[MERGE] Input file not exists: " + taskItem.getFilePath());
+            listener.onCallback(taskItem);
+            return;
+        }
+        LogUtils.i(DownloadConstants.TAG, "[MERGE] Input file exists, size=" + inputFile.length());
+        
         String inputPath = taskItem.getFilePath();
         if (TextUtils.isEmpty(taskItem.getFileHash())) {
             taskItem.setFileHash(VideoDownloadUtils.computeMD5(taskItem.getUrl()));
@@ -693,6 +770,7 @@ public class VideoDownloadManager {
 
             @Override
             public void onTransformFailed(int err) {
+                LogUtils.e(DownloadConstants.TAG, "[MERGE] onTransformFailed err=" + err + ", inputPath=" + inputPath + ", outputPath=" + outputPath);
                 retryMerge(taskItem, listener);
                 // LogUtils.i(DownloadConstants.TAG, "VideoMerge onTransformFailed err=" + err);
                 // File outputFile = new File(outputPath);

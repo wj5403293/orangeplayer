@@ -57,21 +57,32 @@ public class VideoDownloadListAdapter extends ArrayAdapter<VideoTaskItem> {
     linear.setOnClickListener(new View.OnClickListener(){
       @Override
       public void onClick(View v) {
+        LogUtils.i(TAG, "[UI_CLICK] Task clicked, url=" + item.getUrl() + ", state=" + item.getTaskState());
         if (item.isInitialTask()) {
+          LogUtils.i(TAG, "[UI_CLICK] isInitialTask=true, calling startDownload");
           VideoDownloadManager.getInstance().startDownload(item);
         } else if (item.isRunningTask()) {
+          LogUtils.i(TAG, "[UI_CLICK] isRunningTask=true, calling pauseDownloadTask");
           VideoDownloadManager.getInstance().pauseDownloadTask(item.getUrl());
         } else if (item.isInterruptTask()) {
+          LogUtils.i(TAG, "[UI_CLICK] isInterruptTask=true, calling resumeDownload");
           VideoDownloadManager.getInstance().resumeDownload(item.getUrl());
+        } else if (item.isPendingTask()) {
+          // 任务在等待中，可能是并发限制导致，尝试启动
+          LogUtils.i(TAG, "[UI_CLICK] isPendingTask=true, task is waiting in queue");
         } else if (item.isCompleted()){
+          LogUtils.i(TAG, "[UI_CLICK] isCompleted=true, opening file");
           //下载完成点击
           String filePath = item.getFilePath();
           File file = new File(filePath);
           if (file.exists()) {
             //Toast.makeText(mContext,item.getFilePath(),Toast.LENGTH_SHORT).show();
             downitem.onclick(item.getFilePath());
+          } else {
+            LogUtils.w(TAG, "[UI_CLICK] File not exists: " + filePath);
           }
-          
+        } else {
+          LogUtils.w(TAG, "[UI_CLICK] Unknown state: " + item.getTaskState());
         }
       }
     });

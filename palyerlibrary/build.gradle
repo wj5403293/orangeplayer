@@ -76,9 +76,10 @@ dependencies {
     compileOnly 'com.google.code.gson:gson:2.10.1'
     compileOnly files('libs/JeffVideoLib-2.5.1.aar')  // M3U8 处理库（本地 AAR）
     
-    // DialogX 弹窗库 - compileOnly（用户按需添加）
-    // JitPack 格式: com.github.用户名:项目名:版本号
-    compileOnly 'com.github.kongzue:DialogX:latest.release'
+    // DialogX 弹窗库
+    implementation('com.github.kongzue:DialogX:0.0.50') {
+        transitive = false
+    }
 }
 
 

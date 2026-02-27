@@ -9,7 +9,7 @@ public class LogUtils {
     private static final int LOG_WARN = 4;
     private static final int LOG_ERROR = 5;
 
-    private static int sLogLevel = LOG_INFO;
+    private static int sLogLevel = LOG_DEBUG;  // 默认开启DEBUG日志
 
     public static void setLogLevel(int level) {
         sLogLevel = level;

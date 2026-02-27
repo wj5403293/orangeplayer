@@ -46,13 +46,11 @@ public class VideoDownloaderWrapper {
     public void init() {
         android.util.Log.d("VideoDownloaderWrapper", "========== init() START ==========");
         
-        // 使用公共 Download 目录，不需要权限
-        File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File cacheDir = new File(downloadDir, "orangeplayer");
+        // 使用应用私有目录，避免重装后权限冲突
+        // context.getExternalFilesDir() 返回应用私有目录，卸载后自动清理
+        File cacheDir = new File(mContext.getExternalFilesDir(null), "Download");
         
-        android.util.Log.d("VideoDownloaderWrapper", "Download directory: " + downloadDir.getAbsolutePath());
         android.util.Log.d("VideoDownloaderWrapper", "Cache directory: " + cacheDir.getAbsolutePath());
-        android.util.Log.d("VideoDownloaderWrapper", "Download dir exists: " + downloadDir.exists());
         
         // 确保目录存在
         if (!cacheDir.exists()) {
@@ -251,7 +249,6 @@ public class VideoDownloaderWrapper {
         android.util.Log.d("VideoDownloaderWrapper", "  Title: " + taskItem.getTitle());
         android.util.Log.d("VideoDownloaderWrapper", "  FileName: " + taskItem.getFileName());
         android.util.Log.d("VideoDownloaderWrapper", "  GroupName: " + taskItem.getGroupName());
-        android.util.Log.d("VideoDownloaderWrapper", "  SaveDir: " + taskItem.getSaveDir());
         
         // 保存回调
         if (callback != null) {

@@ -55,10 +55,19 @@ public class DownloadListDialog extends Dialog {
         // 设置对话框宽度
         Window window = getWindow();
         if (window != null) {
+            // 全屏模式下不拉出状态栏和导航栏
+            window.setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            );
             window.setLayout(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
             );
+            // 清除 NOT_FOCUSABLE 标志，恢复焦点
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            // 设置在锁屏和全屏模式下正常显示
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
         
         // 初始化视图
@@ -339,18 +348,26 @@ public class DownloadListDialog extends Dialog {
                 "确定删除该下载任务？", 
                 "删除");
             
-            // 设置按钮点击监听
-            java.lang.reflect.Method setButtonMethod = popTipClass.getMethod("setButton", 
-                Class.forName("com.kongzue.dialogx.interfaces.OnDialogButtonClickListener"));
-            setButtonMethod.invoke(popTip, (com.kongzue.dialogx.interfaces.OnDialogButtonClickListener) 
-                (popTip1, v) -> {
-                    // 删除任务
-                    VideoDownloadManager.getInstance().deleteVideoTask(item.getUrl(), true);
-                    mAdapter.removeItem(item);
-                    showEmpty(mAdapter.getItemCount() == 0);
-                    showToast("已删除");
-                    return false;
+            // 使用反射设置按钮点击监听
+            Class<?> listenerClass = Class.forName("com.kongzue.dialogx.interfaces.OnDialogButtonClickListener");
+            java.lang.reflect.Method setButtonMethod = popTipClass.getMethod("setButton", listenerClass);
+            
+            // 创建动态代理实现监听器接口
+            Object listener = java.lang.reflect.Proxy.newProxyInstance(
+                listenerClass.getClassLoader(),
+                new Class<?>[]{listenerClass},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("onClick")) {
+                        // 删除任务
+                        VideoDownloadManager.getInstance().deleteVideoTask(item.getUrl(), true);
+                        mAdapter.removeItem(item);
+                        showEmpty(mAdapter.getItemCount() == 0);
+                        showToast("已删除");
+                        return false;
+                    }
+                    return null;
                 });
+            setButtonMethod.invoke(popTip, listener);
             
             // 显示
             java.lang.reflect.Method showLongMethod = popTipClass.getMethod("showLong");
@@ -391,16 +408,25 @@ public class DownloadListDialog extends Dialog {
                 "确定清空所有下载任务？", 
                 "清空");
             
-            java.lang.reflect.Method setButtonMethod = popTipClass.getMethod("setButton", 
-                Class.forName("com.kongzue.dialogx.interfaces.OnDialogButtonClickListener"));
-            setButtonMethod.invoke(popTip, (com.kongzue.dialogx.interfaces.OnDialogButtonClickListener) 
-                (popTip1, v) -> {
-                    VideoDownloadManager.getInstance().deleteAllVideoFiles();
-                    mAdapter.setItems(null);
-                    showEmpty(true);
-                    showToast("已清空");
-                    return false;
+            // 使用反射设置按钮点击监听
+            Class<?> listenerClass = Class.forName("com.kongzue.dialogx.interfaces.OnDialogButtonClickListener");
+            java.lang.reflect.Method setButtonMethod = popTipClass.getMethod("setButton", listenerClass);
+            
+            // 创建动态代理实现监听器接口
+            Object listener = java.lang.reflect.Proxy.newProxyInstance(
+                listenerClass.getClassLoader(),
+                new Class<?>[]{listenerClass},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("onClick")) {
+                        VideoDownloadManager.getInstance().deleteAllVideoFiles();
+                        mAdapter.setItems(null);
+                        showEmpty(true);
+                        showToast("已清空");
+                        return false;
+                    }
+                    return null;
                 });
+            setButtonMethod.invoke(popTip, listener);
             
             java.lang.reflect.Method showLongMethod = popTipClass.getMethod("showLong");
             showLongMethod.invoke(popTip);

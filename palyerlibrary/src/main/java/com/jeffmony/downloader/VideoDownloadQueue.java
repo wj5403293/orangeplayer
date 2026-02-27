@@ -25,6 +25,7 @@ public class VideoDownloadQueue {
     //put it into queue
     public void offer(VideoTaskItem taskItem) {
         mQueue.add(taskItem);
+        LogUtils.i(DownloadConstants.TAG, "[QUEUE] offer() - Task added, url=" + (taskItem != null ? taskItem.getUrl() : "null") + ", queueSize=" + mQueue.size());
     }
 
     //Remove Queue head item,
@@ -56,8 +57,11 @@ public class VideoDownloadQueue {
 
     public boolean remove(VideoTaskItem taskItem) {
         if (contains(taskItem)) {
-            return mQueue.remove(taskItem);
+            boolean removed = mQueue.remove(taskItem);
+            LogUtils.i(DownloadConstants.TAG, "[QUEUE] remove() - Task removed, url=" + (taskItem != null ? taskItem.getUrl() : "null") + ", queueSize=" + mQueue.size());
+            return removed;
         }
+        LogUtils.w(DownloadConstants.TAG, "[QUEUE] remove() - Task not in queue, url=" + (taskItem != null ? taskItem.getUrl() : "null"));
         return false;
     }
 
@@ -98,13 +102,16 @@ public class VideoDownloadQueue {
         int count = 0;
         try {
             for (int index = 0; index < mQueue.size(); index++) {
-                if (isTaskRunnig(mQueue.get(index))) {
+                VideoTaskItem item = mQueue.get(index);
+                if (isTaskRunnig(item)) {
                     count++;
+                    LogUtils.i(DownloadConstants.TAG, "[QUEUE] getDownloadingCount() - Running task: " + item.getUrl() + ", state=" + item.getTaskState());
                 }
             }
         } catch (Exception e) {
             LogUtils.w(DownloadConstants.TAG, "DownloadQueue getDownloadingCount failed.");
         }
+        LogUtils.i(DownloadConstants.TAG, "[QUEUE] getDownloadingCount() result=" + count + ", queueSize=" + mQueue.size());
         return count;
     }
 
@@ -127,12 +134,14 @@ public class VideoDownloadQueue {
             for (int index = 0; index < mQueue.size(); index++) {
                 VideoTaskItem taskItem = mQueue.get(index);
                 if (isTaskPending(taskItem)) {
+                    LogUtils.i(DownloadConstants.TAG, "[QUEUE] peekPendingTask() - Found pending task: " + taskItem.getUrl() + ", state=" + taskItem.getTaskState());
                     return taskItem;
                 }
             }
         } catch (Exception e) {
-            LogUtils.w(DownloadConstants.TAG, "DownloadQueue getDownloadingCount failed.");
+            LogUtils.w(DownloadConstants.TAG, "DownloadQueue peekPendingTask failed.");
         }
+        LogUtils.i(DownloadConstants.TAG, "[QUEUE] peekPendingTask() - No pending task found, queueSize=" + mQueue.size());
         return null;
     }
 

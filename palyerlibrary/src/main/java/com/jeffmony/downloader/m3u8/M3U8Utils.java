@@ -302,6 +302,11 @@ public class M3U8Utils {
         if (m3u8File.exists()) {
             return;
         }
+        // 使用原子操作创建文件，避免并发冲突
+        if (!m3u8File.createNewFile()) {
+            // 如果创建失败（文件已被其他线程创建），直接返回
+            return;
+        }
         BufferedWriter bfw = new BufferedWriter(new FileWriter(m3u8File, false));
         bfw.write(M3U8Constants.PLAYLIST_HEADER + "\n");
         bfw.write(M3U8Constants.TAG_VERSION + ":" + m3u8.getVersion() + "\n");

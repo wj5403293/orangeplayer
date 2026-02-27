@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "video_download_info.db";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 5;  // 升级版本以添加SAVE_DIR列
 
     public static final String TABLE_VIDEO_DOWNLOAD_INFO = "video_download_info";
 
@@ -26,6 +26,7 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
         public static final String COMPLETED = "completed";
         public static final String FILE_NAME = "file_name";
         public static final String FILE_PATH = "file_path";
+        public static final String SAVE_DIR = "save_dir";  // 新增：保存目录
         public static final String COVER_URL = "cover_url";
         public static final String COVER_PATH = "cover_path";
         public static final String VIDEO_TITLE = "video_title";
@@ -46,11 +47,14 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
         if (oldVersion == 1) {
             upgradeDatabaseToVersion2(db);
         }
-        if (oldVersion == 2) {
+        if (oldVersion <= 2) {
             upgradeDatabaseToVersion3(db);
         }
-        if (oldVersion == 3) {
+        if (oldVersion <= 3) {
             upgradeDatabaseToVersion4(db);
+        }
+        if (oldVersion <= 4) {
+            upgradeDatabaseToVersion5(db);
         }
     }
 
@@ -75,6 +79,7 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
                 + Columns.COMPLETED + " TINYINT, "
                 + Columns.FILE_NAME + " TEXT Default 0, "
                 + Columns.FILE_PATH + " TEXT, "
+                + Columns.SAVE_DIR + " TEXT, "
                 + Columns.COVER_URL + " TEXT, "
                 + Columns.COVER_PATH + " TEXT,"
                 + Columns.VIDEO_TITLE + " TEXT,"
@@ -92,5 +97,9 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
 
     private void upgradeDatabaseToVersion4(SQLiteDatabase db) {
         db.execSQL("ALTER TABLE " + TABLE_VIDEO_DOWNLOAD_INFO + " ADD COLUMN " + Columns.GROUP_NAME + " TEXT");
+    }
+
+    private void upgradeDatabaseToVersion5(SQLiteDatabase db) {
+        db.execSQL("ALTER TABLE " + TABLE_VIDEO_DOWNLOAD_INFO + " ADD COLUMN " + Columns.SAVE_DIR + " TEXT");
     }
 }

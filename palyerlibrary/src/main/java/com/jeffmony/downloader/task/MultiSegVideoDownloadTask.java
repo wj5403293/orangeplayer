@@ -11,6 +11,7 @@ import com.jeffmony.downloader.model.VideoTaskItem;
 import com.jeffmony.downloader.utils.LogUtils;
 import com.jeffmony.downloader.utils.VideoDownloadUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -278,9 +279,83 @@ public class MultiSegVideoDownloadTask extends VideoDownloadTask {
     private void notifyDownloadFinish() {
         synchronized (mDownloadLock) {
             if (!mDownloadFinished) {
+                // 重命名临时文件为正确的扩展名
+                renameVideoFileToCorrectExtension();
                 mDownloadTaskListener.onTaskFinished(mTotalLength);
                 mDownloadFinished = true;
             }
         }
+    }
+    
+    /**
+     * 将临时 .video 文件重命名为正确的扩展名
+     */
+    private void renameVideoFileToCorrectExtension() {
+        try {
+            String tempFileName = mSaveName + VideoDownloadUtils.VIDEO_SUFFIX;
+            File tempFile = new File(mSaveDir, tempFileName);
+            
+            if (!tempFile.exists()) {
+                LogUtils.w(DownloadConstants.TAG, "[MP4_RENAME] Temp file not found: " + tempFile.getAbsolutePath());
+                return;
+            }
+            
+            // 根据mimeType确定正确的扩展名
+            String extension = getCorrectExtension();
+            String correctFileName = mSaveName + extension;
+            File correctFile = new File(mSaveDir, correctFileName);
+            
+            // 如果目标文件已存在，先删除
+            if (correctFile.exists()) {
+                correctFile.delete();
+            }
+            
+            // 重命名文件
+            boolean renamed = tempFile.renameTo(correctFile);
+            LogUtils.i(DownloadConstants.TAG, "[MP4_RENAME] Rename result: " + renamed + ", from=" + tempFileName + ", to=" + correctFileName);
+            
+            if (renamed) {
+                // 更新taskItem的文件信息
+                mTaskItem.setFileName(correctFileName);
+                mTaskItem.setFilePath(correctFile.getAbsolutePath());
+                LogUtils.i(DownloadConstants.TAG, "[MP4_RENAME] File path updated: " + correctFile.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            LogUtils.e(DownloadConstants.TAG, "[MP4_RENAME] Error renaming file: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 根据mimeType或URL获取正确的文件扩展名
+     */
+    private String getCorrectExtension() {
+        String mimeType = mTaskItem.getMimeType();
+        if (mimeType != null) {
+            if (mimeType.contains("mp4") || mimeType.contains("MP4")) {
+                return ".mp4";
+            } else if (mimeType.contains("webm")) {
+                return ".webm";
+            } else if (mimeType.contains("quicktime") || mimeType.contains("mov")) {
+                return ".mov";
+            } else if (mimeType.contains("3gp")) {
+                return ".3gp";
+            } else if (mimeType.contains("mkv")) {
+                return ".mkv";
+            }
+        }
+        
+        // 从URL推断扩展名
+        String url = mTaskItem.getUrl();
+        if (url != null) {
+            String lowerUrl = url.toLowerCase();
+            if (lowerUrl.contains(".mp4")) return ".mp4";
+            if (lowerUrl.contains(".webm")) return ".webm";
+            if (lowerUrl.contains(".mov")) return ".mov";
+            if (lowerUrl.contains(".3gp")) return ".3gp";
+            if (lowerUrl.contains(".mkv")) return ".mkv";
+        }
+        
+        // 默认使用mp4扩展名
+        return ".mp4";
     }
 }

@@ -79,14 +79,18 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
 
     @Override
     public void startDownload() {
+        LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] startDownload() called, url=" + mTaskItem.getUrl());
+        LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] totalTs=" + mTotalTs + ", saveDir=" + mSaveDir.getAbsolutePath());
         mDownloadTaskListener.onTaskStart(mTaskItem.getUrl());
         initM3U8Ts();
+        LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] initM3U8Ts done, curTs=" + mCurTs + ", isCompleted=" + mTaskItem.isCompleted());
         startDownload(mCurTs);
     }
 
     private void startDownload(int curDownloadTs) {
+        LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] startDownload(curDownloadTs=" + curDownloadTs + ") called");
         if (mTaskItem.isCompleted()) {
-            LogUtils.i(DownloadConstants.TAG, "M3U8VideoDownloadTask local file.");
+            LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] Task already completed, calling notifyDownloadFinish");
             notifyDownloadFinish();
             return;
         }
@@ -191,11 +195,15 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
             }
         }
         if (isCompleted) {
+            LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] All TS segments completed, creating local m3u8 files");
             try {
                 createLocalM3U8File();
                 createLocalM3U8FileWithKey();
+                LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] Local m3u8 files created successfully");
             } catch (Exception e) {
+                LogUtils.e(DownloadConstants.TAG, "[M3U8_TASK] Failed to create local m3u8: " + e.getMessage());
                 notifyDownloadError(e);
+                return;
             }
             synchronized (mDownloadLock) {
                 if (!mDownloadFinished) {
@@ -228,13 +236,30 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
     }
 
     private void notifyDownloadFinish(long size) {
+        LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] notifyDownloadFinish called, size=" + size + ", isCompleted=" + mTaskItem.isCompleted());
         if (mTaskItem.isCompleted()) {
             synchronized (mDownloadLock) {
                 if (!mDownloadFinished) {
+                    // 确保filePath正确设置
+                    String localM3U8Path = mSaveDir.getAbsolutePath() + File.separator + mSaveName + "_" + VideoDownloadUtils.LOCAL_M3U8;
+                    mTaskItem.setFilePath(localM3U8Path);
+                    mTaskItem.setFileName(mSaveName + "_" + VideoDownloadUtils.LOCAL_M3U8);
+                    LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] Setting filePath: " + localM3U8Path);
+                    
+                    // 验证文件是否存在
+                    File m3u8File = new File(localM3U8Path);
+                    if (m3u8File.exists()) {
+                        LogUtils.i(DownloadConstants.TAG, "[M3U8_TASK] Local m3u8 file exists, size=" + m3u8File.length());
+                    } else {
+                        LogUtils.e(DownloadConstants.TAG, "[M3U8_TASK] Local m3u8 file NOT exists: " + localM3U8Path);
+                    }
+                    
                     mDownloadTaskListener.onTaskFinished(size);
                     mDownloadFinished = true;
                 }
             }
+        } else {
+            LogUtils.w(DownloadConstants.TAG, "[M3U8_TASK] notifyDownloadFinish called but task not marked as completed");
         }
     }
 
@@ -307,6 +332,48 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
         FileOutputStream fos = null;
         long totalLength = 0;
         try {
+            // 检查文件是否已存在且完整
+            if (file.exists()) {
+                long existingLen = file.length();
+                if (existingLen > 0 && (contentLength <= 0 || existingLen == contentLength)) {
+                    ts.setContentLength(existingLen);
+                    LogUtils.i(DownloadConstants.TAG, "[M3U8_TS] File already exists and complete: " + file.getName() + ", size=" + existingLen);
+                    return;
+                } else if (existingLen == 0) {
+                    file.delete();
+                    LogUtils.i(DownloadConstants.TAG, "[M3U8_TS] Deleted zero-length file: " + file.getName());
+                }
+            }
+            
+            // 确保父目录存在
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            
+            // 使用原子操作创建文件，避免并发冲突
+            // createNewFile返回false可能是因为文件已存在（并发情况）
+            boolean created = file.createNewFile();
+            if (!created) {
+                // 文件可能已被其他线程创建，检查是否存在
+                if (!file.exists()) {
+                    // 文件确实不存在，尝试再次创建
+                    try {
+                        created = file.createNewFile();
+                        if (!created && !file.exists()) {
+                            throw new IOException("Failed to create file after retry: " + file.getAbsolutePath());
+                        }
+                    } catch (Exception e) {
+                        // 如果仍然失败，检查是否是并发创建导致
+                        if (!file.exists()) {
+                            throw new IOException("Failed to create file: " + file.getAbsolutePath(), e);
+                        }
+                    }
+                }
+                // 文件已存在（并发创建），继续使用
+                LogUtils.i(DownloadConstants.TAG, "[M3U8_TS] File already created by another thread: " + file.getName());
+            }
+            
             fos = new FileOutputStream(file);
             int len;
             byte[] buf = new byte[BUFFER_SIZE];
