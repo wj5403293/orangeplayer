@@ -142,6 +142,13 @@ public class PiPHelper {
             // 退出 PiP 模式
             savePiPPosition(videoUrl, currentPosition);
             mExitingPiP = true;
+            
+            // 暂停视频播放（用户点击X关闭小窗）
+            if (mVideoView.isPlaying()) {
+                mVideoView.onVideoPause();
+                android.util.Log.d(TAG, "PiP closed by user, pausing video");
+            }
+            
             // 显示控制器
             if (mVideoView.getVideoController() != null) {
                 mVideoView.getVideoController().show();
