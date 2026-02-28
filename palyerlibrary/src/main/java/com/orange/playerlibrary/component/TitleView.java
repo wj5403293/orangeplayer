@@ -57,6 +57,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
     
     // UI 组件
     private LinearLayout mTitleContainer;
+    private LinearLayout mBatteryTimeContainer;
     private ImageView mBack;
     private TextView mTitle;
     private TextView mSysTime;
@@ -118,6 +119,7 @@ public class TitleView extends FrameLayout implements IControlComponent {
         LayoutInflater.from(getContext()).inflate(R.layout.orange_layout_title_view, this, true);
         
         mTitleContainer = findViewById(R.id.title_container);
+        mBatteryTimeContainer = findViewById(R.id.battery_time_container);
         mBack = findViewById(R.id.back);
         mTitle = findViewById(R.id.title);
         mSysTime = findViewById(R.id.sys_time);
@@ -475,15 +477,30 @@ public class TitleView extends FrameLayout implements IControlComponent {
             } else {
                 setVisibility(VISIBLE);
                 updateSysTime();
+                // 全屏时更新标题显示
+                if (mOrangeVideoController != null && mTitle != null) {
+                    String title = mOrangeVideoController.getVideoTitle();
+                    if (title != null && !title.isEmpty()) {
+                        mTitle.setText(title);
+                    }
+                }
             }
             if (mTitle != null) {
                 mTitle.setSelected(true);
+            }
+            // 显示电量和时间容器
+            if (mBatteryTimeContainer != null) {
+                mBatteryTimeContainer.setVisibility(VISIBLE);
             }
         } else {
             // 非全屏模式
             setVisibility(GONE);
             if (mTitle != null) {
                 mTitle.setSelected(false);
+            }
+            // 隐藏电量和时间容器
+            if (mBatteryTimeContainer != null) {
+                mBatteryTimeContainer.setVisibility(GONE);
             }
         }
         
@@ -605,8 +622,21 @@ public class TitleView extends FrameLayout implements IControlComponent {
                 int level = extras.getInt("level", 0);
                 int scale = extras.getInt("scale", 100);
                 int batteryLevel = (level * 100) / scale;
+                int status = extras.getInt("status", 0);
+                
+                // 检查是否在充电
+                boolean isCharging = status == 2 || status == 5; // BATTERY_STATUS_CHARGING or BATTERY_STATUS_FULL
+                
                 if (mBatteryView.getDrawable() != null) {
-                    mBatteryView.getDrawable().setLevel(batteryLevel * 100);
+                    if (isCharging && batteryLevel < 100) {
+                        // 充电中显示充电图标
+                        mBatteryView.setImageResource(R.drawable.ic_battery_charging);
+                    } else {
+                        // 显示电量级别图标
+                        mBatteryView.setImageResource(R.drawable.ic_battery_level);
+                        // level-list 使用 0-100 范围
+                        mBatteryView.getDrawable().setLevel(batteryLevel);
+                    }
                 }
             }
         }

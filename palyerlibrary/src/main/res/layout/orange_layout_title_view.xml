@@ -105,25 +105,38 @@
             android:visibility="gone"
             android:contentDescription="@string/orange_settings" />
 
-        <!-- 电池图标 -->
-        <ImageView
-            android:id="@+id/iv_battery"
-            android:layout_width="26dp"
-            android:layout_height="20dp"
-            android:src="@drawable/dkplayer_battery_level"
-            android:contentDescription="@string/orange_battery_level" />
-
-        <!-- 系统时间 -->
-        <TextView
-            android:id="@+id/sys_time"
+        <!-- 电量和时间区域 (垂直布局：电量在上，时间在下) -->
+        <LinearLayout
+            android:id="@+id/battery_time_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="14dp"
-            android:layout_marginRight="14dp"
-            android:textColor="@android:color/white"
+            android:layout_marginEnd="12dp"
+            android:layout_marginRight="12dp"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:orientation="vertical"
             android:visibility="gone"
-            tools:text="12:00"
-            tools:visibility="visible" />
+            tools:visibility="visible">
+
+            <!-- 电池图标 -->
+            <ImageView
+                android:id="@+id/iv_battery"
+                android:layout_width="30dp"
+                android:layout_height="16dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_battery_level"
+                android:contentDescription="@string/orange_battery_level" />
+
+            <!-- 系统时间 -->
+            <TextView
+                android:id="@+id/sys_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                tools:text="12:00" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

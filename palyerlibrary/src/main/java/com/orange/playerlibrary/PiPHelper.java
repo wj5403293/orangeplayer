@@ -149,6 +149,12 @@ public class PiPHelper {
                 android.util.Log.d(TAG, "PiP closed by user, pausing video");
             }
             
+            // 如果处于全屏状态，退出全屏
+            if (mVideoView.isFullScreen()) {
+                mVideoView.stopFullScreen();
+                android.util.Log.d(TAG, "PiP closed, exiting fullscreen");
+            }
+            
             // 显示控制器
             if (mVideoView.getVideoController() != null) {
                 mVideoView.getVideoController().show();
