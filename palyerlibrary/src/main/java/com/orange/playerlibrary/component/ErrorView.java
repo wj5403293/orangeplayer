@@ -232,6 +232,32 @@ public class ErrorView extends LinearLayout implements IControlComponent {
         }
         return null;
     }
+    
+    // ===== 控件获取方法 =====
+    
+    /**
+     * 获取重试按钮
+     * @return 重试按钮ImageView
+     */
+    public ImageView getRetryButton() {
+        return mRetryButton;
+    }
+    
+    /**
+     * 获取设置按钮
+     * @return 设置按钮ImageView
+     */
+    public ImageView getSettingsButton() {
+        return mSettingsButton;
+    }
+    
+    /**
+     * 获取退出全屏按钮
+     * @return 退出全屏按钮ImageView
+     */
+    public ImageView getStopFullscreenButton() {
+        return mStopFullscreen;
+    }
 
     public void setDebug(boolean debug) {
         sDebug = debug;

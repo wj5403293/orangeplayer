@@ -675,6 +675,91 @@ public class TitleView extends FrameLayout implements IControlComponent {
     public ImageView getSniffingButton() {
         return mSniffing;
     }
+    
+    // ===== 电量与时间相关 =====
+    
+    /**
+     * 获取电池图标控件
+     * @return 电池图标ImageView
+     */
+    public ImageView getBatteryIcon() {
+        return mBattery;
+    }
+    
+    /**
+     * 获取系统时间文本控件
+     * @return 系统时间TextView
+     */
+    public TextView getSysTimeText() {
+        return mSysTime;
+    }
+    
+    /**
+     * 获取电量和时间容器
+     * @return 包含电池图标和时间文本的容器
+     */
+    public LinearLayout getBatteryTimeContainer() {
+        return mBatteryTimeContainer;
+    }
+    
+    /**
+     * 设置电池图标是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setBatteryVisible(boolean visible) {
+        if (mBattery != null) {
+            mBattery.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置系统时间文本是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setSysTimeVisible(boolean visible) {
+        if (mSysTime != null) {
+            mSysTime.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置电量和时间区域整体是否可见
+     * 注意：全屏模式下会自动显示，非全屏自动隐藏
+     * @param visible true显示，false隐藏
+     */
+    public void setBatteryTimeVisible(boolean visible) {
+        if (mBatteryTimeContainer != null) {
+            mBatteryTimeContainer.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置电池图标资源
+     * @param resId drawable资源ID
+     */
+    public void setBatteryIconResource(int resId) {
+        if (mBattery != null) {
+            mBattery.setImageResource(resId);
+        }
+    }
+    
+    /**
+     * 设置直播标识是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setLiveVisible(boolean visible) {
+        if (mLive != null) {
+            mLive.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 获取直播标识控件
+     * @return 直播标识ImageView
+     */
+    public ImageView getLiveIndicator() {
+        return mLive;
+    }
 
     // ===== 调试相关 =====
 

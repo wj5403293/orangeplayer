@@ -11,6 +11,7 @@
 - [PlayerSettingsManager](#playersettingsmanager) - 设置管理器
 - [PlayerConstants](#playerconstants) - 常量定义
 - [监听器接口](#监听器接口) - 回调接口
+- [UI组件访问](#ui组件访问) - 自定义控件样式和行为
 
 ---
 
@@ -1560,6 +1561,218 @@ interface OnPlayCompleteListener {
 
 ```java
 interface OnProgressListener {
-    void onProgress(long currentPosition, long duration);
+    void onProgress(int duration, int position);
+}
+```
+
+---
+
+## UI组件访问
+
+OrangePlayer 提供了完整的 UI 组件访问 API，允许用户自定义控件样式、隐藏/显示控件、替换图标资源等。
+
+### 获取组件
+
+通过 `OrangevideoView` 获取各个组件：
+
+```java
+// 获取标题栏组件
+TitleView titleView = videoView.getTitleView();
+
+// 获取控制栏组件
+VodControlView controlView = videoView.getVodControlView();
+
+// 获取准备视图组件
+PrepareView prepareView = videoView.getPrepareView();
+
+// 获取完成视图组件
+CompleteView completeView = videoView.getCompleteView();
+
+// 获取错误视图组件
+ErrorView errorView = videoView.getErrorView();
+```
+
+### TitleView 控件
+
+标题栏包含返回按钮、标题文本、设置按钮、投屏按钮、小窗按钮、电量图标、时间文本等。
+
+#### 获取控件
+
+```java
+TitleView titleView = videoView.getTitleView();
+
+// 按钮控件
+ImageView backButton = titleView.getBackButton();
+TextView titleText = titleView.getTitleTextView();
+ImageView settingsButton = titleView.getSettingsButton();
+ImageView castButton = titleView.getCastButton();
+ImageView windowButton = titleView.getWindowButton();
+ImageView timerButton = titleView.getTimerButton();
+ImageView sniffingButton = titleView.getSniffingButton();
+
+// 电量与时间
+ImageView batteryIcon = titleView.getBatteryIcon();
+TextView sysTimeText = titleView.getSysTimeText();
+LinearLayout batteryTimeContainer = titleView.getBatteryTimeContainer();
+ImageView liveIndicator = titleView.getLiveIndicator();
+```
+
+#### 便捷方法
+
+```java
+// 设置电量图标可见性
+titleView.setBatteryVisible(true);
+
+// 设置系统时间可见性
+titleView.setSysTimeVisible(true);
+
+// 设置电量和时间区域整体可见性
+titleView.setBatteryTimeVisible(true);
+
+// 自定义电池图标
+titleView.setBatteryIconResource(R.drawable.custom_battery);
+
+// 设置直播标识可见性
+titleView.setLiveVisible(true);
+```
+
+### VodControlView 控件
+
+控制栏包含播放按钮、进度条、时间文本、全屏按钮、倍速按钮、选集按钮、弹幕控件等。
+
+#### 获取控件
+
+```java
+VodControlView controlView = videoView.getVodControlView();
+
+// 播放控制
+ImageView playButton = controlView.getPlayButton();
+ImageView fullScreenButton = controlView.getFullScreenButton();
+SeekBar progressBar = controlView.getProgressBar();
+ProgressBar bottomProgress = controlView.getBottomProgressBar();
+
+// 时间显示
+TextView currentTimeText = controlView.getCurrentTimeText();
+TextView totalTimeText = controlView.getTotalTimeText();
+
+// 功能按钮
+TextView speedButton = controlView.getSpeedControlButton();
+TextView episodeButton = controlView.getEpisodeSelectButton();
+TextView skipButton = controlView.getSkipButton();
+ImageView subtitleButton = controlView.getSubtitleToggleButton();
+ImageView playNextButton = controlView.getPlayNextButton();
+ImageView lockButton = controlView.getLockButton();
+
+// 弹幕控件
+ImageView danmuToggleButton = controlView.getDanmuToggle();
+ImageView danmuSetButton = controlView.getDanmuSet();
+EditText danmuInput = controlView.getDanmuInput();
+LinearLayout danmuContainer = controlView.getDanmuContainer();
+
+// 容器
+LinearLayout bottomContainer = controlView.getBottomContainer();
+```
+
+#### 便捷方法
+
+```java
+// 设置按钮图标
+controlView.setPlayButtonIcon(R.drawable.custom_play);
+controlView.setFullScreenButtonIcon(R.drawable.custom_fullscreen);
+
+// 设置按钮可见性
+controlView.setSpeedButtonVisible(false);
+controlView.setEpisodeButtonVisible(true);
+controlView.setSkipButtonVisible(false);
+controlView.setSubtitleButtonVisible(true);
+controlView.setPlayNextButtonVisible(true);
+controlView.setLockButtonVisible(true);
+controlView.setBottomProgressVisible(false);
+
+// 设置弹幕区域可见性
+controlView.setDanmuContainerVisible(false);
+```
+
+### PrepareView 控件
+
+准备视图显示缩略图、开始播放按钮、加载进度、网络警告等。
+
+#### 获取控件
+
+```java
+PrepareView prepareView = videoView.getPrepareView();
+
+ImageView thumb = prepareView.getThumb();           // 缩略图
+ImageView startPlay = prepareView.getStartPlay();   // 开始播放按钮
+ProgressBar loadingProgress = prepareView.getLoadingProgress();  // 加载进度
+```
+
+### CompleteView 控件
+
+完成视图显示重播按钮和退出全屏按钮。
+
+#### 获取控件
+
+```java
+CompleteView completeView = videoView.getCompleteView();
+
+ImageView replayButton = completeView.getReplayButton();
+ImageView stopFullscreenButton = completeView.getStopFullscreenButton();
+```
+
+### ErrorView 控件
+
+错误视图显示重试按钮、设置按钮和退出全屏按钮。
+
+#### 获取控件
+
+```java
+ErrorView errorView = videoView.getErrorView();
+
+ImageView retryButton = errorView.getRetryButton();
+ImageView settingsButton = errorView.getSettingsButton();
+ImageView stopFullscreenButton = errorView.getStopFullscreenButton();
+```
+
+### 使用示例
+
+#### 自定义播放器UI
+
+```java
+// 隐藏倍速按钮
+videoView.getVodControlView().setSpeedButtonVisible(false);
+
+// 隐藏选集按钮
+videoView.getVodControlView().setEpisodeButtonVisible(false);
+
+// 自定义播放按钮图标
+videoView.getVodControlView().setPlayButtonIcon(R.drawable.ic_custom_play);
+
+// 自定义标题文本样式
+TextView titleText = videoView.getTitleView().getTitleTextView();
+titleText.setTextColor(Color.RED);
+titleText.setTextSize(18);
+
+// 隐藏电量显示
+videoView.getTitleView().setBatteryVisible(false);
+```
+
+#### 动态控制按钮显示
+
+```java
+// 根据视频类型控制按钮显示
+if (isLiveStream) {
+    // 直播模式：隐藏进度条、选集、倍速
+    videoView.getVodControlView().getProgressBar().setVisibility(View.GONE);
+    videoView.getVodControlView().setEpisodeButtonVisible(false);
+    videoView.getVodControlView().setSpeedButtonVisible(false);
+    // 显示直播标识
+    videoView.getTitleView().setLiveVisible(true);
+} else {
+    // 点播模式：显示所有控件
+    videoView.getVodControlView().getProgressBar().setVisibility(View.VISIBLE);
+    videoView.getVodControlView().setEpisodeButtonVisible(true);
+    videoView.getVodControlView().setSpeedButtonVisible(true);
+    videoView.getTitleView().setLiveVisible(false);
 }
 ```

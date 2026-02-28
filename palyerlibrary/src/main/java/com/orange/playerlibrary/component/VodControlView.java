@@ -1678,4 +1678,214 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         
         mPreviewContainer.startAnimation(animationSet);
     }
+    
+    // ===== 控件获取方法 =====
+    
+    // 注意：getPlayButton(), getFullScreenButton(), getVideoProgress(), getDanmuToggle(), getDanmuSet() 已在上方定义
+    
+    /**
+     * 获取进度条
+     * @return 进度条SeekBar
+     */
+    public SeekBar getProgressBar() {
+        return mVideoProgress;
+    }
+    
+    /**
+     * 获取当前时间文本
+     * @return 当前时间TextView
+     */
+    public TextView getCurrentTimeText() {
+        return mCurrTime;
+    }
+    
+    /**
+     * 获取总时长文本
+     * @return 总时长TextView
+     */
+    public TextView getTotalTimeText() {
+        return mTotalTime;
+    }
+    
+    /**
+     * 获取底部进度条
+     * @return 底部进度条ProgressBar
+     */
+    public ProgressBar getBottomProgressBar() {
+        return mBottomProgress;
+    }
+    
+    /**
+     * 获取倍速控制按钮
+     * @return 倍速控制TextView
+     */
+    public TextView getSpeedControlButton() {
+        return mSpeedControl;
+    }
+    
+    /**
+     * 获取选集按钮
+     * @return 选集TextView
+     */
+    public TextView getEpisodeSelectButton() {
+        return mEpisodeSelect;
+    }
+    
+    /**
+     * 获取跳过按钮
+     * @return 跳过按钮TextView
+     */
+    public TextView getSkipButton() {
+        return mSkipButton;
+    }
+    
+    /**
+     * 获取字幕开关按钮
+     * @return 字幕开关ImageView
+     */
+    public ImageView getSubtitleToggleButton() {
+        return mSubtitleToggle;
+    }
+    
+    /**
+     * 获取弹幕输入框
+     * @return 弹幕输入EditText
+     */
+    public EditText getDanmuInput() {
+        return mDanmuInput;
+    }
+    
+    /**
+     * 获取下一集按钮
+     * @return 下一集ImageView
+     */
+    public ImageView getPlayNextButton() {
+        return mPlayNext;
+    }
+    
+    /**
+     * 获取锁定按钮
+     * @return 锁定按钮ImageView
+     */
+    public ImageView getLockButton() {
+        return mLockButton;
+    }
+    
+    /**
+     * 获取底部容器
+     * @return 底部容器LinearLayout
+     */
+    public LinearLayout getBottomContainer() {
+        return mBottomContainer;
+    }
+    
+    /**
+     * 获取弹幕容器
+     * @return 弹幕容器LinearLayout
+     */
+    public LinearLayout getDanmuContainer() {
+        return mDanmuContainer;
+    }
+    
+    // ===== 便捷设置方法 =====
+    
+    /**
+     * 设置播放按钮图标
+     * @param resId drawable资源ID
+     */
+    public void setPlayButtonIcon(int resId) {
+        if (mPlayButton != null) {
+            mPlayButton.setImageResource(resId);
+        }
+    }
+    
+    /**
+     * 设置全屏按钮图标
+     * @param resId drawable资源ID
+     */
+    public void setFullScreenButtonIcon(int resId) {
+        if (mFullScreen != null) {
+            mFullScreen.setImageResource(resId);
+        }
+    }
+    
+    /**
+     * 设置倍速按钮是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setSpeedButtonVisible(boolean visible) {
+        if (mSpeedControl != null) {
+            mSpeedControl.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置选集按钮是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setEpisodeButtonVisible(boolean visible) {
+        if (mEpisodeSelect != null) {
+            mEpisodeSelect.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置跳过按钮是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setSkipButtonVisible(boolean visible) {
+        if (mSkipButton != null) {
+            mSkipButton.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置字幕按钮是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setSubtitleButtonVisible(boolean visible) {
+        if (mSubtitleToggle != null) {
+            mSubtitleToggle.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置弹幕区域是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setDanmuContainerVisible(boolean visible) {
+        if (mDanmuContainer != null) {
+            mDanmuContainer.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置下一集按钮是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setPlayNextButtonVisible(boolean visible) {
+        if (mPlayNext != null) {
+            mPlayNext.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置锁定按钮是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setLockButtonVisible(boolean visible) {
+        if (mLockButton != null) {
+            mLockButton.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+    
+    /**
+     * 设置底部进度条是否可见
+     * @param visible true显示，false隐藏
+     */
+    public void setBottomProgressVisible(boolean visible) {
+        if (mBottomProgress != null) {
+            mBottomProgress.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
 }

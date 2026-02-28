@@ -140,6 +140,24 @@ public class CompleteView extends FrameLayout implements IControlComponent {
         // 使用 ControlWrapper 退出全屏，它会正确处理全屏切换
         mControlWrapper.toggleFullScreen();
     }
+    
+    // ===== 控件获取方法 =====
+    
+    /**
+     * 获取重播按钮
+     * @return 重播按钮ImageView
+     */
+    public ImageView getReplayButton() {
+        return mReplayButton;
+    }
+    
+    /**
+     * 获取退出全屏按钮
+     * @return 退出全屏按钮ImageView
+     */
+    public ImageView getStopFullscreenButton() {
+        return mStopFullscreen;
+    }
 
     public void setDebug(boolean debug) {
         sDebug = debug;
