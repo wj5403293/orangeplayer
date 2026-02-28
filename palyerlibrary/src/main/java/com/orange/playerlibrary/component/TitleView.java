@@ -484,13 +484,13 @@ public class TitleView extends FrameLayout implements IControlComponent {
                         mTitle.setText(title);
                     }
                 }
-            }
-            if (mTitle != null) {
-                mTitle.setSelected(true);
-            }
-            // 显示电量和时间容器
-            if (mBatteryTimeContainer != null) {
-                mBatteryTimeContainer.setVisibility(VISIBLE);
+                if (mTitle != null) {
+                    mTitle.setSelected(true);
+                }
+                // 显示电量和时间容器
+                if (mBatteryTimeContainer != null) {
+                    mBatteryTimeContainer.setVisibility(VISIBLE);
+                }
             }
         } else {
             // 非全屏模式

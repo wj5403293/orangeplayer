@@ -118,12 +118,12 @@
             android:visibility="gone"
             tools:visibility="visible">
 
-            <!-- 电池图标 -->
+            <!-- 电池图标 - 保持2:1比例匹配drawable -->
             <ImageView
                 android:id="@+id/iv_battery"
-                android:layout_width="30dp"
-                android:layout_height="16dp"
-                android:scaleType="fitCenter"
+                android:layout_width="36dp"
+                android:layout_height="18dp"
+                android:scaleType="centerInside"
                 android:src="@drawable/ic_battery_level"
                 android:contentDescription="@string/orange_battery_level" />
 
@@ -132,6 +132,8 @@
                 android:id="@+id/sys_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:includeFontPadding="false"
                 android:textColor="@android:color/white"
                 android:textSize="11sp"
                 tools:text="12:00" />
