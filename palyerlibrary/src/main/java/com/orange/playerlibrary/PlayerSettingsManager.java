@@ -48,6 +48,23 @@ public class PlayerSettingsManager {
     private static PlayerSettingsManager sInstance;
     private final SharedPreferences mPreferences;
     
+    // 播放器引擎变更监听器
+    private EngineChangeListener mEngineChangeListener;
+    
+    /**
+     * 播放器引擎变更监听器接口
+     */
+    public interface EngineChangeListener {
+        void onEngineChanged(String newEngine);
+    }
+    
+    /**
+     * 设置播放器引擎变更监听器
+     */
+    public void setEngineChangeListener(EngineChangeListener listener) {
+        mEngineChangeListener = listener;
+    }
+    
     private PlayerSettingsManager(Context context) {
         mPreferences = context.getApplicationContext()
                 .getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -67,11 +84,79 @@ public class PlayerSettingsManager {
     // ===== 播放器引擎设置 =====
     
     public void setPlayerEngine(String engine) {
+        String oldEngine = mPreferences.getString(KEY_PLAYER_ENGINE, null);
+        
+        // 保存设置
         mPreferences.edit().putString(KEY_PLAYER_ENGINE, engine).apply();
+        
+        // 通知监听器（如果引擎确实发生了变化）
+        if (mEngineChangeListener != null && (oldEngine == null || !oldEngine.equals(engine))) {
+            mEngineChangeListener.onEngineChanged(engine);
+        }
     }
     
+    /**
+     * 获取播放器引擎设置
+     * 
+     * 优先级：
+     * 1. 用户手动设置的内核
+     * 2. 智能检测可用内核（ExoPlayer > 系统播放器）
+     * 
+     * 注意：不再默认使用 IJK，因为很多项目可能不包含 IJK 依赖
+     */
     public String getPlayerEngine() {
-        return mPreferences.getString(KEY_PLAYER_ENGINE, PlayerConstants.ENGINE_IJK);
+        String engine = mPreferences.getString(KEY_PLAYER_ENGINE, null);
+        
+        // 用户已手动设置
+        if (engine != null && !engine.isEmpty()) {
+            return engine;
+        }
+        
+        // 智能选择默认内核
+        return getDefaultEngine();
+    }
+    
+    /**
+     * 智能选择默认播放器内核
+     * 优先级：ExoPlayer > 系统播放器
+     */
+    private String getDefaultEngine() {
+        // 检测 ExoPlayer 是否可用
+        if (isExoPlayerAvailable()) {
+            android.util.Log.d("PlayerSettingsManager", "默认内核: ExoPlayer");
+            return PlayerConstants.ENGINE_EXO;
+        }
+        
+        // 回退到系统播放器（始终可用）
+        android.util.Log.d("PlayerSettingsManager", "默认内核: 系统播放器");
+        return PlayerConstants.ENGINE_DEFAULT;
+    }
+    
+    /**
+     * 检测 ExoPlayer 是否可用
+     */
+    private boolean isExoPlayerAvailable() {
+        try {
+            // 检测 GSY ExoPlayer 或 Media3 ExoPlayer
+            Class.forName("tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            // 尝试检测 Media3
+            try {
+                Class.forName("androidx.media3.exoplayer.ExoPlayer");
+                return true;
+            } catch (ClassNotFoundException ex) {
+                return false;
+            }
+        }
+    }
+    
+    /**
+     * 检查用户是否手动设置过内核
+     */
+    public boolean hasUserSetEngine() {
+        String engine = mPreferences.getString(KEY_PLAYER_ENGINE, null);
+        return engine != null && !engine.isEmpty();
     }
     
     // ===== 长按倍速设置 =====

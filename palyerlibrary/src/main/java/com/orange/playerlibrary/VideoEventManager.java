@@ -73,6 +73,11 @@ public class VideoEventManager {
         // 从设置中读取长按倍
         mLongPressSpeed = mSettingsManager.getLongPressSpeed();
         
+        // 注册播放器引擎变更监听器（用于更新UI）
+        mSettingsManager.setEngineChangeListener(newEngine -> {
+            updateEngineButtonsUI(newEngine);
+        });
+        
         // 绑定基础事件
         bindEvents();
         
@@ -729,6 +734,42 @@ public class VideoEventManager {
         if (systemBtn != null) {
             systemBtn.setTextColor(PlayerConstants.ENGINE_DEFAULT.equals(currentEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
             systemBtn.setOnClickListener(v -> selectEngine(PlayerConstants.ENGINE_DEFAULT));
+        }
+    }
+    
+    /**
+     * 更新播放器引擎按钮UI状态（当代码设置内核时调用）
+     * 
+     * @param newEngine 新的引擎类型
+     */
+    private void updateEngineButtonsUI(String newEngine) {
+        // 在主线程更新UI
+        if (mActivity != null) {
+            mActivity.runOnUiThread(() -> {
+                // 查找设置对话框中的引擎按钮
+                if (mCurrentSetupDialog != null) {
+                    android.widget.TextView aliBtn = mCurrentSetupDialog.findViewById(R.id.alihx);
+                    android.widget.TextView exoBtn = mCurrentSetupDialog.findViewById(R.id.exohx);
+                    android.widget.TextView ijkBtn = mCurrentSetupDialog.findViewById(R.id.ijkhx);
+                    android.widget.TextView systemBtn = mCurrentSetupDialog.findViewById(R.id.systemhx);
+                    
+                    // 更新高亮状态
+                    if (aliBtn != null) {
+                        aliBtn.setTextColor(PlayerConstants.ENGINE_ALI.equals(newEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+                    }
+                    if (exoBtn != null) {
+                        exoBtn.setTextColor(PlayerConstants.ENGINE_EXO.equals(newEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+                    }
+                    if (ijkBtn != null) {
+                        ijkBtn.setTextColor(PlayerConstants.ENGINE_IJK.equals(newEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+                    }
+                    if (systemBtn != null) {
+                        systemBtn.setTextColor(PlayerConstants.ENGINE_DEFAULT.equals(newEngine) ? COLOR_HIGHLIGHT : COLOR_NORMAL);
+                    }
+                }
+                
+                android.util.Log.d("VideoEventManager", "UI已更新，当前引擎: " + getEngineName(newEngine));
+            });
         }
     }
     
