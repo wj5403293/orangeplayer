@@ -96,3 +96,15 @@ lint/tmp/
 /tessdata_packs/
 /orange-decoder/
 /VideoDownloader-master/
+
+# 排除 Maven 发布相关文件
+/maven-central/bundle.zip
+/maven-central/deployment_response.json
+/maven-central/publish.bat
+/maven-publish.gradle
+
+# 排除日志文件
+logcat.txt
+
+# 排除 GSYVideoPlayer 子模块的修改
+/GSYVideoPlayer-source/
