@@ -1419,7 +1419,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void onVideoResume() {
-        onVideoResume(true);
+        // 默认不 seek，直接从当前位置继续播放
+        // seek=true 适用于"从指定位置恢复"的场景，而非切后台继续
+        onVideoResume(false);
     }
     
     @Override

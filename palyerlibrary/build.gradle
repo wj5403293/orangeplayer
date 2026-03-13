@@ -61,7 +61,6 @@ dependencies {
     
     // DLNA 投屏 - compileOnly（需要 API 19+，用户按需添加）
     compileOnly 'com.github.uaoan:UaoanDLNA:1.0.1'
-    compileOnly 'com.squareup.okhttp3:okhttp:3.12.13'
     
     // OCR 翻译字幕功能 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'
@@ -72,7 +71,6 @@ dependencies {
     
     // VideoDownloader 依赖
     // 注意：VideoDownloader 源码已集成到项目中，这些是它的依赖
-    compileOnly 'com.squareup.okhttp3:okhttp:4.9.3'
     compileOnly 'com.google.code.gson:gson:2.10.1'
 }
 
