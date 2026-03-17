@@ -1,4 +1,5 @@
 apply plugin: "maven-publish"
+apply plugin: "signing"
 
 android {
     publishing {
@@ -46,6 +47,27 @@ afterEvaluate {
                     }
                 }
             }
+        }
+        
+        repositories {
+            maven {
+                name = "LocalRepository"
+                url = uri("${project.buildDir}/repo")
+            }
+        }
+    }
+    
+    // 配置签名
+    signing {
+        def signingKeyId = rootProject.findProperty('signing.keyId') ?: ''
+        def signingPassword = rootProject.findProperty('signing.password') ?: ''
+        def signingSecretKeyRingFile = rootProject.findProperty('signing.secretKeyRingFile') ?: ''
+        
+        if (signingKeyId && signingPassword && signingSecretKeyRingFile) {
+            required = true
+            sign publishing.publications.release
+        } else {
+            required = false
         }
     }
 }

@@ -56,6 +56,7 @@ public class VideoEventManager {
     private float mCurrentLongPressSpeed = 2.0f;  // 长按倍速
     private String mCurrentScreenScale = "默认";  // 画面比例
     private String mCurrentVideoUrl = null;  // 当前视频 URL（用于判断是否切换视频）
+    private int mCurrentVideoListHash = 0;  // 当前剧集列表hash（用于判断是否切换剧集）
     
     // OCR 全屏切换相关
     private boolean mOcrPausedForFullscreen = false;
@@ -72,6 +73,10 @@ public class VideoEventManager {
         
         // 从设置中读取长按倍
         mLongPressSpeed = mSettingsManager.getLongPressSpeed();
+        
+        // 片头尾设置不持久化，初始化为0
+        mCurrentSkipOpening = 0;
+        mCurrentSkipEnding = 0;
         
         // 注册播放器引擎变更监听器（用于更新UI）
         mSettingsManager.setEngineChangeListener(newEngine -> {
@@ -407,36 +412,42 @@ public class VideoEventManager {
         boolean isNewVideo = (mCurrentVideoUrl == null || !mCurrentVideoUrl.equals(videoUrl));
         android.util.Log.d("VideoEventManager", "isNewVideo: " + isNewVideo);
         
+        // 检查是否切换了剧集（视频列表hash不同）
+        int currentListHash = getVideoListHash();
+        boolean isSeriesChanged = (mCurrentVideoListHash != 0 && mCurrentVideoListHash != currentListHash);
+        android.util.Log.d("VideoEventManager", "isSeriesChanged: " + isSeriesChanged + " (old=" + mCurrentVideoListHash + ", new=" + currentListHash + ")");
+        
         if (isNewVideo) {
-            // 切换了视频，重置所有临时设置
+            // 切换了视频，更新URL
             mCurrentVideoUrl = videoUrl;
             
-            // 重置跳过片头片尾
-            mCurrentSkipOpening = 0;
-            mCurrentSkipEnding = 0;
-            android.util.Log.d("VideoEventManager", "Reset skip settings to 0");
-            if (mVideoView != null) {
-                mVideoView.setSkipIntroTime(0);
-                mVideoView.setSkipIntroEnabled(false);
-                mVideoView.setSkipOutroTime(0);
-                mVideoView.setSkipOutroEnabled(false);
-                // 重置 SkipManager 的状态标志
-                SkipManager skipManager = mVideoView.getSkipManager();
-                if (skipManager != null) {
-                    android.util.Log.d("VideoEventManager", "Calling skipManager.reset()");
-                    skipManager.reset();
-                }
+            // 片头尾、倍数设置：同一剧集内切换集数时保持，切换剧集时重置
+            if (isSeriesChanged) {
+                // 切换了剧集，重置片头尾和倍数为默认
+                android.util.Log.d("VideoEventManager", "Series changed, reset skip settings and screen scale to default");
+                mCurrentSkipOpening = 0;
+                mCurrentSkipEnding = 0;
+                mCurrentScreenScale = "默认";
+                mCurrentVideoListHash = currentListHash;
             }
             
-            // 重置长按倍速为默认值 2.0x
-            mCurrentLongPressSpeed = 2.0f;
-            
-            // 重置画面比例为默认
-            mCurrentScreenScale = "默认";
+            // 重新应用到播放器
+            android.util.Log.d("VideoEventManager", "Applying skip settings: opening=" + mCurrentSkipOpening + ", ending=" + mCurrentSkipEnding);
             if (mVideoView != null) {
+                mVideoView.setSkipIntroTime(mCurrentSkipOpening);
+                mVideoView.setSkipIntroEnabled(mCurrentSkipOpening > 0);
+                mVideoView.setSkipOutroTime(mCurrentSkipEnding);
+                mVideoView.setSkipOutroEnabled(mCurrentSkipEnding > 0);
+                SkipManager skipManager = mVideoView.getSkipManager();
+                if (skipManager != null) {
+                    android.util.Log.d("VideoEventManager", "Calling skipManager.resetAndAttach() for new video");
+                    skipManager.resetAndAttach(mVideoView);
+                }
+                
+                // 应用当前画面比例
                 VideoScaleManager scaleManager = mVideoView.getVideoScaleManager();
                 if (scaleManager != null) {
-                    scaleManager.applyScaleType("默认");
+                    scaleManager.applyScaleType(mCurrentScreenScale);
                 }
             }
         } else {
@@ -455,8 +466,8 @@ public class VideoEventManager {
                 // 重置 SkipManager 的状态标志（允许再次跳过）
                 SkipManager skipManager = mVideoView.getSkipManager();
                 if (skipManager != null) {
-                    android.util.Log.d("VideoEventManager", "Calling skipManager.reset() for same video");
-                    skipManager.reset();
+                    android.util.Log.d("VideoEventManager", "Calling skipManager.resetAndAttach() for same video");
+                    skipManager.resetAndAttach(mVideoView);
                 }
                 
                 // 重新应用画面比例
@@ -466,6 +477,42 @@ public class VideoEventManager {
                 }
             }
         }
+    }
+    
+    /**
+     * 获取当前视频列表的hash值
+     * 用于判断是否切换了剧集
+     */
+    private int getVideoListHash() {
+        ArrayList<HashMap<String, Object>> videoList = mController.getVideoList();
+        if (videoList == null || videoList.isEmpty()) {
+            return 0;
+        }
+        // 基于列表大小和第一个/最后一个URL生成hash
+        int hash = videoList.size();
+        if (!videoList.isEmpty()) {
+            String firstUrl = videoList.get(0).get("url") != null ? videoList.get(0).get("url").toString() : "";
+            String lastUrl = videoList.get(videoList.size() - 1).get("url") != null ? videoList.get(videoList.size() - 1).get("url").toString() : "";
+            hash = hash * 31 + firstUrl.hashCode();
+            hash = hash * 31 + lastUrl.hashCode();
+        }
+        return hash;
+    }
+    
+    /**
+     * 设置新的剧集列表（外部调用，用于标记剧集切换）
+     */
+    public void onVideoListChanged() {
+        int newHash = getVideoListHash();
+        if (mCurrentVideoListHash != 0 && mCurrentVideoListHash != newHash) {
+            // 剧集切换，重置片头尾和画面比例
+            mCurrentSkipOpening = 0;
+            mCurrentSkipEnding = 0;
+            mCurrentScreenScale = "默认";
+            mSettingsManager.clearSessionVideoScale();
+            android.util.Log.d("VideoEventManager", "onVideoListChanged: series changed, reset skip settings and screen scale");
+        }
+        mCurrentVideoListHash = newHash;
     }
     
     /**
@@ -1519,6 +1566,8 @@ public class VideoEventManager {
                 scaleName.setOnClickListener(v -> {
                     // 保存到私有变量
                     mCurrentScreenScale = scaleText;
+                    // 同步到会话比例（供 onPrepared 时使用）
+                    mSettingsManager.setSessionVideoScale(scaleText);
                     // 立即应用到播放器
                     setScreenScaleType(scaleText);
                     showToast("画面比例: " + scaleText);
@@ -1745,10 +1794,11 @@ public class VideoEventManager {
         if (seekBarPt != null) {
             // 最大值设为180秒（3分钟）
             seekBarPt.setMax(180000);
-            seekBarPt.setProgress(skipOpening);
+            // 使用私有变量（与设置弹窗同步）
+            seekBarPt.setProgress(mCurrentSkipOpening);
             
             if (namePt != null) {
-                namePt.setText(formatSkipTime(skipOpening));
+                namePt.setText(formatSkipTime(mCurrentSkipOpening));
             }
             
             seekBarPt.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
@@ -1765,7 +1815,13 @@ public class VideoEventManager {
                 @Override
                 public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
                     int progress = seekBar.getProgress();
-                    mSettingsManager.setSkipOpening(progress);
+                    // 同步更新私有变量
+                    mCurrentSkipOpening = progress;
+                    // 应用到播放器
+                    if (mVideoView != null) {
+                        mVideoView.setSkipIntroTime(progress);
+                        mVideoView.setSkipIntroEnabled(progress > 0);
+                    }
                     showToast("跳过片头: " + formatSkipTime(progress));
                 }
             });
@@ -1775,10 +1831,11 @@ public class VideoEventManager {
         if (seekBarPw != null) {
             // 最大值设为180秒（3分钟）
             seekBarPw.setMax(180000);
-            seekBarPw.setProgress(skipEnding);
+            // 使用私有变量（与设置弹窗同步）
+            seekBarPw.setProgress(mCurrentSkipEnding);
             
             if (namePw != null) {
-                namePw.setText(formatSkipTime(skipEnding));
+                namePw.setText(formatSkipTime(mCurrentSkipEnding));
             }
             
             seekBarPw.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
@@ -1795,7 +1852,13 @@ public class VideoEventManager {
                 @Override
                 public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
                     int progress = seekBar.getProgress();
-                    mSettingsManager.setSkipEnding(progress);
+                    // 同步更新私有变量
+                    mCurrentSkipEnding = progress;
+                    // 应用到播放器
+                    if (mVideoView != null) {
+                        mVideoView.setSkipOutroTime(progress);
+                        mVideoView.setSkipOutroEnabled(progress > 0);
+                    }
                     showToast("跳过片尾: " + formatSkipTime(progress));
                 }
             });

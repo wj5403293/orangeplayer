@@ -190,6 +190,22 @@ public class PlayerSettingsManager {
         return mPreferences.getString(KEY_VIDEO_SCALE, "默认");
     }
     
+    // ===== 会话内画面比例（不持久化，切换剧集时重置）=====
+    
+    private String mSessionVideoScale = null;
+    
+    public void setSessionVideoScale(String scale) {
+        mSessionVideoScale = scale;
+    }
+    
+    public String getSessionVideoScale() {
+        return mSessionVideoScale;
+    }
+    
+    public void clearSessionVideoScale() {
+        mSessionVideoScale = null;
+    }
+    
     // ===== 跳过片头片尾设置 =====
     
     public void setSkipOpening(int milliseconds) {

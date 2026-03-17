@@ -304,4 +304,4 @@ Apache License 2.0
 - [GSYVideoPlayer](https://github.com/CarGuo/GSYVideoPlayer)
 - [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
 - [DanmakuFlameMaster](https://github.com/bilibili/DanmakuFlameMaster)
-- [UaoanDLNA](https://github.com/AnyListen/UaoanDLNA)
+- [UaoanDLNA](https://github.com/uaoan/UaoanDLNA)

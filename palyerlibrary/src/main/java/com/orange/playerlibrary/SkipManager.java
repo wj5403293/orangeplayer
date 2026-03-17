@@ -133,7 +133,8 @@ public class SkipManager {
         android.util.Log.d(TAG, "performSkipIntro() called - enabled=" + mSkipIntroEnabled 
                 + ", skipped=" + mIntroSkipped 
                 + ", skipTime=" + mSkipIntroTime 
-                + ", videoView=" + (mVideoView != null));
+                + ", videoView=" + (mVideoView != null)
+                + ", videoView.isPlaying=" + (mVideoView != null && mVideoView.isPlaying()));
         
         if (!mSkipIntroEnabled || mIntroSkipped || mVideoView == null || mSkipIntroTime <= 0) {
             android.util.Log.d(TAG, "performSkipIntro() skipped - conditions not met");
@@ -256,6 +257,30 @@ public class SkipManager {
         }
     }
 
+    /**
+     * 是否已跳过片头
+     * @return true 已跳过
+     */
+    public boolean isIntroSkipped() {
+        return mIntroSkipped;
+    }
+    
+    /**
+     * 设置是否已跳过片头
+     * @param skipped 是否已跳过
+     */
+    public void setIntroSkipped(boolean skipped) {
+        mIntroSkipped = skipped;
+    }
+
+    /**
+     * 是否已跳过片尾
+     * @return true 已跳过
+     */
+    public boolean isOutroSkipped() {
+        return mOutroSkipped;
+    }
+
     // ==================== 重置 ====================
 
     /**
@@ -263,7 +288,19 @@ public class SkipManager {
      * 在切换视频时调用
      */
     public void reset() {
-        android.util.Log.d(TAG, "reset() called - clearing intro/outro skipped flags");
+        android.util.Log.d(TAG, "reset() called - clearing intro/outro skipped flags, mVideoView=" + mVideoView);
+        mIntroSkipped = false;
+        mOutroSkipped = false;
+        stopOutroCheck();
+    }
+    
+    /**
+     * 重置状态并重新绑定播放器
+     * @param videoView 播放器视图
+     */
+    public void resetAndAttach(OrangevideoView videoView) {
+        android.util.Log.d(TAG, "resetAndAttach() called, videoView=" + videoView);
+        mVideoView = videoView;
         mIntroSkipped = false;
         mOutroSkipped = false;
         stopOutroCheck();

@@ -28,12 +28,27 @@ public class VideoScaleManager {
     
     /**
      * 应用保存的视频比例设置
-     * 从 PlayerSettingsManager 读取保存的视频比例，并应用到播放器
+     * 优先使用会话内的比例（mCurrentScreenScale），如果没有则从持久化存储读取
      * 
      * Requirements: 1.1, 1.2
      */
     public void applyVideoScale() {
-        String scale = mSettingsManager.getVideoScale();
+        // 优先使用会话内的比例（由 VideoEventManager 管理）
+        // 会话内比例在同一剧集内切换集数时保持，切换剧集时重置
+        String scale = mSettingsManager.getSessionVideoScale();
+        if (scale == null || scale.isEmpty()) {
+            scale = mSettingsManager.getVideoScale();
+        }
+        applyScaleType(scale);
+    }
+    
+    /**
+     * 应用会话内的视频比例
+     * 
+     * @param scale 比例类型
+     */
+    public void applySessionScale(String scale) {
+        mSettingsManager.setSessionVideoScale(scale);
         applyScaleType(scale);
     }
     
@@ -250,10 +265,15 @@ public class VideoScaleManager {
     
     /**
      * 获取当前视频比例设置
+     * 优先返回会话比例（用户当前选择的），如果没有则返回持久化比例
      * 
      * @return 当前视频比例
      */
     public String getCurrentScale() {
+        String sessionScale = mSettingsManager.getSessionVideoScale();
+        if (sessionScale != null && !sessionScale.isEmpty()) {
+            return sessionScale;
+        }
         return mSettingsManager.getVideoScale();
     }
     

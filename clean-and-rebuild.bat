@@ -52,31 +52,31 @@ call gradlew.bat :palyerlibrary:publishMavenPublicationToLocalRepository
 if errorlevel 1 goto ERROR
 
 echo   [2/8] gsyVideoPlayer-base...
-call gradlew.bat :gsyVideoPlayer-base:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-base:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo   [3/8] gsyVideoPlayer-proxy_cache...
-call gradlew.bat :gsyVideoPlayer-proxy_cache:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-proxy_cache:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo   [4/8] gsyVideoPlayer-java...
-call gradlew.bat :gsyVideoPlayer-java:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-java:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo   [5/8] gsyVideoPlayer-armv7a...
-call gradlew.bat :gsyVideoPlayer-armv7a:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-armv7a:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo   [6/8] gsyVideoPlayer-armv64...
-call gradlew.bat :gsyVideoPlayer-armv64:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-armv64:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo   [7/8] gsyVideoPlayer-x86...
-call gradlew.bat :gsyVideoPlayer-x86:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-x86:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo   [8/8] gsyVideoPlayer-x86_64...
-call gradlew.bat :gsyVideoPlayer-x86_64:publishReleasePublicationToLocalRepository
+call gradlew.bat :gsyVideoPlayer-x86_64:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
 echo.

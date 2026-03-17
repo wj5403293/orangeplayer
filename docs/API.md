@@ -1776,3 +1776,89 @@ if (isLiveStream) {
     videoView.getTitleView().setLiveVisible(false);
 }
 ```
+
+## M3U8去广告功能
+
+播放器支持自动检测并移除HTTP m3u8视频中的广告片段。
+
+### 功能特点
+
+- 自动检测HTTP m3u8链接
+- 支持多种广告检测方式：路径模式变化、DISCONTINUITY标记、短片段组
+- 支持开头广告、中间广告、结尾广告检测
+- 本地缓存处理结果，避免重复请求
+- 请求失败自动降级播放原始URL
+- 播放错误时自动清除缓存
+
+### 开启/关闭去广告
+
+```java
+// 获取M3U8去广告管理器
+M3U8AdManager adManager = M3U8AdManager.getInstance(context);
+
+// 开启去广告功能（默认开启）
+adManager.setEnabled(true);
+
+// 关闭去广告功能
+adManager.setEnabled(false);
+
+// 检查是否启用
+boolean isEnabled = adManager.isEnabled();
+```
+
+### 清除缓存
+
+```java
+// 清除所有缓存
+adManager.clearCache();
+
+// 清除特定URL的缓存
+adManager.clearCacheForUrl("https://example.com/video.m3u8");
+```
+
+### 手动处理URL
+
+如果需要在播放前手动处理m3u8 URL：
+
+```java
+// 异步处理
+adManager.processVideoUrl(videoUrl, new M3U8AdManager.Callback() {
+    @Override
+    public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message) {
+        // playUrl: 可用于播放的URL
+        // isLocalFile: 是否是本地文件
+        // adSegmentsRemoved: 移除的广告片段数
+        // message: 处理结果消息
+        
+        // 使用playUrl播放
+        videoView.setUp(playUrl, true, "视频标题");
+        videoView.startPlayLogic();
+    }
+});
+
+// 同步处理（阻塞当前线程，建议在后台线程调用）
+String playUrl = adManager.processVideoUrlSync(videoUrl, 5000); // 5秒超时
+```
+
+### 检查URL类型
+
+```java
+// 检查URL是否是HTTP m3u8
+if (M3U8AdRemover.isHttpM3U8(url)) {
+    // 是HTTP m3u8链接，会自动进行去广告处理
+}
+```
+
+### 使用示例
+
+```java
+// 在播放前关闭去广告功能
+M3U8AdManager.getInstance(this).setEnabled(false);
+
+// 播放视频
+videoView.setUp(videoUrl, true, "视频标题");
+videoView.startPlayLogic();
+
+// 播放后重新开启
+M3U8AdManager.getInstance(this).setEnabled(true);
+```

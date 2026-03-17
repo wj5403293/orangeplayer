@@ -25,6 +25,7 @@ public class PiPHelper {
     private boolean mRestoringFromPiP = false;
     private boolean mExitingPiP = false;
     private boolean mEnteringPiP = false;
+    private boolean mPiPJustExited = false;  // 标记PiP刚退出，等待onResume处理
     
     public PiPHelper(Activity activity, OrangevideoView videoView) {
         mActivity = activity;
@@ -102,6 +103,19 @@ public class PiPHelper {
             mExitingPiP = false;
             return true; // 跳过恢复
         }
+        
+        // 检查是否刚从 PiP 退出（用户点击恢复按钮）
+        if (mPiPJustExited) {
+            android.util.Log.d(TAG, "handleOnResume: PiP was restored by user");
+            mPiPJustExited = false;
+            mRestoringFromPiP = true;
+            // 显示控制器
+            if (mVideoView.getVideoController() != null) {
+                mVideoView.getVideoController().show();
+            }
+            return true; // 跳过默认恢复逻辑，让视频继续播放
+        }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             if (mActivity.isInPictureInPictureMode()) {
                 return true; // 跳过恢复
@@ -116,8 +130,32 @@ public class PiPHelper {
      */
     public boolean handleOnStop() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return mActivity.isInPictureInPictureMode();
+            if (mActivity.isInPictureInPictureMode()) {
+                return true;
+            }
         }
+        
+        // 检查是否刚从 PiP 退出且进入了 onStop（用户点击 X 关闭）
+        if (mPiPJustExited) {
+            android.util.Log.d(TAG, "handleOnStop: PiP was closed by user (X button)");
+            mPiPJustExited = false;
+            mExitingPiP = true;
+            
+            // 暂停视频播放
+            if (mVideoView.isPlaying()) {
+                mVideoView.onVideoPause();
+                android.util.Log.d(TAG, "PiP closed by user, pausing video");
+            }
+            
+            // 如果处于全屏状态，退出全屏
+            if (mVideoView.isFullScreen()) {
+                mVideoView.stopFullScreen();
+                android.util.Log.d(TAG, "PiP closed, exiting fullscreen");
+            }
+            
+            return true; // 跳过默认的 onStop 处理
+        }
+        
         return false;
     }
     
@@ -141,24 +179,42 @@ public class PiPHelper {
         } else {
             // 退出 PiP 模式
             savePiPPosition(videoUrl, currentPosition);
-            mExitingPiP = true;
             
-            // 暂停视频播放（用户点击X关闭小窗）
-            if (mVideoView.isPlaying()) {
-                mVideoView.onVideoPause();
-                android.util.Log.d(TAG, "PiP closed by user, pausing video");
-            }
-            
-            // 如果处于全屏状态，退出全屏
-            if (mVideoView.isFullScreen()) {
-                mVideoView.stopFullScreen();
-                android.util.Log.d(TAG, "PiP closed, exiting fullscreen");
-            }
-            
-            // 显示控制器
-            if (mVideoView.getVideoController() != null) {
-                mVideoView.getVideoController().show();
-            }
+            // 延迟检查 Activity 状态，因为 onPictureInPictureModeChanged 可能在 onResume 之前或之后调用
+            mVideoView.postDelayed(() -> {
+                // 检查 Activity 是否有焦点
+                // 有焦点 = 用户点击恢复按钮
+                // 无焦点 = 用户点击 X 关闭
+                boolean hasFocus = mActivity.hasWindowFocus();
+                
+                android.util.Log.d(TAG, "PiP exit check: hasFocus=" + hasFocus);
+                
+                if (hasFocus) {
+                    // Activity 在前台 - 用户点击恢复按钮
+                    android.util.Log.d(TAG, "PiP restored by user, continuing playback");
+                    mRestoringFromPiP = true;
+                    // 显示控制器
+                    if (mVideoView.getVideoController() != null) {
+                        mVideoView.getVideoController().show();
+                    }
+                } else {
+                    // Activity 不在前台 - 用户点击 X 关闭
+                    android.util.Log.d(TAG, "PiP closed by user (X button)");
+                    mExitingPiP = true;
+                    
+                    // 暂停视频播放
+                    if (mVideoView.isPlaying()) {
+                        mVideoView.onVideoPause();
+                        android.util.Log.d(TAG, "PiP closed, pausing video");
+                    }
+                    
+                    // 如果处于全屏状态，退出全屏
+                    if (mVideoView.isFullScreen()) {
+                        mVideoView.stopFullScreen();
+                        android.util.Log.d(TAG, "PiP closed, exiting fullscreen");
+                    }
+                }
+            }, 100);
         }
     }
     
