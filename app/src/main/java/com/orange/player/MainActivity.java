@@ -281,23 +281,19 @@ public class MainActivity extends AppCompatActivity {
         // 设置嗅探监听器
         setupSniffingListener();
       
-        // 设置测试视频列表（会自动设置第一个视频）
+        // 设置测试视频列表
         setupVideoList();
 
-        // 注释掉直接设置视频，改为从选集自动设置
-        // mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
+        // 设置第一个视频（不自动播放，点击播放器可播放）
+        if (mCurrentUrl != null && !mCurrentUrl.isEmpty()) {
+            mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
+        }
         mVideoView.setLooping(false);
         mVideoView.setAutoRotateOnFullscreen(true);
-        //mVideoView.startPlayLogic();
-        
-        // 设置标题（已在 setupVideoList 中自动设置）
-        // if (mVideoView.getTitleView() != null) {
-        //     mVideoView.getTitleView().setTitle(mCurrentTitle);
-        // }
 
         log("✓ 播放器初始化完成");
         log("✓ 加载动画: LINE_SCALE_PULSE_OUT");
-        log("✓ 已从选集自动设置第一个视频");
+        log("✓ 已设置第一个视频，点击播放器开始播放");
     }
 
     /**
@@ -396,10 +392,16 @@ public class MainActivity extends AppCompatActivity {
             videoList.add(video);
         }
         
-        // setVideoList 会自动设置第一个视频到播放器
+        // 设置视频列表（不再自动设置第一个视频）
         mController.setVideoList(videoList);
+        
+        // 手动设置第一个视频的URL和标题
+        if (videoUrls.length > 0) {
+            mCurrentUrl = videoUrls[0];
+            mCurrentTitle = "第1集";
+        }
+        
         log("✓ 已添加 " + videoUrls.length + " 个选集");
-        log("✓ 第一集已自动设置到播放器");
     }
 
     // ===== 弹幕测试方法 =====

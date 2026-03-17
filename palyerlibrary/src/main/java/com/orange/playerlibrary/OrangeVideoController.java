@@ -287,24 +287,8 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             }
         }
         mVideoList = list;
-        
-        // 如果列表不为空且播放器还没有设置视频地址，自动设置第一个视频
-        if (list != null && !list.isEmpty() && mVideoView != null) {
-            String currentUrl = mVideoView.getUrl();
-            if (currentUrl == null || currentUrl.isEmpty()) {
-                HashMap<String, Object> firstVideo = list.get(0);
-                String url = firstVideo.get("url") != null ? firstVideo.get("url").toString() : "";
-                String name = firstVideo.get("name") != null ? firstVideo.get("name").toString() : "";
-                @SuppressWarnings("unchecked")
-                HashMap<String, String> headers = (HashMap<String, String>) firstVideo.get("headers");
-                
-                if (!url.isEmpty()) {
-                    mVideoView.setUrl(url, headers);
-                    setVideoTitle(name);
-                    debug("Auto set first video from list: " + name);
-                }
-            }
-        }
+        // 不再自动设置第一个视频，避免干扰后续播放
+        // 如果需要自动播放第一个，请手动调用 mVideoView.setUp() 和 startPlayLogic()
     }
 
     /**
