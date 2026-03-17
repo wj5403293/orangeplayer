@@ -90,6 +90,20 @@ public class M3U8AdRemover {
             return;
         }
         
+        // 2.5 检测是否为Master Playlist（嵌套m3u8）
+        String subM3U8Url = extractSubM3U8Url(m3u8Content, m3u8Url);
+        if (subM3U8Url != null) {
+            Log.d(TAG, "Detected Master Playlist, fetching sub playlist: " + subM3U8Url);
+            m3u8Content = fetchM3U8Content(subM3U8Url);
+            if (m3u8Content == null || m3u8Content.isEmpty()) {
+                Log.w(TAG, "Failed to fetch sub m3u8 content, using original URL");
+                callback.onError(m3u8Url, new Exception("Failed to fetch sub m3u8 content"));
+                return;
+            }
+            // 更新URL为子播放列表URL
+            m3u8Url = subM3U8Url;
+        }
+        
         // 3. 解析并移除广告片段
         M3U8ParseResult result = parseAndRemoveAds(m3u8Content, m3u8Url);
         
@@ -559,6 +573,58 @@ public class M3U8AdRemover {
         } catch (Exception e) {
             return url;
         }
+    }
+    
+    /**
+     * 检测是否为Master Playlist并提取子播放列表URL
+     * Master Playlist包含#EXT-X-STREAM-INF标签，指向子播放列表
+     */
+    private String extractSubM3U8Url(String content, String masterUrl) {
+        if (content == null || content.isEmpty()) return null;
+        
+        try {
+            String[] lines = content.split("\n");
+            String subUrl = null;
+            int maxBandwidth = 0;
+            
+            for (int i = 0; i < lines.length; i++) {
+                String line = lines[i].trim();
+                
+                // 检测#EXT-X-STREAM-INF标签（Master Playlist特征）
+                if (line.startsWith("#EXT-X-STREAM-INF:")) {
+                    // 提取BANDWIDTH
+                    int bandwidth = 0;
+                    String[] parts = line.split(",");
+                    for (String part : parts) {
+                        if (part.startsWith("BANDWIDTH=")) {
+                            bandwidth = Integer.parseInt(part.substring(10));
+                            break;
+                        }
+                    }
+                    
+                    // 获取下一行的子播放列表URL
+                    if (i + 1 < lines.length) {
+                        String nextLine = lines[i + 1].trim();
+                        if (!nextLine.isEmpty() && !nextLine.startsWith("#")) {
+                            // 选择最高带宽的流
+                            if (bandwidth > maxBandwidth) {
+                                maxBandwidth = bandwidth;
+                                subUrl = nextLine;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (subUrl != null) {
+                // 转换为绝对URL
+                String baseUrlPath = extractBaseUrlPath(masterUrl);
+                return toAbsoluteUrl(subUrl, baseUrlPath);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "extractSubM3U8Url error", e);
+        }
+        return null;
     }
     
     /**

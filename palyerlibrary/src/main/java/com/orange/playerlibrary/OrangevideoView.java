@@ -1027,9 +1027,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mVideoUrl = null;
         mOriginUrl = null;
         
-        // 先释放当前播放状态
-        release();
-        
         // 设置准备中状态，显示加载动画（覆盖之前的画面）
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
         setStateAndUi(CURRENT_STATE_PREPAREING);
@@ -1041,6 +1038,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         // 隐藏所有控件（包括视频画面），只显示加载动画
         hideAllWidget();
+        
+        // 释放当前播放状态，然后延迟执行去广告处理
+        release();
         
         // 延迟执行，确保release和状态切换完成
         postDelayed(() -> {
@@ -1080,7 +1080,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     });
                 }
             });
-        }, 200);  // 延迟200ms确保release和状态切换完成
+        }, 350);  // 延迟350ms确保release和状态切换完成
     }
     
     /**
