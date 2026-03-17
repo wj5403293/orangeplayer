@@ -1023,6 +1023,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mOriginalM3U8Url = url;
         mHasRetriedOriginalUrl = false;
         
+        // 先清除视频URL，避免短暂播放之前的视频
+        mVideoUrl = null;
+        mOriginUrl = null;
+        
         // 先释放当前播放状态
         release();
         
@@ -1076,7 +1080,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     });
                 }
             });
-        }, 150);  // 延迟150ms确保release和状态切换完成
+        }, 200);  // 延迟200ms确保release和状态切换完成
     }
     
     /**

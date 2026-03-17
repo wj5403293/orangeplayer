@@ -617,11 +617,79 @@ videoView.selectPlayerFactory(PlayerConstants.ENGINE_DEFAULT);
 - 添加的协议：`file,http,https,tls,rtp,tcp,udp,crypto,httpproxy,concat,subfile`
 - 详见：[docs/fixes/ijk_local_file_fix.md](fixes/ijk_local_file_fix.md)
 
+### Q13: M3U8 播放内容不完整或跳过部分内容
+
+**问题描述：**
+播放 M3U8 视频时，发现视频内容不完整，某些片段被跳过，或者播放时长比预期短。
+
+**可能原因：**
+M3U8 去广告功能误将正常内容识别为广告并移除。
+
+**解决方案：**
+
+**方案一：关闭 M3U8 去广告功能**
+
+```java
+// 在播放前关闭去广告功能
+videoView.setM3U8AdRemovalEnabled(false);
+videoView.setUp(m3u8Url, true, title);
+videoView.startPlayLogic();
+```
+
+**方案二：检查日志确认广告检测**
+
+```bash
+# 查看广告检测日志
+adb logcat -s M3U8AdRemover:D
+```
+
+日志示例：
+```
+D M3U8AdRemover: Ad detected by prefix length at position 120: e57566bf8e40715435.ts
+D M3U8AdRemover: Total segments parsed: 442
+D M3U8AdRemover: Ad segments removed: 7
+```
+
+如果发现正常片段被误识别为广告，请关闭去广告功能。
+
+**方案三：清除缓存重新播放**
+
+```java
+// 清除 M3U8 缓存
+M3U8AdManager.getInstance(context).clearCache(m3u8Url);
+```
+
+**M3U8 去广告检测机制：**
+
+OrangePlayer 使用多种方式检测广告片段：
+1. **路径模式检测**：识别不同来源的片段
+2. **前缀长度检测**：识别文件名前缀长度异常的片段
+3. **数字序列突变检测**：识别文件名数字跳跃过大的片段
+4. **DISCONTINUITY 标记**：检测流切换点之间的短片段组
+5. **短片段组检测**：检测异常短的连续片段
+
+**何时关闭去广告功能：**
+- 视频内容不完整
+- 播放时长明显短于预期
+- 日志显示大量片段被移除
+- 视频包含多个不同来源的正常内容（如合集）
+
+**API 说明：**
+
+```java
+// 启用/禁用 M3U8 去广告（默认启用）
+videoView.setM3U8AdRemovalEnabled(true);   // 启用
+videoView.setM3U8AdRemovalEnabled(false);  // 禁用
+
+// 检查当前状态
+boolean isEnabled = videoView.isM3U8AdRemovalEnabled();
+```
+
 ---
 
 ## 功能问题
 
-### Q13: 字幕不显示
+### Q14: 字幕不显示
 
 **可能原因：**
 1. 字幕文件格式不支持
@@ -662,7 +730,7 @@ manager.loadSubtitle(url, new SubtitleManager.OnSubtitleLoadListener() {
 manager.setTextSize(18f);  // 18sp
 ```
 
-### Q14: 弹幕不显示
+### Q15: 弹幕不显示
 
 **可能原因：**
 1. 弹幕被隐藏
@@ -693,7 +761,7 @@ settings.setDanmakuAlpha(0.8f);        // 透明度（0.0-1.0）
 danmaku.sendDanmaku("测试弹幕", 0xFFFFFFFF);
 ```
 
-### Q15: 语音识别无法启动
+### Q16: 语音识别无法启动
 
 **可能原因：**
 1. Android 版本低于 10
@@ -742,7 +810,7 @@ app/src/main/assets/
 
 详见 [语音识别指南](SPEECH_RECOGNITION.md)。
 
-### Q16: OCR 识别不准确
+### Q17: OCR 识别不准确
 
 **可能原因：**
 1. 字幕太小或太模糊
@@ -774,7 +842,7 @@ app/src/main/assets/
 
 ## 性能问题
 
-### Q17: 应用内存占用过高
+### Q18: 应用内存占用过高
 
 **可能原因：**
 1. 视频分辨率过高
@@ -812,7 +880,7 @@ LanguagePackManager manager = new LanguagePackManager(context);
 manager.deleteLanguage("unused_lang");
 ```
 
-### Q18: 应用启动慢
+### Q19: 应用启动慢
 
 **可能原因：**
 1. 语言包/模型加载慢
@@ -838,7 +906,7 @@ new Thread(() -> {
 
 只在需要时才初始化功能模块。
 
-### Q19: 播放时 CPU 占用高
+### Q20: 播放时 CPU 占用高
 
 **可能原因：**
 1. 使用软件解码
@@ -876,7 +944,7 @@ danmaku.hide();
 
 ## 其他问题
 
-### Q20: 如何自定义 UI
+### Q21: 如何自定义 UI
 
 **方案一：修改主题颜色**
 
@@ -916,7 +984,7 @@ public class MyVodControlView extends VodControlView {
 }
 ```
 
-### Q21: 如何保存播放进度
+### Q22: 如何保存播放进度
 
 OrangePlayer 自动保存播放进度，无需手动处理。
 
@@ -938,7 +1006,7 @@ if (position > 0) {
 manager.deleteHistory(videoUrl);
 ```
 
-### Q22: 如何实现倍速播放
+### Q23: 如何实现倍速播放
 
 **设置倍速：**
 
@@ -957,7 +1025,7 @@ PlayerSettingsManager settings = PlayerSettingsManager.getInstance(context);
 settings.setLongPressSpeed(2.0f);  // 长按 2 倍速
 ```
 
-### Q23: 如何实现画中画
+### Q24: 如何实现画中画
 
 **进入画中画：**
 
@@ -1023,7 +1091,7 @@ public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
    - Demo 应用：https://github.com/706412584/orangeplayer/tree/main/app
 
 
-### Q24: 支持的最低 Android 版本是多少？
+### Q25: 支持的最低 Android 版本是多少？
 
 **当前配置：**
 - 播放器库 (palyerlibrary): minSdk 21 (Android 5.0)
@@ -1085,7 +1153,7 @@ android {
 
 **结论：** 保持 minSdk 21，覆盖 99%+ 设备，支持所有现代功能。
 
-### Q25: 可以降低到 Android 4.4 (API 19) 吗？
+### Q26: 可以降低到 Android 4.4 (API 19) 吗？
 
 **可以，但需要调整：**
 

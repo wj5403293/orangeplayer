@@ -295,8 +295,43 @@ public class M3U8AdRemover {
         Log.d(TAG, "Path patterns: " + pathCounts.toString());
         Log.d(TAG, "Main path pattern: " + mainPathPattern + " (count=" + mainPathCount + ")");
         
-        // 如果有多个路径模式，标记非主路径的片段为广告
-        if (pathCounts.size() > 1 && mainPathCount > segments.size() * 0.3) {
+        // 方法1: 按前缀长度分组检测广告
+        // 统计各前缀长度的出现次数
+        java.util.Map<Integer, Integer> lengthCounts = new java.util.HashMap<>();
+        for (SegmentInfo segment : segments) {
+            String pathPattern = extractPathPattern(segment.url);
+            int len = pathPattern.length();
+            lengthCounts.put(len, lengthCounts.getOrDefault(len, 0) + 1);
+        }
+        
+        // 找出出现次数最多的前缀长度作为主长度
+        int mainLength = 0;
+        int mainLengthCount = 0;
+        for (java.util.Map.Entry<Integer, Integer> entry : lengthCounts.entrySet()) {
+            if (entry.getValue() > mainLengthCount) {
+                mainLength = entry.getKey();
+                mainLengthCount = entry.getValue();
+            }
+        }
+        
+        Log.d(TAG, "Prefix length counts: " + lengthCounts.toString());
+        Log.d(TAG, "Main prefix length: " + mainLength + " (count=" + mainLengthCount + ")");
+        
+        // 标记前缀长度不同于主长度的片段为广告
+        if (lengthCounts.size() > 1 && mainLengthCount > segments.size() * 0.3) {
+            for (SegmentInfo segment : segments) {
+                String pathPattern = extractPathPattern(segment.url);
+                if (pathPattern.length() != mainLength) {
+                    segment.isAd = true;
+                    adSegments.add(segment);
+                    Log.d(TAG, "Ad detected by prefix length at position " + segment.index + 
+                          ": " + segment.url + ", length=" + pathPattern.length());
+                }
+            }
+        }
+        
+        // 方法2: 如果有多个路径模式，标记非主路径的片段为广告
+        if (adSegments.isEmpty() && pathCounts.size() > 1 && mainPathCount > segments.size() * 0.1) {
             for (SegmentInfo segment : segments) {
                 String pathPattern = extractPathPattern(segment.url);
                 if (!pathPattern.equals(mainPathPattern)) {
@@ -377,7 +412,67 @@ public class M3U8AdRemover {
             }
         }
         
-        // 方法3: 检测异常短片段组（广告通常时长较短且连续）
+        // 方法3: 检测文件名数字序列突变（广告片段的数字通常突变）
+        if (adSegments.isEmpty()) {
+            // 提取所有片段的数字序列
+            List<Long> segmentNumbers = new ArrayList<>();
+            for (SegmentInfo segment : segments) {
+                long num = extractSegmentNumber(segment.url);
+                segmentNumbers.add(num);
+            }
+            
+            // 检测数字突变位置
+            List<int[]> jumpRanges = new ArrayList<>();  // [start, end] 突变范围
+            int jumpStart = -1;
+            
+            for (int i = 1; i < segmentNumbers.size(); i++) {
+                long prev = segmentNumbers.get(i - 1);
+                long curr = segmentNumbers.get(i);
+                
+                // 如果数字跳跃超过1000，认为是突变
+                if (Math.abs(curr - prev) > 1000) {
+                    if (jumpStart == -1) {
+                        jumpStart = i;
+                    }
+                } else {
+                    // 序列恢复正常，标记突变范围
+                    if (jumpStart != -1) {
+                        jumpRanges.add(new int[]{jumpStart, i - 1});
+                        jumpStart = -1;
+                    }
+                }
+            }
+            
+            // 处理末尾的突变
+            if (jumpStart != -1) {
+                jumpRanges.add(new int[]{jumpStart, segmentNumbers.size() - 1});
+            }
+            
+            // 标记突变范围内的片段为广告
+            for (int[] range : jumpRanges) {
+                int start = range[0];
+                int end = range[1];
+                
+                // 计算突变片段组的总时长
+                double totalDuration = 0;
+                for (int j = start; j <= end; j++) {
+                    totalDuration += segments.get(j).duration;
+                }
+                
+                // 如果突变片段组时长<120秒，很可能是广告
+                if (totalDuration < 120 && totalDuration > 0) {
+                    for (int j = start; j <= end; j++) {
+                        segments.get(j).isAd = true;
+                        adSegments.add(segments.get(j));
+                        Log.d(TAG, "Number jump ad detected at position " + j + 
+                              ", number=" + segmentNumbers.get(j) + 
+                              ", duration=" + segments.get(j).duration);
+                    }
+                }
+            }
+        }
+        
+        // 方法4: 检测异常短片段组（广告通常时长较短且连续）
         if (adSegments.isEmpty()) {
             int consecutiveShortCount = 0;
             int shortStartIndex = -1;
@@ -419,9 +514,33 @@ public class M3U8AdRemover {
         if (url == null) return "";
         
         try {
-            // 提取第一级目录路径作为模式
-            // 例如: /videos/202601/... -> /videos/
-            //       /stream/202512/... -> /stream/
+            // 如果是相对路径（只有文件名），提取文件名前缀
+            // 例如: e57566bf8e4000073.ts -> e57566bf8e4000
+            //       e57566bf8e40715435.ts -> e57566bf8e40 (不同前缀)
+            if (!url.contains("/")) {
+                int dotPos = url.lastIndexOf('.');
+                String filename = dotPos > 0 ? url.substring(0, dotPos) : url;
+                
+                // 提取文件名的数字前缀部分（去掉末尾的数字序列）
+                // e57566bf8e4000073 -> e57566bf8e4000
+                int lastDigitStart = -1;
+                for (int i = filename.length() - 1; i >= 0; i--) {
+                    if (Character.isDigit(filename.charAt(i))) {
+                        if (lastDigitStart == -1) {
+                            lastDigitStart = i;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (lastDigitStart > 0) {
+                    return filename.substring(0, lastDigitStart);
+                }
+                return filename;
+            }
+            
+            // 有目录路径的情况，提取第一级目录
             int slashCount = 0;
             int secondSlash = -1;
             
@@ -440,6 +559,42 @@ public class M3U8AdRemover {
         } catch (Exception e) {
             return url;
         }
+    }
+    
+    /**
+     * 提取片段文件名中的数字序列
+     * 例如: e57566bf8e4000073.ts -> 73, e57566bf8e40715435.ts -> 715435
+     */
+    private long extractSegmentNumber(String url) {
+        if (url == null) return -1;
+        
+        try {
+            // 提取文件名（不含扩展名）
+            int lastSlash = url.lastIndexOf('/');
+            String filename = url.substring(lastSlash + 1);
+            int dotPos = filename.lastIndexOf('.');
+            if (dotPos > 0) {
+                filename = filename.substring(0, dotPos);
+            }
+            
+            // 提取末尾的数字部分
+            StringBuilder numStr = new StringBuilder();
+            for (int i = filename.length() - 1; i >= 0; i--) {
+                char c = filename.charAt(i);
+                if (Character.isDigit(c)) {
+                    numStr.insert(0, c);
+                } else {
+                    break;  // 遇到非数字字符停止
+                }
+            }
+            
+            if (numStr.length() > 0) {
+                return Long.parseLong(numStr.toString());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "extractSegmentNumber error: " + url, e);
+        }
+        return -1;
     }
     
     /**
