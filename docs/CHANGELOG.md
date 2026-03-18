@@ -6,6 +6,19 @@
 
 #### M3U8去广告检测优化
 - **新增TS白名单功能**，开发者可防止自己的广告被过滤，对播放器实例生效，重启失效
+  ```java
+  // 添加TS到白名单（支持完整URL或关键字匹配）
+  videoView.addTsToWhitelist("https://example.com/my_ad.ts");
+  videoView.addTsToWhitelist("/my_ads/");  // 关键字匹配
+  
+  // 批量添加
+  videoView.addTsToWhitelist(urlList);
+  
+  // 其他操作
+  videoView.removeTsFromWhitelist(url);
+  videoView.clearTsWhitelist();
+  boolean inList = videoView.isTsInWhitelist(url);
+  ```
 - 修复嗅探完成后弹窗未正确关闭的问题
 
 ---
