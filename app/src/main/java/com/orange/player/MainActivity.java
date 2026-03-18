@@ -214,8 +214,8 @@ public class MainActivity extends AppCompatActivity {
             log("▶ 直接播放: " + getShortUrl(url));
             // 先释放旧的播放器资源
             mVideoView.release();
-            // 设置新视频
-            mVideoView.setUp(url, false, mCurrentTitle);
+            // 设置新视频（启用边看边存）
+            mVideoView.setUp(url, true, mCurrentTitle);
             // 延迟一帧再开始播放，让播放器有时间完成重置
             mVideoView.post(new Runnable() {
                 @Override
@@ -250,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
 
         log("🧪 测试快速播放: " + getShortUrl(url));
         log("   步骤1: setUp()");
-        mVideoView.setUp(url, false, "测试视频");
+        mVideoView.setUp(url, true, "测试视频");
         log("   步骤2: 立即 startPlayLogic()");
         mVideoView.startPlayLogic();
         log("   ⚠️ 观察加载动画是否正常显示（不应该在准备视图上）");
@@ -286,7 +286,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 设置第一个视频（不自动播放，点击播放器可播放）
         if (mCurrentUrl != null && !mCurrentUrl.isEmpty()) {
-            mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
+            mVideoView.setUp(mCurrentUrl, true, mCurrentTitle);
         }
         mVideoView.setLooping(false);
         mVideoView.setAutoRotateOnFullscreen(true);
@@ -663,7 +663,7 @@ public class MainActivity extends AppCompatActivity {
         mCurrentTitle = title.isEmpty() ? "历史视频" : title;
 
         mEtVideoUrl.setText(url);
-        mVideoView.setUp(url, false, mCurrentTitle);
+        mVideoView.setUp(url, true, mCurrentTitle);
 
         // 设置从历史位置开始播放
         if (position > 0) {
@@ -763,7 +763,7 @@ public class MainActivity extends AppCompatActivity {
                 mVideoView.selectPlayerFactory(engine);
                 
                 // 4. 重新设置视频
-                mVideoView.setUp(mCurrentUrl, false, mCurrentTitle);
+                mVideoView.setUp(mCurrentUrl, true, mCurrentTitle);
                 
                 // 5. 从当前位置继续播放
                 if (currentPosition > 0) {

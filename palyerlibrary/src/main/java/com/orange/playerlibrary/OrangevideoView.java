@@ -207,7 +207,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PREPARED);
-                if (getDuration() <= 0) {
+                long duration = getDuration();
+                android.util.Log.d(TAG, "onPrepared: url=" + url + ", duration=" + duration + "ms (" + (duration/1000) + "s)");
+                if (duration <= 0) {
                     mIsLiveVideo = true;
                 }
                 if (mVideoScaleManager != null) {
@@ -1702,6 +1704,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void seekTo(long position) {
+        long duration = getDuration();
+        android.util.Log.d(TAG, "seekTo: position=" + position + "ms, duration=" + duration + "ms, url=" + mOriginUrl);
         if (GSYVideoManager.instance().getPlayer() != null) {
             GSYVideoManager.instance().getPlayer().seekTo(position);
         } else {

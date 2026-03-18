@@ -141,6 +141,7 @@ public class OrangeExoPlayerManager extends BasePlayerManager {
         // 检测是否为直播流
         isLiveStream = isLiveStreamUrl(gsyModel.getUrl());
         android.util.Log.d(TAG, "initVideoPlayer: url=" + gsyModel.getUrl() + ", isLiveStream=" + isLiveStream);
+        android.util.Log.d(TAG, "initVideoPlayer: isCache=" + gsyModel.isCache() + ", cacheManager=" + cacheManager);
         
         try {
             mediaPlayer.setLooping(gsyModel.isLooping());

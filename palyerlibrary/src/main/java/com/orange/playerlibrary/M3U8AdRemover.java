@@ -270,6 +270,7 @@ public class M3U8AdRemover {
         
         List<SegmentInfo> segments = new ArrayList<>();
         List<String> headerLines = new ArrayList<>();
+        boolean hasOpeningDiscontinuity = false; // 标记开头是否有DISCONTINUITY
         
         // 解析所有片段
         int currentIndex = 0;
@@ -291,6 +292,10 @@ public class M3U8AdRemover {
                     // 标记流切换点
                     if (!segments.isEmpty()) {
                         segments.get(segments.size() - 1).isDiscontinuity = true;
+                    } else {
+                        // 开头DISCONTINUITY，标记下一个片段
+                        hasOpeningDiscontinuity = true;
+                        inHeader = false;
                     }
                 }
             } else if (line.startsWith("#EXTINF:")) {
@@ -318,35 +323,52 @@ public class M3U8AdRemover {
                     info.duration = duration;
                     info.url = segmentUrl;
                     info.lineNumber = i;
+                    info.needsDiscontinuity = false; // 初始化
                     segments.add(info);
                 }
             }
         }
         
+        // 设置needsDiscontinuity标记
+        for (int i = 0; i < segments.size(); i++) {
+            if (segments.get(i).isDiscontinuity && i + 1 < segments.size()) {
+                segments.get(i + 1).needsDiscontinuity = true;
+            }
+        }
+        
+        // 如果开头有DISCONTINUITY，第一个片段需要标记
+        if (hasOpeningDiscontinuity && !segments.isEmpty()) {
+            segments.get(0).needsDiscontinuity = false; // 第一个片段前不需要DISCONTINUITY
+        }
+        
         // 检测广告片段
-        Log.d(TAG, "Total segments parsed: " + segments.size());
+        Log.d(TAG, "Total segments parsed: " + segments.size() + ", hasOpeningDiscontinuity=" + hasOpeningDiscontinuity);
         for (int i = 0; i < Math.min(5, segments.size()); i++) {
             Log.d(TAG, "Segment " + i + ": " + segments.get(i).url + ", duration=" + segments.get(i).duration + ", isDiscontinuity=" + segments.get(i).isDiscontinuity);
         }
         
-        List<SegmentInfo> adSegments = detectAdSegments(segments);
+        List<SegmentInfo> adSegments = detectAdSegments(segments, hasOpeningDiscontinuity);
         result.adSegmentsRemoved = adSegments.size();
         
         // 构建清理后的m3u8
         // 添加header
         cleaned.append("#EXTM3U\n");
         cleaned.append("#EXT-X-VERSION:3\n");
-        cleaned.append("#EXT-X-TARGETDURATION:2\n");
+        cleaned.append("#EXT-X-TARGETDURATION:8\n");
         
-        // 添加清理后的片段
-        boolean firstSegment = true;
+        // 计算广告片段的总时长（用于日志）
+        double totalAdDuration = 0;
         for (SegmentInfo segment : segments) {
             if (segment.isAd) {
-                continue; // 跳过广告片段
+                totalAdDuration += segment.duration;
             }
-            
+        }
+        Log.d(TAG, "Total ad duration: " + totalAdDuration + "s, segments: " + adSegments.size());
+        
+        // 添加所有片段，广告片段用极短占位片段替换（保持时间轴）
+        boolean firstSegment = true;
+        for (SegmentInfo segment : segments) {
             if (firstSegment) {
-                // 第一个片段前不需要DISCONTINUITY
                 firstSegment = false;
             } else if (segment.needsDiscontinuity) {
                 cleaned.append("#EXT-X-DISCONTINUITY\n");
@@ -355,8 +377,17 @@ public class M3U8AdRemover {
             // 转换为绝对URL
             String absoluteUrl = toAbsoluteUrl(segment.url, baseUrlPath);
             
-            cleaned.append("#EXTINF:").append(String.format("%.6f", segment.duration)).append(",\n");
-            cleaned.append(absoluteUrl).append("\n");
+            if (segment.isAd) {
+                // 广告片段：保留原始时长，用本地占位TS文件替换
+                // 创建一个本地空白TS文件作为占位符
+                String placeholderPath = createPlaceholderTs();
+                cleaned.append("#EXTINF:").append(String.format("%.6f", segment.duration)).append(",\n");
+                cleaned.append(placeholderPath).append("\n");
+            } else {
+                // 正常片段
+                cleaned.append("#EXTINF:").append(String.format("%.6f", segment.duration)).append(",\n");
+                cleaned.append(absoluteUrl).append("\n");
+            }
         }
         
         cleaned.append("#EXT-X-ENDLIST\n");
@@ -369,12 +400,14 @@ public class M3U8AdRemover {
      * 检测广告片段
      * 支持：开头广告、中间广告、结尾广告
      */
-    private List<SegmentInfo> detectAdSegments(List<SegmentInfo> segments) {
+    private List<SegmentInfo> detectAdSegments(List<SegmentInfo> segments, boolean hasOpeningDiscontinuity) {
         List<SegmentInfo> adSegments = new ArrayList<>();
         
         if (segments.size() < 2) {
             return adSegments;
         }
+        
+        Log.d(TAG, "detectAdSegments: segments=" + segments.size() + ", hasOpeningDiscontinuity=" + hasOpeningDiscontinuity);
         
         // 统计所有路径模式的出现次数
         java.util.Map<String, Integer> pathCounts = new java.util.HashMap<>();
@@ -453,8 +486,9 @@ public class M3U8AdRemover {
             }
         }
         
-        // 方法2: 检测DISCONTINUITY标记的广告片段组
-        if (adSegments.isEmpty()) {
+        // 方法2: 检测DISCONTINUITY标记的广告片段组（开头广告）
+        // 即使方法1检测到了广告，也要检测开头广告
+        {
             // 找出所有DISCONTINUITY位置
             List<Integer> discontinuityPositions = new ArrayList<>();
             for (int i = 0; i < segments.size(); i++) {
@@ -463,29 +497,48 @@ public class M3U8AdRemover {
                 }
             }
             
-            if (!discontinuityPositions.isEmpty()) {
-                // 检测开头广告（第一个DISCONTINUITY之前的片段）
-                int firstDiscontinuity = discontinuityPositions.get(0);
-                if (firstDiscontinuity < segments.size() / 3) {
-                    double totalDuration = 0;
+            // 如果开头有DISCONTINUITY，检测开头广告
+            if (hasOpeningDiscontinuity && !segments.isEmpty()) {
+                // 开头广告：第一个片段到第一个DISCONTINUITY标记的片段
+                int firstDiscontinuity = discontinuityPositions.isEmpty() ? segments.size() - 1 : discontinuityPositions.get(0);
+                double totalDuration = 0;
+                for (int j = 0; j <= firstDiscontinuity; j++) {
+                    totalDuration += segments.get(j).duration;
+                }
+                Log.d(TAG, "Opening ad check: totalDuration=" + totalDuration + "s, firstDiscontinuity=" + firstDiscontinuity);
+                // 如果开头片段组时长<120秒，可能是开头广告
+                if (totalDuration < 120 && totalDuration > 0) {
                     for (int j = 0; j <= firstDiscontinuity; j++) {
-                        totalDuration += segments.get(j).duration;
-                    }
-                    // 如果DISCONTINUITY前的总时长<60秒，可能是开头广告
-                    if (totalDuration < 60 && totalDuration > 0) {
-                        for (int j = 0; j <= firstDiscontinuity; j++) {
-                            // 检查白名单
-                            if (isInWhitelist(segments.get(j).url)) {
-                                Log.d(TAG, "Segment in whitelist, skipping opening ad detection: " + segments.get(j).url);
-                                continue;
-                            }
-                            segments.get(j).isAd = true;
-                            adSegments.add(segments.get(j));
-                            Log.d(TAG, "Opening ad detected at position " + j);
+                        // 检查白名单
+                        if (isInWhitelist(segments.get(j).url)) {
+                            Log.d(TAG, "Segment in whitelist, skipping opening ad detection: " + segments.get(j).url);
+                            continue;
                         }
+                        // 检查是否已经被标记为广告
+                        if (segments.get(j).isAd) {
+                            continue;
+                        }
+                        segments.get(j).isAd = true;
+                        adSegments.add(segments.get(j));
+                        Log.d(TAG, "Opening ad detected at position " + j + ": " + segments.get(j).url);
                     }
                 }
-                
+            }
+        }
+        
+        // 方法3: 检测中间广告（总是执行，确保DISCONTINUITY之间的广告被检测）
+        {
+            // 找出所有DISCONTINUITY位置
+            List<Integer> discontinuityPositions = new ArrayList<>();
+            for (int i = 0; i < segments.size(); i++) {
+                if (segments.get(i).isDiscontinuity) {
+                    discontinuityPositions.add(i);
+                }
+            }
+            
+            Log.d(TAG, "Method 3: Found " + discontinuityPositions.size() + " DISCONTINUITY markers");
+            
+            if (discontinuityPositions.size() >= 1) {
                 // 检测中间广告（两个DISCONTINUITY之间的片段）
                 for (int d = 0; d < discontinuityPositions.size() - 1; d++) {
                     int startPos = discontinuityPositions.get(d) + 1;
@@ -496,12 +549,17 @@ public class M3U8AdRemover {
                         for (int j = startPos; j <= endPos; j++) {
                             totalDuration += segments.get(j).duration;
                         }
+                        Log.d(TAG, "Mid-roll check: startPos=" + startPos + ", endPos=" + endPos + ", duration=" + totalDuration + "s");
                         // 如果中间片段组时长<60秒，可能是中间广告
                         if (totalDuration < 60 && totalDuration > 5) {
                             for (int j = startPos; j <= endPos; j++) {
                                 // 检查白名单
                                 if (isInWhitelist(segments.get(j).url)) {
                                     Log.d(TAG, "Segment in whitelist, skipping mid-roll ad detection: " + segments.get(j).url);
+                                    continue;
+                                }
+                                // 检查是否已经被标记为广告
+                                if (segments.get(j).isAd) {
                                     continue;
                                 }
                                 segments.get(j).isAd = true;
@@ -513,25 +571,27 @@ public class M3U8AdRemover {
                 }
                 
                 // 检测结尾广告（最后一个DISCONTINUITY之后的片段）
-                if (discontinuityPositions.size() >= 1) {
-                    int lastDiscontinuity = discontinuityPositions.get(discontinuityPositions.size() - 1);
-                    if (lastDiscontinuity > segments.size() * 2 / 3) {
-                        double totalDuration = 0;
+                int lastDiscontinuity = discontinuityPositions.get(discontinuityPositions.size() - 1);
+                if (lastDiscontinuity > segments.size() * 2 / 3) {
+                    double totalDuration = 0;
+                    for (int j = lastDiscontinuity + 1; j < segments.size(); j++) {
+                        totalDuration += segments.get(j).duration;
+                    }
+                    // 如果结尾片段组时长<60秒，可能是结尾广告
+                    if (totalDuration < 60 && totalDuration > 0) {
                         for (int j = lastDiscontinuity + 1; j < segments.size(); j++) {
-                            totalDuration += segments.get(j).duration;
-                        }
-                        // 如果结尾片段组时长<60秒，可能是结尾广告
-                        if (totalDuration < 60 && totalDuration > 0) {
-                            for (int j = lastDiscontinuity + 1; j < segments.size(); j++) {
-                                // 检查白名单
-                                if (isInWhitelist(segments.get(j).url)) {
-                                    Log.d(TAG, "Segment in whitelist, skipping post-roll ad detection: " + segments.get(j).url);
-                                    continue;
-                                }
-                                segments.get(j).isAd = true;
-                                adSegments.add(segments.get(j));
-                                Log.d(TAG, "Post-roll ad detected at position " + j);
+                            // 检查白名单
+                            if (isInWhitelist(segments.get(j).url)) {
+                                Log.d(TAG, "Segment in whitelist, skipping post-roll ad detection: " + segments.get(j).url);
+                                continue;
                             }
+                            // 检查是否已经被标记为广告
+                            if (segments.get(j).isAd) {
+                                continue;
+                            }
+                            segments.get(j).isAd = true;
+                            adSegments.add(segments.get(j));
+                            Log.d(TAG, "Post-roll ad detected at position " + j);
                         }
                     }
                 }
@@ -985,6 +1045,76 @@ public class M3U8AdRemover {
         } catch (Exception e) {
             Log.e(TAG, "removeFromCacheIndex error", e);
         }
+    }
+    
+    /**
+     * 创建占位TS文件（空白视频片段）
+     * 用于替换广告片段，保持时间轴不变
+     */
+    private String createPlaceholderTs() {
+        try {
+            // 占位TS文件路径
+            File placeholderFile = new File(mCacheDir, "placeholder.ts");
+            
+            // 如果已存在，直接返回
+            if (placeholderFile.exists()) {
+                return "file://" + placeholderFile.getAbsolutePath();
+            }
+            
+            // 创建一个最小的空白TS文件
+            // TS文件最小结构：PAT + PMT + 空白PES包
+            byte[] minimalTs = createMinimalTsContent();
+            
+            FileOutputStream fos = new FileOutputStream(placeholderFile);
+            fos.write(minimalTs);
+            fos.close();
+            
+            Log.d(TAG, "Created placeholder TS file: " + placeholderFile.getAbsolutePath());
+            return "file://" + placeholderFile.getAbsolutePath();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to create placeholder TS", e);
+            // 返回一个空字符串，播放器会跳过
+            return "";
+        }
+    }
+    
+    /**
+     * 创建最小的TS文件内容
+     * 包含PAT、PMT和一个空白视频PES包
+     */
+    private byte[] createMinimalTsContent() {
+        // 最小的有效TS文件：188字节的TS包
+        // 这里创建一个包含PAT的TS包
+        byte[] tsPacket = new byte[188];
+        
+        // TS包同步字节
+        tsPacket[0] = 0x47; // 同步字节
+        
+        // PID 0x0000 (PAT)
+        tsPacket[1] = 0x40; // TEI=0, PUSI=1, PID高5位=0
+        tsPacket[2] = 0x00; // PID低8位=0
+        tsPacket[3] = 0x10; // CC=0, 适配字段=0, 负载=1
+        
+        // PAT表内容（简化版）
+        tsPacket[4] = 0x00; // pointer field
+        tsPacket[5] = 0x00; // table_id
+        tsPacket[6] = (byte) 0xB0; // section_syntax_indicator
+        tsPacket[7] = 0x0D; // section_length
+        tsPacket[8] = 0x00; tsPacket[9] = 0x01; // transport_stream_id
+        tsPacket[10] = (byte) 0xC1; // version_number
+        tsPacket[11] = 0x00; // section_number
+        tsPacket[12] = 0x00; // last_section_number
+        // PMT PID = 0x1000
+        tsPacket[13] = 0x00; tsPacket[14] = 0x01; // program_number
+        tsPacket[15] = (byte) 0xE1; tsPacket[16] = 0x00; // PMT PID
+        
+        // 填充剩余字节
+        for (int i = 17; i < 188; i++) {
+            tsPacket[i] = (byte) 0xFF;
+        }
+        
+        return tsPacket;
     }
     
     /**
