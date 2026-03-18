@@ -588,6 +588,11 @@ public class M3U8AdRemover {
                 // 如果突变片段组时长<120秒，很可能是广告
                 if (totalDuration < 120 && totalDuration > 0) {
                     for (int j = start; j <= end; j++) {
+                        // 检查白名单
+                        if (isInWhitelist(segments.get(j).url)) {
+                            Log.d(TAG, "Segment in whitelist, skipping number jump ad detection: " + segments.get(j).url);
+                            continue;
+                        }
                         segments.get(j).isAd = true;
                         adSegments.add(segments.get(j));
                         Log.d(TAG, "Number jump ad detected at position " + j + 
@@ -618,6 +623,11 @@ public class M3U8AdRemover {
                         }
                         if (totalDuration < 30) {
                             for (int j = shortStartIndex; j < i; j++) {
+                                // 检查白名单
+                                if (isInWhitelist(segments.get(j).url)) {
+                                    Log.d(TAG, "Segment in whitelist, skipping short segment ad detection: " + segments.get(j).url);
+                                    continue;
+                                }
                                 segments.get(j).isAd = true;
                                 adSegments.add(segments.get(j));
                                 Log.d(TAG, "Short segment ad detected at position " + j);
