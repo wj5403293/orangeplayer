@@ -189,4 +189,59 @@ public class M3U8AdManager {
          */
         void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message);
     }
+    
+    // ===== TS白名单操作 =====
+    
+    /**
+     * 添加TS片段到白名单
+     * 白名单中的片段不会被当作广告过滤
+     * 对当前播放器实例生效，重启失效
+     * 
+     * @param tsUrl TS片段的完整URL或URL关键字（包含该关键字的URL都不会被过滤）
+     */
+    public void addTsToWhitelist(String tsUrl) {
+        mRemover.addToWhitelist(tsUrl);
+    }
+    
+    /**
+     * 批量添加TS片段到白名单
+     * 
+     * @param tsUrls TS片段URL列表
+     */
+    public void addTsToWhitelist(java.util.List<String> tsUrls) {
+        mRemover.addToWhitelist(tsUrls);
+    }
+    
+    /**
+     * 从白名单移除TS片段
+     * 
+     * @param tsUrl 要移除的URL
+     */
+    public void removeTsFromWhitelist(String tsUrl) {
+        mRemover.removeFromWhitelist(tsUrl);
+    }
+    
+    /**
+     * 清空TS白名单
+     */
+    public void clearTsWhitelist() {
+        mRemover.clearWhitelist();
+    }
+    
+    /**
+     * 检查URL是否在白名单中
+     * 
+     * @param tsUrl 要检查的URL
+     * @return 是否在白名单中
+     */
+    public boolean isTsInWhitelist(String tsUrl) {
+        return mRemover.isInWhitelist(tsUrl);
+    }
+    
+    /**
+     * 获取TS白名单大小
+     */
+    public int getTsWhitelistSize() {
+        return mRemover.getWhitelistSize();
+    }
 }

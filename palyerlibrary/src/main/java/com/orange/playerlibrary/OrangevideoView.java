@@ -4254,4 +4254,73 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mTitleView.updateSniffingButton(sniffingView.getResultCount() > 0);
         }
     }
+    
+    // ===== M3U8去广告TS白名单API =====
+    
+    /**
+     * 添加TS片段到白名单
+     * 白名单中的片段不会被当作广告过滤
+     * 对当前播放器实例生效，重启失效
+     * 
+     * @param tsUrl TS片段的完整URL或URL关键字（包含该关键字的URL都不会被过滤）
+     */
+    public void addTsToWhitelist(String tsUrl) {
+        if (mM3U8AdManager != null) {
+            mM3U8AdManager.addTsToWhitelist(tsUrl);
+        }
+    }
+    
+    /**
+     * 批量添加TS片段到白名单
+     * 
+     * @param tsUrls TS片段URL列表
+     */
+    public void addTsToWhitelist(java.util.List<String> tsUrls) {
+        if (mM3U8AdManager != null) {
+            mM3U8AdManager.addTsToWhitelist(tsUrls);
+        }
+    }
+    
+    /**
+     * 从白名单移除TS片段
+     * 
+     * @param tsUrl 要移除的URL
+     */
+    public void removeTsFromWhitelist(String tsUrl) {
+        if (mM3U8AdManager != null) {
+            mM3U8AdManager.removeTsFromWhitelist(tsUrl);
+        }
+    }
+    
+    /**
+     * 清空TS白名单
+     */
+    public void clearTsWhitelist() {
+        if (mM3U8AdManager != null) {
+            mM3U8AdManager.clearTsWhitelist();
+        }
+    }
+    
+    /**
+     * 检查URL是否在白名单中
+     * 
+     * @param tsUrl 要检查的URL
+     * @return 是否在白名单中
+     */
+    public boolean isTsInWhitelist(String tsUrl) {
+        if (mM3U8AdManager != null) {
+            return mM3U8AdManager.isTsInWhitelist(tsUrl);
+        }
+        return false;
+    }
+    
+    /**
+     * 获取TS白名单大小
+     */
+    public int getTsWhitelistSize() {
+        if (mM3U8AdManager != null) {
+            return mM3U8AdManager.getTsWhitelistSize();
+        }
+        return 0;
+    }
 }

@@ -14,7 +14,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,6 +39,9 @@ public class M3U8AdRemover {
     private final File mCacheDir;
     private final ExecutorService mExecutor;
     
+    // TS白名单（实例级别，重启失效）
+    private Set<String> mTsWhitelist = new HashSet<>();
+    
     // 广告检测回调
     public interface Callback {
         void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved);
@@ -50,6 +55,88 @@ public class M3U8AdRemover {
             mCacheDir.mkdirs();
         }
         mExecutor = Executors.newSingleThreadExecutor();
+    }
+    
+    // ===== TS白名单操作 =====
+    
+    /**
+     * 添加TS片段到白名单
+     * 白名单中的片段不会被当作广告过滤
+     * 
+     * @param tsUrl TS片段的完整URL或URL关键字（包含该关键字的URL都不会被过滤）
+     */
+    public void addToWhitelist(String tsUrl) {
+        if (tsUrl != null && !tsUrl.isEmpty()) {
+            mTsWhitelist.add(tsUrl);
+            Log.d(TAG, "Added to whitelist: " + tsUrl);
+        }
+    }
+    
+    /**
+     * 批量添加TS片段到白名单
+     * 
+     * @param tsUrls TS片段URL列表
+     */
+    public void addToWhitelist(List<String> tsUrls) {
+        if (tsUrls != null) {
+            for (String url : tsUrls) {
+                addToWhitelist(url);
+            }
+        }
+    }
+    
+    /**
+     * 从白名单移除TS片段
+     * 
+     * @param tsUrl 要移除的URL
+     */
+    public void removeFromWhitelist(String tsUrl) {
+        if (tsUrl != null) {
+            mTsWhitelist.remove(tsUrl);
+            Log.d(TAG, "Removed from whitelist: " + tsUrl);
+        }
+    }
+    
+    /**
+     * 清空白名单
+     */
+    public void clearWhitelist() {
+        mTsWhitelist.clear();
+        Log.d(TAG, "Whitelist cleared");
+    }
+    
+    /**
+     * 检查URL是否在白名单中
+     * 支持完整URL匹配和关键字匹配
+     * 
+     * @param tsUrl 要检查的URL
+     * @return 是否在白名单中
+     */
+    public boolean isInWhitelist(String tsUrl) {
+        if (tsUrl == null || mTsWhitelist.isEmpty()) {
+            return false;
+        }
+        
+        // 完整匹配
+        if (mTsWhitelist.contains(tsUrl)) {
+            return true;
+        }
+        
+        // 关键字匹配（白名单项作为子串）
+        for (String whitelistItem : mTsWhitelist) {
+            if (tsUrl.contains(whitelistItem)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 获取白名单大小
+     */
+    public int getWhitelistSize() {
+        return mTsWhitelist.size();
     }
     
     /**
@@ -336,6 +423,11 @@ public class M3U8AdRemover {
             for (SegmentInfo segment : segments) {
                 String pathPattern = extractPathPattern(segment.url);
                 if (pathPattern.length() != mainLength) {
+                    // 检查白名单
+                    if (isInWhitelist(segment.url)) {
+                        Log.d(TAG, "Segment in whitelist, skipping ad detection: " + segment.url);
+                        continue;
+                    }
                     segment.isAd = true;
                     adSegments.add(segment);
                     Log.d(TAG, "Ad detected by prefix length at position " + segment.index + 
@@ -349,6 +441,11 @@ public class M3U8AdRemover {
             for (SegmentInfo segment : segments) {
                 String pathPattern = extractPathPattern(segment.url);
                 if (!pathPattern.equals(mainPathPattern)) {
+                    // 检查白名单
+                    if (isInWhitelist(segment.url)) {
+                        Log.d(TAG, "Segment in whitelist, skipping ad detection: " + segment.url);
+                        continue;
+                    }
                     segment.isAd = true;
                     adSegments.add(segment);
                     Log.d(TAG, "Ad detected by path pattern at position " + segment.index + ": " + segment.url);
@@ -377,6 +474,11 @@ public class M3U8AdRemover {
                     // 如果DISCONTINUITY前的总时长<60秒，可能是开头广告
                     if (totalDuration < 60 && totalDuration > 0) {
                         for (int j = 0; j <= firstDiscontinuity; j++) {
+                            // 检查白名单
+                            if (isInWhitelist(segments.get(j).url)) {
+                                Log.d(TAG, "Segment in whitelist, skipping opening ad detection: " + segments.get(j).url);
+                                continue;
+                            }
                             segments.get(j).isAd = true;
                             adSegments.add(segments.get(j));
                             Log.d(TAG, "Opening ad detected at position " + j);
@@ -397,6 +499,11 @@ public class M3U8AdRemover {
                         // 如果中间片段组时长<60秒，可能是中间广告
                         if (totalDuration < 60 && totalDuration > 5) {
                             for (int j = startPos; j <= endPos; j++) {
+                                // 检查白名单
+                                if (isInWhitelist(segments.get(j).url)) {
+                                    Log.d(TAG, "Segment in whitelist, skipping mid-roll ad detection: " + segments.get(j).url);
+                                    continue;
+                                }
                                 segments.get(j).isAd = true;
                                 adSegments.add(segments.get(j));
                                 Log.d(TAG, "Mid-roll ad detected at position " + j);
@@ -416,6 +523,11 @@ public class M3U8AdRemover {
                         // 如果结尾片段组时长<60秒，可能是结尾广告
                         if (totalDuration < 60 && totalDuration > 0) {
                             for (int j = lastDiscontinuity + 1; j < segments.size(); j++) {
+                                // 检查白名单
+                                if (isInWhitelist(segments.get(j).url)) {
+                                    Log.d(TAG, "Segment in whitelist, skipping post-roll ad detection: " + segments.get(j).url);
+                                    continue;
+                                }
                                 segments.get(j).isAd = true;
                                 adSegments.add(segments.get(j));
                                 Log.d(TAG, "Post-roll ad detected at position " + j);

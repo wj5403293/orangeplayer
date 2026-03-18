@@ -338,14 +338,8 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (videoSize > 0) {
                         log("✓ 嗅探完成，共发现 " + videoSize + " 个视频");
-                        // 自动播放第一个视频
-                        if (videoList != null && !videoList.isEmpty()) {
-                            VideoSniffing.VideoInfo firstVideo = videoList.get(0);
-                            String videoUrl = firstVideo.url;
-                            log("▶ 自动播放: " + getShortUrl(videoUrl));
-                            mVideoView.setUp(videoUrl, false, mCurrentTitle);
-                            mVideoView.startPlayLogic();
-                        }
+                        // 注意：自动播放由 OrangevideoView 内部处理
+                        // 这里只记录日志，不重复调用播放
                     } else {
                         log("❌ 嗅探完成，未发现视频");
                     }
