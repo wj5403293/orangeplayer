@@ -42,6 +42,12 @@
 - **修复v3打包后播放器无法显示的问题**
   - 原因：iApp不支持递归解析子依赖，导致 `gsyijkjava` 丢失
   - 解决方案：在 `iapp.sdk` 中手动添加 `io.github.carguo:gsyijkjava:1.0.0` 依赖
+- **修复IJK内核设置不生效的问题**
+  - 原因：`setPlayerEngine()` 在 `OrangevideoView` 创建之后调用，但引擎初始化在构造函数中
+  - 解决方案：在创建 `OrangevideoView` 之前设置引擎
+
+#### 已知限制
+- **系统内核横竖屏切换会短暂暂停**：Android MediaPlayer 不支持无缝 Surface 切换，建议使用 IJK 或 ExoPlayer 内核获得更好体验
 
 ---
 

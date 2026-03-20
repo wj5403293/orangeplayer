@@ -71,17 +71,17 @@ public class VideoPlayerManager {
         this.mActivity = activity;
         this.mParentContainer = parent;
         
-        // 创建播放器视图
+        // 设置默认内核（必须在创建 OrangevideoView 之前设置，否则不生效）
+        PlayerSettingsManager.getInstance(activity).setPlayerEngine(PlayerConstants.ENGINE_IJK);
+        
+        // 创建播放器视图（构造函数中会读取引擎设置）
         this.mVideoView = new OrangevideoView(activity);
         
-        // 创建控制器（新版SDK只接受Context参数）
+        // 创建控制器
         this.mVideoController = new OrangeVideoController(activity);
         
         // 设置预览功能
         this.mVideoController.setPreViewEnabled(true);
-        
-        // 设置默认内核（使用实例方法）
-        PlayerSettingsManager.getInstance(activity).setPlayerEngine(PlayerConstants.ENGINE_DEFAULT);
         
         // 设置控制器到播放器
         this.mVideoView.setVideoController(this.mVideoController);
