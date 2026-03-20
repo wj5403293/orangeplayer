@@ -9,6 +9,22 @@
 - 新增 `setPlayerVolumePercent(int percent)` 方法，设置播放器音量百分比 (0-100)
 - 音量设置仅影响当前播放器，不影响系统音量
 
+#### 静音控制
+- 新增 `setMute(boolean isMute)` 方法，设置静音
+- 新增 `isMute()` 方法，获取静音状态
+- 新增 `toggleMute()` 方法，切换静音状态
+
+#### 循环播放
+- 新增 `setLooping(boolean looping)` 方法，设置循环播放
+- 新增 `isLooping()` 方法，获取循环播放状态
+
+#### 截图功能
+- 新增 `takeScreenshot(callback)` 方法，截取当前画面
+- 新增 `takeScreenshotAndSave(callback)` 方法，截图并保存到相册
+
+#### 缓冲进度
+- 新增 `getBufferedPercentage()` 方法，获取缓冲进度百分比 (0-100)
+
 ---
 
 ## [1.2.6] - 2026-03-18

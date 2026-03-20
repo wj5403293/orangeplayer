@@ -829,19 +829,23 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public int getBufferedPercentage() {
-                return videoView.getBuffterPoint();
+                return videoView.getBufferedPercentage();
             }
 
             @Override
-            public void setMute(boolean isMute) {}
+            public void setMute(boolean isMute) {
+                videoView.setMute(isMute);
+            }
 
             @Override
             public boolean isMute() {
-                return false;
+                return videoView.isMute();
             }
 
             @Override
-            public void setVolume(float volume) {}
+            public void setVolume(float volume) {
+                videoView.setPlayerVolume(volume);
+            }
 
             @Override
             public void replay(boolean resetPosition) {
@@ -2155,6 +2159,100 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void setPlayerVolumePercent(int volumePercent) {
         float volume = Math.max(0, Math.min(100, volumePercent)) / 100.0f;
         setPlayerVolume(volume);
+    }
+    
+    // ==================== 静音控制 ====================
+    
+    private boolean mIsMuted = false;
+    
+    /**
+     * 设置静音
+     * @param isMute 是否静音
+     */
+    public void setMute(boolean isMute) {
+        mIsMuted = isMute;
+        try {
+            com.shuyu.gsyvideoplayer.player.IPlayerManager manager = getGSYVideoManager().getPlayer();
+            if (manager != null) {
+                manager.setNeedMute(isMute);
+            }
+        } catch (Exception e) {
+            android.util.Log.w(TAG, "setMute: 设置静音失败", e);
+        }
+    }
+    
+    /**
+     * 是否静音
+     * @return true 静音
+     */
+    public boolean isMute() {
+        return mIsMuted;
+    }
+    
+    /**
+     * 切换静音状态
+     * @return 切换后的静音状态
+     */
+    public boolean toggleMute() {
+        setMute(!mIsMuted);
+        return mIsMuted;
+    }
+    
+    // ==================== 循环播放 ====================
+    
+    private boolean mIsLooping = false;
+    
+    /**
+     * 设置循环播放
+     * @param looping 是否循环
+     */
+    public void setLooping(boolean looping) {
+        mIsLooping = looping;
+        // 通过设置管理器设置播放模式
+        PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
+        if (settingsManager != null) {
+            settingsManager.setPlayMode(looping ? "single_loop" : "sequential");
+        }
+    }
+    
+    /**
+     * 是否循环播放
+     * @return true 循环
+     */
+    public boolean isLooping() {
+        return mIsLooping;
+    }
+    
+    // ==================== 截图功能 ====================
+    
+    /**
+     * 截图
+     * @param callback 截图回调
+     */
+    public void takeScreenshot(com.orange.playerlibrary.screenshot.ScreenshotManager.ScreenshotCallback callback) {
+        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
+            new com.orange.playerlibrary.screenshot.ScreenshotManager(getContext(), this);
+        screenshotManager.takeScreenshot(callback);
+    }
+    
+    /**
+     * 截图并保存到相册
+     * @param callback 保存回调
+     */
+    public void takeScreenshotAndSave(com.orange.playerlibrary.screenshot.ScreenshotManager.SaveCallback callback) {
+        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
+            new com.orange.playerlibrary.screenshot.ScreenshotManager(getContext(), this);
+        screenshotManager.takeAndSave(callback);
+    }
+    
+    // ==================== 缓冲进度 ====================
+    
+    /**
+     * 获取缓冲进度百分比
+     * @return 缓冲进度 (0-100)
+     */
+    public int getBufferedPercentage() {
+        return getBuffterPoint();
     }
     
     /**
