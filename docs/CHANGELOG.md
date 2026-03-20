@@ -38,6 +38,10 @@
   - 调用 `M3U8AdManager.getInstance(context).setEnabled(true)` 开启
   - 避免对普通视频造成不必要的处理
 
+## [1.2.8] - 2026-03-20
+
+### 🐛 Bug修复
+
 #### v3打包播放器初始化修复
 - **修复v3打包后播放器无法显示的问题**
   - 原因：iApp不支持递归解析子依赖，导致 `gsyijkjava` 丢失

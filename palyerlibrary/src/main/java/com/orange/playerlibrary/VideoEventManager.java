@@ -756,6 +756,11 @@ public class VideoEventManager {
                                        isClassPresent("com.google.android.exoplayer2.ExoPlayer") ||
                                        isClassPresent("com.google.android.exoplayer2.Player") ||
                                        isClassPresent("androidx.media3.exoplayer.ExoPlayer");
+        
+        // 调试日志：显示内核可用性
+        android.util.Log.d("VideoEventManager", "setupEngineButtons: Ali=" + isAliPlayerAvailable + 
+            ", IJK=" + isIjkPlayerAvailable + ", Exo=" + isExoPlayerAvailable);
+        
         // 设置可见性
         if (aliBtn != null) aliBtn.setVisibility(isAliPlayerAvailable ? View.VISIBLE : View.GONE);
         if (ijkBtn != null) ijkBtn.setVisibility(isIjkPlayerAvailable ? View.VISIBLE : View.GONE);
@@ -764,6 +769,9 @@ public class VideoEventManager {
         
         // 获取当前引擎
         String currentEngine = mSettingsManager.getPlayerEngine();
+        
+        // 调试日志：显示当前引擎
+        android.util.Log.d("VideoEventManager", "setupEngineButtons: currentEngine=" + currentEngine);
         
         // 高亮当前引擎
         if (aliBtn != null) {
