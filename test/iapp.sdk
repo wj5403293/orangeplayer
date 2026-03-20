@@ -9,14 +9,6 @@
 
 <!-- GSYVideoPlayer 全架构so库（包含armv7a/armv64/x86/x86_64，支持加密视频） -->
 <sdk aar="true" time="1750959260003" maven="" more="">io.github.706412584:gsyVideoPlayer-ex_so:+</sdk>
-
-<!-- ExoPlayer 播放器支持（可选） -->
-<sdk aar="true" time="1750959260004" maven="" more="">io.github.706412584:gsyVideoPlayer-exo_player2:+</sdk>
-
-<!-- 阿里云播放器支持（可选） -->
-<sdk aar="true" time="1750959260005" maven="" more="">io.github.706412584:gsyVideoPlayer-aliplay:+</sdk>
-<sdk aar="true" time="1750959222034" maven="" more="">com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full</sdk>
-
 <!-- 弹幕库 -->
 <sdk aar="true" time="1750959274645" maven="" more="">com.github.bilibili:DanmakuFlameMaster:0.9.25</sdk>
 
