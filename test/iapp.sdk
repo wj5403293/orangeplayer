@@ -1,14 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <iapp>
 <sdklist>
-<!-- GSYVideoPlayer 核心 -->
-<sdk aar="true" time="1750959260884" maven="" more="">com.shuyu:GSYVideoPlayer:8.6.0</sdk>
+<!-- OrangePlayer 核心库 -->
+<sdk aar="true" time="1750959260001" maven="" more="">io.github.706412584:orangeplayer:+</sdk>
+
+<!-- GSYVideoPlayer 内核 - IJK播放器 -->
+<sdk aar="true" time="1750959260002" maven="" more="">io.github.706412584:gsyVideoPlayer-java:+</sdk>
+
+<!-- GSYVideoPlayer 全架构so库（包含armv7a/armv64/x86/x86_64，支持加密视频） -->
+<sdk aar="true" time="1750959260003" maven="" more="">io.github.706412584:gsyVideoPlayer-ex_so:+</sdk>
+
+<!-- ExoPlayer 播放器支持（可选） -->
+<sdk aar="true" time="1750959260004" maven="" more="">io.github.706412584:gsyVideoPlayer-exo_player2:+</sdk>
+
+<!-- 阿里云播放器支持（可选） -->
+<sdk aar="true" time="1750959260005" maven="" more="">io.github.706412584:gsyVideoPlayer-aliplay:+</sdk>
+<sdk aar="true" time="1750959222034" maven="" more="">com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full</sdk>
 
 <!-- 弹幕库 -->
-<sdk aar="true" time="1750959274645" maven="" more="">com.github.ctiao:DanmakuFlameMaster:0.9.25</sdk>
-
-<!-- 阿里云播放器（可选） -->
-<sdk aar="true" time="1750959222034" maven="" more="">com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full</sdk>
+<sdk aar="true" time="1750959274645" maven="" more="">com.github.bilibili:DanmakuFlameMaster:0.9.25</sdk>
 
 <!-- Glide 图片加载 -->
 <sdk aar="true" time="1744044796851" more="图片工具库">com.github.bumptech.glide:glide:4.13.2</sdk>
