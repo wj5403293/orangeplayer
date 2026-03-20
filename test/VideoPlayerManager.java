@@ -274,9 +274,9 @@ public class VideoPlayerManager {
 	* 设置播放完成监听
 	* @param listener 播放完成回调
 	*/
-	public void setOnPlayCompleteListener(OrangevideoView.OnPlayComplete listener) {
+	public void setOnPlayCompleteListener(com.orange.playerlibrary.interfaces.OnPlayCompleteListener listener) {
 		checkInitState();
-		this.mVideoView.setOnPlayComplete(listener);
+		this.mVideoView.setOnPlayCompleteListener(listener);
 	}
 	
 	
@@ -284,9 +284,9 @@ public class VideoPlayerManager {
 	* 设置进度更新监听（每秒回调一次）
 	* @param listener 进度回调
 	*/
-	public void setOnProgressListener(OrangevideoView.OnProgressListener listener) {
+	public void setOnProgressListener(com.orange.playerlibrary.interfaces.OnProgressListener listener) {
 		checkInitState();
-		OrangevideoView.setOnProgressListener(listener);
+		this.mVideoView.setOnProgressListener(listener);
 	}
 	
 	
@@ -377,7 +377,7 @@ public class VideoPlayerManager {
 	public void ScreenTvOnClickListener()
 	{
 		new Screen().setStaerActivity(mActivity)
-		.setName(this.mVideoView.getitle())
+		.setName(this.mVideoController.getVideoTitle())
 		.setUrl(this.mVideoView.getUrl())//视频地址
 		.setImageUrl(this.urlimage)//视频封面
 		.show();
