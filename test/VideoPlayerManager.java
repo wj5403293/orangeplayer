@@ -7,7 +7,6 @@ import com.orange.playerlibrary.OrangevideoView;
 import com.orange.playerlibrary.PlayerSettingsManager;
 import com.orange.playerlibrary.PlayerConstants;
 import com.orange.playerlibrary.DanmakuControllerImpl;
-import com.orange.playerlibrary.tool.DanmakuItem;
 import com.uaoanlao.tv.Screen;
 
 import java.util.ArrayList;
@@ -258,9 +257,14 @@ public class VideoPlayerManager {
     public void setVolume(int volume) {
         checkInitState();
         if (volume >= 0 && volume <= 100) {
-            // 新版SDK通过GSY基类设置音量
-            float volumeRatio = volume / 100.0f;
-            this.mVideoView.getGSYVideoManager().setVolume(volumeRatio, volumeRatio);
+            // 使用AudioManager设置系统音量
+            android.media.AudioManager audioManager = (android.media.AudioManager) 
+                mActivity.getSystemService(android.content.Context.AUDIO_SERVICE);
+            if (audioManager != null) {
+                int max = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                int newVolume = (int) (max * volume / 100.0f);
+                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVolume, 0);
+            }
         }
     }
     
@@ -464,7 +468,7 @@ public class VideoPlayerManager {
         
         try {
             JSONArray jsonArray = new JSONArray(jsonStr);
-            List<DanmakuItem> danmakuList = new ArrayList<>();
+            List<com.orange.playerlibrary.interfaces.IDanmakuController.DanmakuItem> danmakuList = new ArrayList<>();
             
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject danmakuObj = jsonArray.getJSONObject(i);
@@ -473,7 +477,7 @@ public class VideoPlayerManager {
                 long timestamp = danmakuObj.getLong("timestamp");
                 boolean isSelf = danmakuObj.getBoolean("isSelf");
                 int color = parseColorString(colorStr);
-                danmakuList.add(new DanmakuItem(text, color, timestamp, isSelf));
+                danmakuList.add(new com.orange.playerlibrary.interfaces.IDanmakuController.DanmakuItem(text, color, timestamp, isSelf));
             }
             
             mDanmakuController.setDanmakuData(danmakuList);
@@ -490,7 +494,7 @@ public class VideoPlayerManager {
         }
         
         try {
-            List<DanmakuItem> danmakuList = new ArrayList<>();
+            List<com.orange.playerlibrary.interfaces.IDanmakuController.DanmakuItem> danmakuList = new ArrayList<>();
             
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject danmakuObj = jsonArray.getJSONObject(i);
@@ -499,7 +503,7 @@ public class VideoPlayerManager {
                 long timestamp = danmakuObj.getLong("timestamp");
                 boolean isSelf = danmakuObj.getBoolean("isSelf");
                 int color = parseColorString(colorStr);
-                danmakuList.add(new DanmakuItem(text, color, timestamp, isSelf));
+                danmakuList.add(new com.orange.playerlibrary.interfaces.IDanmakuController.DanmakuItem(text, color, timestamp, isSelf));
             }
             
             mDanmakuController.setDanmakuData(danmakuList);
