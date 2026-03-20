@@ -275,6 +275,7 @@ public class M3U8AdRemover {
         // 解析所有片段
         int currentIndex = 0;
         boolean inHeader = true;
+        String currentEncryptionKey = null; // 当前有效的加密密钥
         
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i].trim();
@@ -286,6 +287,13 @@ public class M3U8AdRemover {
                     line.startsWith("#EXT-X-PLAYLIST-TYPE") ||
                     line.startsWith("#EXTM3U")) {
                     headerLines.add(line);
+                }
+                
+                // 处理加密密钥标签
+                if (line.startsWith("#EXT-X-KEY:")) {
+                    // 提取密钥信息（去掉 #EXT-X-KEY: 前缀）
+                    currentEncryptionKey = line.substring("#EXT-X-KEY:".length());
+                    Log.d(TAG, "Found encryption key: " + currentEncryptionKey);
                 }
                 
                 if (line.equals("#EXT-X-DISCONTINUITY")) {
@@ -324,6 +332,7 @@ public class M3U8AdRemover {
                     info.url = segmentUrl;
                     info.lineNumber = i;
                     info.needsDiscontinuity = false; // 初始化
+                    info.encryptionKey = currentEncryptionKey; // 保存当前加密密钥
                     segments.add(info);
                 }
             }
@@ -367,15 +376,26 @@ public class M3U8AdRemover {
         
         // 添加所有片段，广告片段用极短占位片段替换（保持时间轴）
         boolean firstSegment = true;
+        String lastEncryptionKey = null; // 跟踪上一个输出的加密密钥，避免重复输出
+        
         for (SegmentInfo segment : segments) {
             if (firstSegment) {
                 firstSegment = false;
             } else if (segment.needsDiscontinuity) {
                 cleaned.append("#EXT-X-DISCONTINUITY\n");
+                // DISCONTINUITY后需要重新输出加密密钥（如果有）
+                lastEncryptionKey = null;
             }
             
             // 转换为绝对URL
             String absoluteUrl = toAbsoluteUrl(segment.url, baseUrlPath);
+            
+            // 输出加密密钥标签（如果有且与上一个不同）
+            if (segment.encryptionKey != null && !segment.encryptionKey.equals(lastEncryptionKey)) {
+                cleaned.append("#EXT-X-KEY:").append(segment.encryptionKey).append("\n");
+                lastEncryptionKey = segment.encryptionKey;
+                Log.d(TAG, "Output encryption key for segment " + segment.index + ": " + segment.encryptionKey);
+            }
             
             if (segment.isAd) {
                 // 广告片段：保留原始时长，用本地占位TS文件替换
@@ -1143,6 +1163,7 @@ public class M3U8AdRemover {
         boolean isDiscontinuity;  // 此片段后是否有DISCONTINUITY
         boolean isAd;             // 是否是广告片段
         boolean needsDiscontinuity; // 输出时是否需要DISCONTINUITY标记
+        String encryptionKey;     // 加密密钥信息（#EXT-X-KEY标签内容，如：METHOD=AES-128,URI="...",IV=...）
     }
     
     // 内部类：解析结果
