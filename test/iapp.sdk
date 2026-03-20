@@ -1,1 +1,32 @@
-<?xml version="1.0" encoding="UTF-8"?><iapp><sdklist><sdk aar="true" time="1750959274645" maven="" more="">com.github.ctiao:DanmakuFlameMaster:0.9.25</sdk><sdk aar="true" time="1750959260884" maven="" more="">xyz.doikki.android.dkplayer:dkplayer-java:3.3.7</sdk><sdk aar="true" time="1750959222034" maven="" more="">com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full</sdk><sdk aar="true" time="1744044814677" more="com.github.bumptech.glide:glide:4.13.2的依赖库">androidx.exifinterface:exifinterface:1.2.0</sdk><sdk aar="true" time="1744044814677" more="com.github.bumptech.glide:glide:4.13.2的依赖库">com.github.bumptech.glide:annotations:4.13.2</sdk><sdk aar="true" time="1744044814677" more="com.github.bumptech.glide:glide:4.13.2的依赖库">com.github.bumptech.glide:disklrucache:4.13.2</sdk><sdk aar="true" time="1744044814677" more="com.github.bumptech.glide:glide:4.13.2的依赖库">com.github.bumptech.glide:gifdecoder:4.13.2</sdk><sdk aar="true" time="1744044796851" more="图片工具库">com.github.bumptech.glide:glide:4.13.2</sdk><sdk aar="true" time="1744044628815" more="">com.github.bumptech.glide:compiler:4.13.2</sdk><sdk aar="true" time="1744032185349" more="轮播控件">com.github.lzjin:ViewPagerGallery:1.3</sdk><sdk aar="true" time="1744031772387" more="com.github.bumptech.glide:glide:4.9.0的依赖库">net.jcip:jcip-annotations:1.0</sdk><sdk aar="true" time="1744031772387" more="com.github.bumptech.glide:glide:4.9.0的依赖库">net.bytebuddy:byte-buddy:1.6.5</sdk><sdk aar="true" time="1744031772387" more="com.github.bumptech.glide:glide:4.9.0的依赖库">junit:junit:4.11</sdk><sdk md5="cd5cb9e3cffa7d45ce0ba2c4f6d7f928">iapp_luxuryLib.ilib</sdk><sdk md5="0cd780f6f2d1d409b9c201226a93da71">UaoanDLNA-1.0.1.aar</sdk><sdk md5="3940899ff127226eff5eb8a88e79a606">kotlin-stdlib-1.7.10.jar</sdk><sdk md5="484052430cd3ca3bed3e41fe1d9081f9">okhttp-4.9.2.jar</sdk><sdk md5="48756cee44c4f8403ebd07a8152ea5ba">okio-2.8.0.jar</sdk><sdk md5="70e6cc9b967a81d104b3919d98534eff">slf4j-android-1.7.21.jar</sdk><sdk md5="c9be56284a92dcb2576679282eff80bf">slf4j-api-1.7.21.jar</sdk></sdklist></iapp>
+<?xml version="1.0" encoding="UTF-8"?>
+<iapp>
+<sdklist>
+<!-- GSYVideoPlayer 核心 -->
+<sdk aar="true" time="1750959260884" maven="" more="">com.shuyu:GSYVideoPlayer:8.6.0</sdk>
+
+<!-- 弹幕库 -->
+<sdk aar="true" time="1750959274645" maven="" more="">com.github.ctiao:DanmakuFlameMaster:0.9.25</sdk>
+
+<!-- 阿里云播放器（可选） -->
+<sdk aar="true" time="1750959222034" maven="" more="">com.aliyun.sdk.android:AliyunPlayer:5.4.7.1-full</sdk>
+
+<!-- Glide 图片加载 -->
+<sdk aar="true" time="1744044796851" more="图片工具库">com.github.bumptech.glide:glide:4.13.2</sdk>
+<sdk aar="true" time="1744044628815" more="">com.github.bumptech.glide:compiler:4.13.2</sdk>
+<sdk aar="true" time="1744044814677" more="glide依赖">androidx.exifinterface:exifinterface:1.2.0</sdk>
+
+<!-- DLNA投屏 -->
+<sdk md5="0cd780f6f2d1d409b9c201226a93da71">UaoanDLNA-1.0.1.aar</sdk>
+
+<!-- Kotlin支持 -->
+<sdk md5="3940899ff127226eff5eb8a88e79a606">kotlin-stdlib-1.7.10.jar</sdk>
+
+<!-- OkHttp网络库 -->
+<sdk md5="484052430cd3ca3bed3e41fe1d9081f9">okhttp-4.9.2.jar</sdk>
+<sdk md5="48756cee44c4f8403ebd07a8152ea5ba">okio-2.8.0.jar</sdk>
+
+<!-- 日志 -->
+<sdk md5="70e6cc9b967a81d104b3919d98534eff">slf4j-android-1.7.21.jar</sdk>
+<sdk md5="c9be56284a92dcb2576679282eff80bf">slf4j-api-1.7.21.jar</sdk>
+</sdklist>
+</iapp>
