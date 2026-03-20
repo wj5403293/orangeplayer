@@ -24,7 +24,7 @@ public class M3U8AdManager {
     private final Context mContext;
     
     // 是否启用去广告功能
-    private boolean mEnabled = true;
+    private boolean mEnabled = false;
     
     public static synchronized M3U8AdManager getInstance(Context context) {
         if (sInstance == null) {
