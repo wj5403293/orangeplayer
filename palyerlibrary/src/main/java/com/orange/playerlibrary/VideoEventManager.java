@@ -899,27 +899,15 @@ public class VideoEventManager {
     }
     
     /**
-     * 检查 IJK 播放器是否可用（同时检查 Java 类和 SO 库）
+     * 检查 IJK 播放器是否可用
+     * 只检查 Java 类是否存在，SO 库由 GSY 内部处理
      */
     private boolean isIjkPlayerAvailable() {
-        // 1. 先检查 Java 类是否存在
-        if (!isClassPresent("tv.danmaku.ijk.media.player.IjkMediaPlayer")) {
-            return false;
-        }
-        
-        // 2. 再检查 SO 库是否可用
-        try {
-            System.loadLibrary("ijkffmpeg");
-            System.loadLibrary("ijksdl");
-            System.loadLibrary("ijkplayer");
-            return true;
-        } catch (UnsatisfiedLinkError e) {
-            android.util.Log.d("VideoEventManager", "IJK SO 库未找到: " + e.getMessage());
-            return false;
-        } catch (Exception e) {
-            android.util.Log.w("VideoEventManager", "检查 IJK 可用性时出错", e);
-            return false;
-        }
+        // 只检查 Java 类是否存在
+        // SO 库由 GSY 内部加载，不需要手动检测
+        boolean available = isClassPresent("tv.danmaku.ijk.media.player.IjkMediaPlayer");
+        android.util.Log.d("VideoEventManager", "isIjkPlayerAvailable: " + available);
+        return available;
     }
     
     /**
