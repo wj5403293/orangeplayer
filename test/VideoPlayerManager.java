@@ -362,14 +362,6 @@ public class VideoPlayerManager {
     }
     
     /**
-     * 开启投屏
-     */
-    public void openScreenTv() {
-        // 投屏功能
-        debug("投屏功能需要UaoanDLNA库支持");
-    }
-    
-    /**
      * 投屏点击回调
      */
     public void ScreenTvOnClickListener() {
@@ -378,27 +370,6 @@ public class VideoPlayerManager {
             .setUrl(this.mVideoView.getUrl())
             .setImageUrl(this.urlimage)
             .show();
-    }
-    
-    /**
-     * 显示下一集按钮
-     */
-    public void setPlayNextVisibility(boolean is) {
-        // 通过VideoList管理选集
-    }
-    
-    /**
-     * 显示选集按钮
-     */
-    public void setPlayListVisibility(boolean is) {
-        // 通过VideoList管理选集
-    }
-    
-    /**
-     * 显示竖屏全屏按钮
-     */
-    public void setFullScreenVertical(boolean is) {
-        // 新版SDK自动根据视频比例选择全屏模式
     }
     
     /**

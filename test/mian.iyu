@@ -137,12 +137,12 @@ javax(null,视频管理器,Playmanager,"setVideoSource","String",videourl2,"Stri
 javax(null,视频管理器,Playmanager,"selectEngine","String","ali")
 
 //javax(null,视频管理器,Playmanager,"start")
-//开启投屏
-javax(null,视频管理器,Playmanager,"openScreenTv")
-//开启竖屏模式
-javax(null,视频管理器,Playmanager,"setFullScreenVertical","boolean",true)
-
-javax(null,视频管理器,Playmanager,"setPlayNextVisibility","boolean",true)
+//开启投屏（新版SDK需要用户自行实现投屏功能）
+//javax(null,视频管理器,Playmanager,"openScreenTv")
+//开启竖屏模式（新版SDK自动根据视频比例选择全屏模式）
+//javax(null,视频管理器,Playmanager,"setFullScreenVertical","boolean",true)
+//显示下一集（新版SDK通过VideoList自动管理选集按钮）
+//javax(null,视频管理器,Playmanager,"setPlayNextVisibility","boolean",true)
 
 
 //显示下一集
