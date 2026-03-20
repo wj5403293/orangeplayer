@@ -223,25 +223,13 @@ public class CustomFullscreenHelper {
         android.util.Log.d(TAG, "startFullScreen: calling pauseOcrIfRunning");
         pauseOcrIfRunning();
         
-        // 检查是否使用 SystemPlayerManager
-        final boolean isSystemPlayer = isUsingSystemPlayer();
-        final boolean wasPlaying = mVideoView.isPlaying();
-        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        
-        // SystemPlayerManager: 先暂停播放，避免 Surface 切换时出错
-        if (isSystemPlayer && wasPlaying) {
-            mVideoView.pause();
-            mPendingSeekPosition = currentPosition;
-            mPendingResume = true;
-        }
-        
         mIsFullscreen = true;
         mFullscreenTransitioning = true;
         mOriginalSystemUiVisibility = decorView.getSystemUiVisibility();
         
-        // 延迟执行全屏切换，等待暂停完成
-        final int delay = (isSystemPlayer && wasPlaying) ? 200 : 0;
-        mVideoView.postDelayed(new Runnable() {
+        // 直接执行全屏切换，不再对系统播放器做特殊处理
+        // enableMediaCodecTexture() 已修复横竖屏切换时 SurfaceTexture 保留问题
+        mVideoView.post(new Runnable() {
             @Override
             public void run() {
                 // 1. 先保存原始父容器和布局参数
@@ -343,20 +331,6 @@ public class CustomFullscreenHelper {
                         if (mAutoRotateEnabled) {
                             startOrientationListener();
                         }
-                        
-                        // SystemPlayerManager: 恢复播放
-                        if (isSystemPlayer && mPendingResume) {
-                            if (mPendingSeekPosition > 0) {
-                                mVideoView.seekTo(mPendingSeekPosition);
-                            }
-                            mVideoView.postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mVideoView.resume();
-                                    clearPendingSeekPosition();
-                                }
-                            }, 200);
-                        }
                     }
                 }, 800);
                 
@@ -421,27 +395,15 @@ public class CustomFullscreenHelper {
         android.util.Log.d(TAG, "stopFullScreen: calling pauseOcrIfRunning");
         pauseOcrIfRunning();
         
-        // 检查是否使用 SystemPlayerManager
-        final boolean isSystemPlayer = isUsingSystemPlayer();
-        final boolean wasPlaying = mVideoView.isPlaying();
-        long currentPosition = mVideoView.getCurrentPositionWhenPlaying();
-        
-        // SystemPlayerManager: 先暂停播放，避免 Surface 切换时出错
-        if (isSystemPlayer && wasPlaying) {
-            mVideoView.pause();
-            mPendingSeekPosition = currentPosition;
-            mPendingResume = true;
-        }
-        
         mIsFullscreen = false;
         mFullscreenTransitioning = true;
         
         // 停止重力感应旋转监听
         stopOrientationListener();
         
-        // 延迟执行退出全屏，等待暂停完成
-        final int delay = (isSystemPlayer && wasPlaying) ? 200 : 0;
-        mVideoView.postDelayed(new Runnable() {
+        // 直接执行退出全屏，不再对系统播放器做特殊处理
+        // enableMediaCodecTexture() 已修复横竖屏切换时 SurfaceTexture 保留问题
+        mVideoView.post(new Runnable() {
             @Override
             public void run() {
                 // 1. 显示系统 UI
@@ -537,24 +499,10 @@ public class CustomFullscreenHelper {
                             mVideoView.getRenderProxy().requestLayout();
                         }
                         updateExoSurfaceControlSize();
-                        
-                        // SystemPlayerManager: 恢复播放
-                        if (isSystemPlayer && mPendingResume) {
-                            if (mPendingSeekPosition > 0) {
-                                mVideoView.seekTo(mPendingSeekPosition);
-                            }
-                            mVideoView.postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mVideoView.resume();
-                                    clearPendingSeekPosition();
-                                }
-                            }, 200);
-                        }
                     }
                 }, 800);
             }
-        }, delay);
+        });
     }
     
     public void enterFullscreen(Activity activity) {
