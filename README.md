@@ -25,7 +25,8 @@
 - 🎛️ **倍速播放**：0.35x - 10x，长按倍速
 - 📺 **投屏支持**：DLNA 投屏
 - 🖼️ **画中画**：PiP 小窗模式
-- � **多平台**：手机、平板、Android TV 全平台支持
+- 📱 **多平台**：手机、平板、Android TV 全平台支持
+- 🎯 **M3U8去广告**：自动识别并跳过M3U8中的广告片段
 
 ---
 
@@ -35,6 +36,29 @@
 
 - **Android 4.0+ (API 14+)** - 从 v1.1.0+ 开始支持 Android 4.0 及以上版本
 - **Android 5.0+ (API 21+)** - 推荐使用，支持所有功能（包括 ExoPlayer 和 AI 功能）
+
+### M3U8去广告功能
+
+自动识别并跳过M3U8播放列表中的广告片段，提供流畅的观看体验。
+
+```java
+import com.orange.playerlibrary.m3u8.M3U8AdManager;
+
+// 开启M3U8去广告功能（默认关闭）
+M3U8AdManager.getInstance(context).setEnabled(true);
+
+// 查询状态
+boolean isEnabled = M3U8AdManager.getInstance(context).isEnabled();
+
+// 关闭功能
+M3U8AdManager.getInstance(context).setEnabled(false);
+```
+
+**去广告特性：**
+- ✅ 自动识别广告片段（基于 DISCONTINUITY 标签和时长特征）
+- ✅ 保留 AES 加密密钥，支持加密视频
+- ✅ 修复去广告后 seek 时间轴不准确问题
+- ✅ 默认关闭，需要手动开启
 
 ### 添加依赖
 
