@@ -38,6 +38,11 @@
   - 调用 `M3U8AdManager.getInstance(context).setEnabled(true)` 开启
   - 避免对普通视频造成不必要的处理
 
+#### v3打包播放器初始化修复
+- **修复v3打包后播放器无法显示的问题**
+  - 原因：`OrangeSystemPlayerManager` 依赖 IJK 的类，但 IJK 是 compileOnly 依赖
+  - 解决方案：改用 GSY 内置的 `SystemPlayerManager`，避免 IJK 依赖问题
+
 ---
 
 ## [1.2.6] - 2026-03-18

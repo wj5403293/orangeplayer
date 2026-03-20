@@ -499,15 +499,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         
         // 回退到系统播放器
         if (fallbackToSystem) {
-            // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
-            PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
-            android.util.Log.d(TAG, "initPlayerFactory: 使用系统播放器");
+            // 使用 GSY 内置的 SystemPlayerManager，避免 IJK compileOnly 依赖问题
+            // OrangeSystemPlayerManager 依赖 IJK 的 AndroidMediaPlayer 类，v3 打包时会找不到
+            try {
+                @SuppressWarnings("unchecked")
+                Class<? extends IPlayerManager> systemClass = 
+                    (Class<? extends IPlayerManager>) Class.forName("com.shuyu.gsyvideoplayer.player.SystemPlayerManager");
+                PlayerFactory.setPlayManager(systemClass);
+                android.util.Log.d(TAG, "initPlayerFactory: 使用 GSY SystemPlayerManager");
+            } catch (ClassNotFoundException e) {
+                android.util.Log.e(TAG, "initPlayerFactory: SystemPlayerManager 未找到", e);
+            }
             
             // 默认强制使用 TextureView 渲染模式（已修复横竖屏切换崩溃问题）
             // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
                 com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-            com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
             android.util.Log.d(TAG, "initPlayerFactory: 默认使用 TextureView 渲染模式");
             
             // 如果用户设置的不是系统播放器，但回退到了系统播放器，更新设置
