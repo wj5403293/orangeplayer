@@ -257,14 +257,8 @@ public class VideoPlayerManager {
     public void setVolume(int volume) {
         checkInitState();
         if (volume >= 0 && volume <= 100) {
-            // 使用AudioManager设置系统音量
-            android.media.AudioManager audioManager = (android.media.AudioManager) 
-                mActivity.getSystemService(android.content.Context.AUDIO_SERVICE);
-            if (audioManager != null) {
-                int max = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
-                int newVolume = (int) (max * volume / 100.0f);
-                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVolume, 0);
-            }
+            // 使用SDK提供的播放器音量API
+            this.mVideoView.setPlayerVolumePercent(volume);
         }
     }
     

@@ -2132,6 +2132,32 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
     
     /**
+     * 设置播放器音量（不影响系统音量）
+     * 
+     * @param volume 音量值（0.0-1.0）
+     */
+    public void setPlayerVolume(float volume) {
+        try {
+            com.shuyu.gsyvideoplayer.player.IPlayerManager manager = getGSYVideoManager().getPlayer();
+            if (manager != null) {
+                manager.setVolume(volume, volume);
+            }
+        } catch (Exception e) {
+            android.util.Log.w(TAG, "setPlayerVolume: 设置播放器音量失败", e);
+        }
+    }
+    
+    /**
+     * 设置播放器音量（百分比形式）
+     * 
+     * @param volumePercent 音量百分比（0-100）
+     */
+    public void setPlayerVolumePercent(int volumePercent) {
+        float volume = Math.max(0, Math.min(100, volumePercent)) / 100.0f;
+        setPlayerVolume(volume);
+    }
+    
+    /**
      * 判断当前是否使用 ExoPlayer 内核
      */
     public boolean isExoPlayerEngine() {
