@@ -45,12 +45,10 @@
 - **修复IJK内核设置不生效的问题**
   - 原因：`setPlayerEngine()` 在 `OrangevideoView` 创建之后调用，但引擎初始化在构造函数中
   - 解决方案：在创建 `OrangevideoView` 之前设置引擎
-- **修复系统内核横竖屏切换暂停的问题**
-  - 原因：强制使用 TextureView 模式，Surface 会被销毁重建
-  - 解决方案：Android Q+ 使用 SurfaceView + SurfaceControl 无缝切换
-- **修复设置界面引擎高亮不正确的问题**
-  - 原因：`setPlayerEngine()` 调用时监听器还没注册
-  - 解决方案：先创建控制器注册监听器，再设置引擎
+
+#### 待分析问题
+- **系统内核横竖屏切换短暂暂停**：可能是暂停/恢复时机问题，`enableMediaCodecTexture()` 已修复 SurfaceTexture 保留
+- **设置界面引擎高亮**：`setupEngineOptions()` 会读取 `getPlayerEngine()` 并高亮，监听器用于对话框打开时更新 UI
 
 ---
 

@@ -503,20 +503,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
             android.util.Log.d(TAG, "initPlayerFactory: 使用系统播放器");
             
-            // Android Q+ 使用 SurfaceControl 实现无缝切换，低版本使用 TextureView
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // 不强制 TextureView 模式，让系统内核使用 SurfaceControl 无缝切换
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-                android.util.Log.d(TAG, "initPlayerFactory: 系统播放器使用 SurfaceView + SurfaceControl 模式");
-            } else {
-                // 低版本使用 TextureView
-                com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-                android.util.Log.d(TAG, "initPlayerFactory: 系统播放器使用 TextureView 模式（Android Q以下）");
-            }
+            // 默认强制使用 TextureView 渲染模式（已修复横竖屏切换崩溃问题）
+            // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
+            com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
+                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+            com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
+            android.util.Log.d(TAG, "initPlayerFactory: 默认使用 TextureView 渲染模式");
             
             // 如果用户设置的不是系统播放器，但回退到了系统播放器，更新设置
             if (!PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
