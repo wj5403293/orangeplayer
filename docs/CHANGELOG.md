@@ -40,8 +40,8 @@
 
 #### v3打包播放器初始化修复
 - **修复v3打包后播放器无法显示的问题**
-  - 原因：`OrangeSystemPlayerManager` 依赖 IJK 的类，但 IJK 是 compileOnly 依赖
-  - 解决方案：改用 GSY 内置的 `SystemPlayerManager`，避免 IJK 依赖问题
+  - 原因：iApp不支持递归解析子依赖，导致 `gsyijkjava` 丢失
+  - 解决方案：在 `iapp.sdk` 中手动添加 `io.github.carguo:gsyijkjava:1.0.0` 依赖
 
 ---
 

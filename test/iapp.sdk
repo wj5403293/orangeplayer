@@ -7,6 +7,9 @@
 <!-- GSYVideoPlayer 内核 - IJK播放器 -->
 <sdk aar="true" time="1750959260002" maven="" more="">io.github.706412584:gsyVideoPlayer-java:+</sdk>
 
+<!-- IJK Java类库（iApp不支持递归解析子依赖，需要手动添加） -->
+<sdk aar="true" time="1750959260002" maven="" more="">io.github.carguo:gsyijkjava:1.0.0</sdk>
+
 <!-- GSYVideoPlayer 全架构so库（包含armv7a/armv64/x86/x86_64，支持加密视频） -->
 <sdk aar="true" time="1750959260003" maven="" more="">io.github.706412584:gsyVideoPlayer-ex_so:+</sdk>
 <!-- 弹幕库 -->
