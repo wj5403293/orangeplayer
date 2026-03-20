@@ -342,7 +342,7 @@ public class CustomFullscreenHelper {
                     }
                 }, 1200);
             }
-        }, delay);
+        });
     }
     
     /**

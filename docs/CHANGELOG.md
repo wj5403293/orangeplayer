@@ -1,4 +1,20 @@
 # OrangePlayer 更新日志
+## [1.2.8] - 2026-03-20
+
+### 🐛 Bug修复
+
+#### v3打包播放器初始化修复
+- **修复v3打包后播放器无法显示的问题**
+  - 原因：iApp不支持递归解析子依赖，导致 `gsyijkjava` 丢失
+  - 解决方案：在 `iapp.sdk` 中手动添加 `io.github.carguo:gsyijkjava:1.0.0` 依赖
+- **修复IJK内核设置不生效的问题**
+  - 原因：`setPlayerEngine()` 在 `OrangevideoView` 创建之后调用，但引擎初始化在构造函数中
+  - 解决方案：在创建 `OrangevideoView` 之前设置引擎
+- **移除系统播放器横竖屏切换的暂停/恢复特殊处理**
+  - 原因：`enableMediaCodecTexture()` 已修复 SurfaceTexture 保留问题，不再需要暂停/恢复
+  - 效果：系统播放器横竖屏切换更流畅，无短暂暂停
+
+---
 
 ## [1.2.7] - 2026-03-20
 
@@ -38,22 +54,6 @@
   - 调用 `M3U8AdManager.getInstance(context).setEnabled(true)` 开启
   - 避免对普通视频造成不必要的处理
 
-## [1.2.8] - 2026-03-20
-
-### 🐛 Bug修复
-
-#### v3打包播放器初始化修复
-- **修复v3打包后播放器无法显示的问题**
-  - 原因：iApp不支持递归解析子依赖，导致 `gsyijkjava` 丢失
-  - 解决方案：在 `iapp.sdk` 中手动添加 `io.github.carguo:gsyijkjava:1.0.0` 依赖
-- **修复IJK内核设置不生效的问题**
-  - 原因：`setPlayerEngine()` 在 `OrangevideoView` 创建之后调用，但引擎初始化在构造函数中
-  - 解决方案：在创建 `OrangevideoView` 之前设置引擎
-- **移除系统播放器横竖屏切换的暂停/恢复特殊处理**
-  - 原因：`enableMediaCodecTexture()` 已修复 SurfaceTexture 保留问题，不再需要暂停/恢复
-  - 效果：系统播放器横竖屏切换更流畅，无短暂暂停
-
----
 
 ## [1.2.6] - 2026-03-18
 
