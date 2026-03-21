@@ -40,6 +40,8 @@ public class TorrentPlayerManager implements AlertListener {
     private volatile String mPendingFileName;
     private volatile long mPendingFileSize;
     private volatile boolean mReadyNotified;
+    private volatile int mTargetFileIndex = -1;  // 目标文件索引
+    private Thread mProgressMonitorThread;  // 进度监控线程
 
     public interface TorrentCallback {
         void onReady(String proxyUrl, String fileName, long fileSize);
@@ -209,12 +211,14 @@ public class TorrentPlayerManager implements AlertListener {
                         handle.prioritizeFiles(priorities);
                         Log.d(TAG, "loadTorrent: set file priorities, downloading file " + fileIndex + " only");
                         
-                        // 启动 HTTP 代理并通知准备就绪
-                        startHttpProxy(filePath);  // 使用完整路径而不是文件名
-                        String proxyUrl = mHttpProxy.getUrl(filePath);  // 使用完整路径构造代理 URL
-                        mReadyNotified = true;
-                        Log.d(TAG, "loadTorrent: notifying ready, proxyUrl=" + proxyUrl);
-                        notifyReady(proxyUrl, fileName, fileSize);
+                        // 启动 HTTP 代理，但不立即通知 ready
+                        // 等待目标文件的第一个 piece 下载完成后再通知
+                        mTargetFileIndex = fileIndex;
+                        startHttpProxy(filePath);
+                        Log.d(TAG, "loadTorrent: HTTP proxy started, waiting for first piece of target file...");
+                        
+                        // 启动进度监控线程
+                        startProgressMonitor();
                     } else {
                         Log.w(TAG, "loadTorrent: torrent handle not found via find(), waiting for AddTorrentAlert...");
                     }
@@ -358,6 +362,9 @@ public class TorrentPlayerManager implements AlertListener {
     }
 
     public synchronized void stop() {
+        // 停止进度监控线程
+        stopProgressMonitor();
+        
         if (mHttpProxy != null) {
             mHttpProxy.stop();
             mHttpProxy = null;
@@ -431,6 +438,7 @@ public class TorrentPlayerManager implements AlertListener {
                     long fileSize = torrentInfo.files().fileSize(fileIndex);
                     mPendingFileName = filePath;  // 使用完整路径而不是文件名
                     mPendingFileSize = fileSize;
+                    mTargetFileIndex = fileIndex;  // 保存目标文件索引
                     Log.d(TAG, "alert: largest file index=" + fileIndex + ", path=" + filePath + ", name=" + fileName + ", size=" + fileSize);
                     
                     // 关键修复：设置顺序下载模式（边下边播必需）
@@ -451,18 +459,14 @@ public class TorrentPlayerManager implements AlertListener {
                     }
                     handle.prioritizeFiles(priorities);
                     Log.d(TAG, "alert: set file priorities, downloading file " + fileIndex + " only");
-                }
-
-                String filePath = mPendingFileName;  // mPendingFileName 现在存储的是完整路径
-                long fileSize = mPendingFileSize;
-                if (filePath != null) {
-                    startHttpProxy(filePath);  // 使用完整路径
-                    String proxyUrl = mHttpProxy.getUrl(filePath);  // 使用完整路径构造代理 URL
-                    mReadyNotified = true;
-                    // 从完整路径中提取文件名用于显示
-                    String displayName = filePath.contains("/") ? filePath.substring(filePath.lastIndexOf("/") + 1) : filePath;
-                    Log.d(TAG, "alert: notifying ready, proxyUrl=" + proxyUrl + ", displayName=" + displayName);
-                    notifyReady(proxyUrl, displayName, fileSize);
+                    
+                    // 启动 HTTP 代理，但不立即通知 ready
+                    // 等待目标文件的第一个 piece 下载完成后再通知
+                    startHttpProxy(filePath);
+                    Log.d(TAG, "alert: HTTP proxy started, waiting for first piece of target file...");
+                    
+                    // 启动进度监控线程
+                    startProgressMonitor();
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "alert: AddTorrentAlert handling failed", t);
@@ -472,6 +476,80 @@ public class TorrentPlayerManager implements AlertListener {
         }
 
         if (alert instanceof PieceFinishedAlert) {
+            PieceFinishedAlert pieceAlert = (PieceFinishedAlert) alert;
+            int pieceIndex = pieceAlert.pieceIndex();
+            
+            // 详细日志：每个 piece 下载完成
+            if (mCurrentTorrent != null) {
+                try {
+                    TorrentInfo torrentInfo = mCurrentTorrent.torrentFile();
+                    if (torrentInfo != null) {
+                        int pieceLength = torrentInfo.pieceLength();
+                        
+                        // 计算这个 piece 属于哪个文件
+                        long pieceOffset = (long) pieceIndex * pieceLength;
+                        long currentOffset = 0;
+                        int fileIndex = -1;
+                        for (int i = 0; i < torrentInfo.numFiles(); i++) {
+                            long fileSize = torrentInfo.files().fileSize(i);
+                            if (pieceOffset >= currentOffset && pieceOffset < currentOffset + fileSize) {
+                                fileIndex = i;
+                                break;
+                            }
+                            currentOffset += fileSize;
+                        }
+                        
+                        if (fileIndex >= 0) {
+                            String fileName = torrentInfo.files().fileName(fileIndex);
+                            Log.d(TAG, "alert: piece " + pieceIndex + " downloaded, belongs to file[" + fileIndex + "]: " + fileName);
+                            
+                            // 如果是目标文件的 piece，额外标记
+                            if (fileIndex == mTargetFileIndex) {
+                                Log.d(TAG, "alert: ★★★ TARGET FILE piece downloaded! piece=" + pieceIndex + " ★★★");
+                            }
+                        }
+                    }
+                } catch (Throwable t) {
+                    Log.w(TAG, "alert: failed to identify piece file", t);
+                }
+            }
+            
+            // 检查是否是目标文件的第一个 piece（用于触发 onReady）
+            if (!mReadyNotified && mTargetFileIndex >= 0 && mCurrentTorrent != null) {
+                try {
+                    TorrentInfo torrentInfo = mCurrentTorrent.torrentFile();
+                    if (torrentInfo != null) {
+                        // 获取目标文件的起始和结束 piece 索引
+                        long fileOffset = 0;
+                        for (int i = 0; i < mTargetFileIndex; i++) {
+                            fileOffset += torrentInfo.files().fileSize(i);
+                        }
+                        long fileSize = torrentInfo.files().fileSize(mTargetFileIndex);
+                        int pieceLength = torrentInfo.pieceLength();
+                        
+                        int firstPiece = (int) (fileOffset / pieceLength);
+                        int lastPiece = (int) ((fileOffset + fileSize - 1) / pieceLength);
+                        
+                        // 检查当前 piece 是否属于目标文件
+                        if (pieceIndex >= firstPiece && pieceIndex <= lastPiece) {
+                            Log.d(TAG, "alert: ★★★ FIRST piece of target file downloaded, triggering onReady! piece=" + pieceIndex + " ★★★");
+                            
+                            // 目标文件的第一个 piece 下载完成，通知 ready
+                            String filePath = mPendingFileName;
+                            long targetFileSize = mPendingFileSize;
+                            if (filePath != null && mHttpProxy != null) {
+                                String proxyUrl = mHttpProxy.getUrl(filePath);
+                                mReadyNotified = true;
+                                String displayName = filePath.contains("/") ? filePath.substring(filePath.lastIndexOf("/") + 1) : filePath;
+                                Log.d(TAG, "alert: notifying ready, proxyUrl=" + proxyUrl + ", displayName=" + displayName);
+                                notifyReady(proxyUrl, displayName, targetFileSize);
+                            }
+                        }
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "alert: PieceFinishedAlert handling failed", t);
+                }
+            }
             // TODO: buffer progress callback
             return;
         }
@@ -512,6 +590,106 @@ public class TorrentPlayerManager implements AlertListener {
         if (mWakeLock != null && mWakeLock.isHeld()) {
             mWakeLock.release();
             Log.d(TAG, "releaseWakeLock: WakeLock released");
+        }
+    }
+
+    /**
+     * 启动进度监控线程，每 3 秒输出一次下载状态
+     */
+    private synchronized void startProgressMonitor() {
+        if (mProgressMonitorThread != null) {
+            return;
+        }
+        
+        mProgressMonitorThread = new Thread(() -> {
+            Log.d(TAG, "ProgressMonitor: started");
+            try {
+                while (!Thread.currentThread().isInterrupted() && mCurrentTorrent != null) {
+                    Thread.sleep(3000); // 每 3 秒检查一次
+                    
+                    if (mCurrentTorrent == null || !mCurrentTorrent.isValid()) {
+                        break;
+                    }
+                    
+                    try {
+                        TorrentInfo torrentInfo = mCurrentTorrent.torrentFile();
+                        if (torrentInfo == null) {
+                            continue;
+                        }
+                        
+                        // 获取整体下载进度
+                        org.libtorrent4j.TorrentStatus status = mCurrentTorrent.status();
+                        long totalWanted = status.totalWanted();
+                        long totalWantedDone = status.totalWantedDone();
+                        int progress = totalWanted > 0 ? (int) (totalWantedDone * 100 / totalWanted) : 0;
+                        long downloadRate = status.downloadRate();
+                        
+                        Log.d(TAG, "ProgressMonitor: overall progress=" + progress + "%, downloaded=" + 
+                                formatBytes(totalWantedDone) + "/" + formatBytes(totalWanted) + 
+                                ", speed=" + formatBytes(downloadRate) + "/s");
+                        
+                        // 输出每个文件的下载状态
+                        int numFiles = torrentInfo.numFiles();
+                        for (int i = 0; i < numFiles; i++) {
+                            String filePath = torrentInfo.files().filePath(i);
+                            long fileSize = torrentInfo.files().fileSize(i);
+                            
+                            // 获取文件优先级
+                            org.libtorrent4j.Priority priority = mCurrentTorrent.filePriority(i);
+                            
+                            // 检查文件是否存在以及大小
+                            File saveDir = new File(mCurrentTorrent.savePath());
+                            File file = new File(saveDir, filePath);
+                            boolean exists = file.exists();
+                            long actualSize = exists ? file.length() : 0;
+                            
+                            // 只输出有优先级的文件或已经存在的文件
+                            if (priority != org.libtorrent4j.Priority.IGNORE || exists) {
+                                String marker = (i == mTargetFileIndex) ? " ★TARGET★" : "";
+                                Log.d(TAG, "ProgressMonitor: file[" + i + "]" + marker + " " + filePath + 
+                                        " - priority=" + priority + 
+                                        ", size=" + formatBytes(fileSize) + 
+                                        ", exists=" + exists + 
+                                        ", actualSize=" + formatBytes(actualSize) + 
+                                        " (" + (fileSize > 0 ? (actualSize * 100 / fileSize) : 0) + "%)");
+                            }
+                        }
+                        
+                    } catch (Throwable t) {
+                        Log.w(TAG, "ProgressMonitor: failed to get status", t);
+                    }
+                }
+            } catch (InterruptedException e) {
+                Log.d(TAG, "ProgressMonitor: interrupted");
+            }
+            Log.d(TAG, "ProgressMonitor: stopped");
+        }, "TorrentProgressMonitor");
+        
+        mProgressMonitorThread.start();
+    }
+
+    /**
+     * 停止进度监控线程
+     */
+    private synchronized void stopProgressMonitor() {
+        if (mProgressMonitorThread != null) {
+            mProgressMonitorThread.interrupt();
+            mProgressMonitorThread = null;
+        }
+    }
+
+    /**
+     * 格式化字节数为可读字符串
+     */
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + "B";
+        } else if (bytes < 1024 * 1024) {
+            return String.format("%.2fKB", bytes / 1024.0);
+        } else if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.2fMB", bytes / (1024.0 * 1024));
+        } else {
+            return String.format("%.2fGB", bytes / (1024.0 * 1024 * 1024));
         }
     }
 }
