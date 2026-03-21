@@ -58,7 +58,16 @@ public class TorrentPlayerManager implements AlertListener {
          * @param totalSeconds 总超时秒数
          */
         default void onMagnetResolving(int elapsedSeconds, int totalSeconds) {
-            // 默认空实现，子类可选择实现
+            // 默认空实现
+        }
+        
+        /**
+         * 本地种子文件加载进度回调
+         * @param elapsedSeconds 已经过的秒数
+         * @param totalSeconds 总超时秒数
+         */
+        default void onTorrentLoading(int elapsedSeconds, int totalSeconds) {
+            // 默认空实现
         }
     }
 
@@ -151,8 +160,32 @@ public class TorrentPlayerManager implements AlertListener {
         }
 
         Log.d(TAG, "loadTorrent: initIfNeeded() success, creating thread...");
-        Log.d(TAG, "loadTorrent: initIfNeeded() success, creating thread...");
         new Thread(() -> {
+            // 启动进度更新线程（显示加载进度）
+            final int TIMEOUT_SECONDS = 10;
+            final long startTime = System.currentTimeMillis();
+            final Thread progressThread = new Thread(() -> {
+                try {
+                    while (true) {
+                        Thread.sleep(1000); // 每秒更新一次
+                        long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+                        if (elapsed >= TIMEOUT_SECONDS) {
+                            break;
+                        }
+                        // 通知加载进度
+                        final int elapsedSeconds = (int) elapsed;
+                        mMainHandler.post(() -> {
+                            if (mCallback != null) {
+                                mCallback.onTorrentLoading(elapsedSeconds, TIMEOUT_SECONDS);
+                            }
+                        });
+                    }
+                } catch (InterruptedException e) {
+                    // 线程被中断，正常退出
+                }
+            });
+            progressThread.start();
+            
             try {
                 Log.d(TAG, "loadTorrent: thread started");
                 if (!saveDir.exists()) {
@@ -181,50 +214,104 @@ public class TorrentPlayerManager implements AlertListener {
                 // 检查 session 状态
                 Log.d(TAG, "loadTorrent: session isRunning=" + mSession.isRunning() + ", isPaused=" + mSession.isPaused());
                 
-                // 尝试手动查找 torrent handle（libtorrent4j 2.x 可能不触发 AddTorrentAlert）
-                try {
-                    Thread.sleep(500); // 等待 torrent 被添加
-                    
-                    // 使用 info hash 查找 torrent
-                    org.libtorrent4j.Sha1Hash infoHash = torrentInfo.infoHash();
-                    Log.d(TAG, "loadTorrent: searching for torrent with infoHash=" + infoHash);
-                    
-                    org.libtorrent4j.TorrentHandle handle = mSession.find(infoHash);
-                    if (handle != null && handle.isValid()) {
-                        Log.d(TAG, "loadTorrent: found torrent handle via find(), processing...");
-                        mCurrentTorrent = handle;
-                        
-                        // 设置顺序下载模式
-                        handle.setFlags(org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD);
-                        Log.d(TAG, "loadTorrent: enabled sequential download mode");
-                        
-                        // 设置文件优先级（只下载最大的文件）
-                        int numFiles = torrentInfo.numFiles();
-                        org.libtorrent4j.Priority[] priorities = new org.libtorrent4j.Priority[numFiles];
-                        for (int i = 0; i < numFiles; i++) {
-                            if (i == fileIndex) {
-                                priorities[i] = org.libtorrent4j.Priority.TOP_PRIORITY;
-                            } else {
-                                priorities[i] = org.libtorrent4j.Priority.IGNORE;
-                            }
-                        }
-                        handle.prioritizeFiles(priorities);
-                        Log.d(TAG, "loadTorrent: set file priorities, downloading file " + fileIndex + " only");
-                        
-                        // 启动 HTTP 代理，但不立即通知 ready
-                        // 等待目标文件的第一个 piece 下载完成后再通知
-                        mTargetFileIndex = fileIndex;
-                        startHttpProxy(filePath);
-                        Log.d(TAG, "loadTorrent: HTTP proxy started, waiting for first piece of target file...");
-                        
-                        // 启动进度监控线程
-                        startProgressMonitor();
-                    } else {
-                        Log.w(TAG, "loadTorrent: torrent handle not found via find(), waiting for AddTorrentAlert...");
+                // 等待 torrent handle 可用（最多 10 秒）
+                org.libtorrent4j.TorrentHandle handle = null;
+                org.libtorrent4j.Sha1Hash infoHash = torrentInfo.infoHash();
+                Log.d(TAG, "loadTorrent: waiting for torrent handle with infoHash=" + infoHash);
+                
+                for (int i = 0; i < TIMEOUT_SECONDS * 2; i++) { // 每 500ms 检查一次，最多 10 秒
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "loadTorrent: sleep interrupted", e);
+                        break;
                     }
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "loadTorrent: sleep interrupted", e);
+                    
+                    handle = mSession.find(infoHash);
+                    if (handle != null && handle.isValid()) {
+                        Log.d(TAG, "loadTorrent: found torrent handle after " + (i * 500) + "ms");
+                        break;
+                    }
                 }
+                
+                // 停止进度更新线程
+                progressThread.interrupt();
+                
+                // 检查是否成功获取到 torrent handle
+                if (handle == null || !handle.isValid()) {
+                    Log.e(TAG, "loadTorrent: failed to get torrent handle within " + TIMEOUT_SECONDS + " seconds");
+                    notifyError("加载种子超时，无法获取文件信息");
+                    return;
+                }
+                
+                Log.d(TAG, "loadTorrent: torrent handle is valid, processing...");
+                mCurrentTorrent = handle;
+                
+                // 添加公共 tracker 到 torrent（国际 + 国内）
+                // 这些 tracker 可以帮助快速找到 peers
+                String[] publicTrackers = {
+                    // 国际 tracker（稳定性好）
+                    "udp://tracker.opentrackr.org:1337/announce",
+                    "udp://open.tracker.cl:1337/announce",
+                    "udp://tracker.openbittorrent.com:6969/announce",
+                    "udp://tracker.torrent.eu.org:451/announce",
+                    "udp://open.stealth.si:80/announce",
+                    "udp://tracker.tiny-vps.com:6969/announce",
+                    "udp://tracker.moeking.me:6969/announce",
+                    "udp://explodie.org:6969/announce",
+                    "udp://tracker1.bt.moack.co.kr:80/announce",
+                    "udp://tracker.theoks.net:6969/announce",
+                    "http://tracker.openbittorrent.com:80/announce",
+                    "udp://opentracker.i2p.rocks:6969/announce",
+                    // 国内 tracker（可能被墙，但国内用户连接快）
+                    "http://tracker.gbitt.info:80/announce",
+                    "http://tracker.bt4g.com:2095/announce",
+                    "http://t.nyaatracker.com:80/announce",
+                    "http://open.acgnxtracker.com:80/announce",
+                    "udp://tracker.btzoo.eu:80/announce",
+                    "http://share.camoe.cn:8080/announce"
+                };
+                
+                int addedCount = 0;
+                for (String trackerUrl : publicTrackers) {
+                    try {
+                        handle.addTracker(new org.libtorrent4j.AnnounceEntry(trackerUrl));
+                        addedCount++;
+                    } catch (Exception e) {
+                        Log.w(TAG, "loadTorrent: failed to add tracker " + trackerUrl, e);
+                    }
+                }
+                Log.d(TAG, "loadTorrent: added " + addedCount + " public trackers to torrent");
+                
+                // 强制重新 announce 到所有 tracker
+                handle.forceReannounce();
+                Log.d(TAG, "loadTorrent: forced reannounce to all trackers");
+                
+                // 设置顺序下载模式
+                handle.setFlags(org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD);
+                Log.d(TAG, "loadTorrent: enabled sequential download mode");
+                
+                // 设置文件优先级（只下载最大的文件）
+                int numFiles = torrentInfo.numFiles();
+                org.libtorrent4j.Priority[] priorities = new org.libtorrent4j.Priority[numFiles];
+                for (int i = 0; i < numFiles; i++) {
+                    if (i == fileIndex) {
+                        priorities[i] = org.libtorrent4j.Priority.TOP_PRIORITY;
+                    } else {
+                        priorities[i] = org.libtorrent4j.Priority.IGNORE;
+                    }
+                }
+                handle.prioritizeFiles(priorities);
+                Log.d(TAG, "loadTorrent: set file priorities, downloading file " + fileIndex + " only");
+                
+                // 启动 HTTP 代理，但不立即通知 ready
+                // 等待目标文件的第一个 piece 下载完成后再通知
+                mTargetFileIndex = fileIndex;
+                startHttpProxy(filePath);
+                Log.d(TAG, "loadTorrent: HTTP proxy started, waiting for first piece of target file...");
+                
+                // 启动进度监控线程
+                startProgressMonitor();
 
                 // Wait for AddTorrentAlert to start proxy & notifyReady (fallback)
 
@@ -293,7 +380,7 @@ public class TorrentPlayerManager implements AlertListener {
                 }
 
                 // 启动进度更新线程
-                final int TIMEOUT_SECONDS = 120;
+                final int TIMEOUT_SECONDS = 10;
                 final long startTime = System.currentTimeMillis();
                 final Thread progressThread = new Thread(() -> {
                     try {
@@ -318,8 +405,8 @@ public class TorrentPlayerManager implements AlertListener {
                 progressThread.start();
 
                 // jlibtorrent 1.2.0.x signature: fetchMagnet(String uri, int timeout, File saveDir)
-                // 增加超时时间到 120 秒，给 DHT 和 tracker 更多时间响应
-                Log.d(TAG, "loadMagnet: calling fetchMagnet (will block up to 120s)...");
+                // 超时时间设为 10 秒，快速失败
+                Log.d(TAG, "loadMagnet: calling fetchMagnet (will block up to " + TIMEOUT_SECONDS + "s)...");
                 byte[] data = mSession.fetchMagnet(enhancedMagnetUri, TIMEOUT_SECONDS, saveDir);
                 
                 // 停止进度更新线程
@@ -594,7 +681,7 @@ public class TorrentPlayerManager implements AlertListener {
     }
 
     /**
-     * 启动进度监控线程，每 3 秒输出一次下载状态
+     * 启动进度监控线程，每 1 秒输出一次下载状态并通知回调
      */
     private synchronized void startProgressMonitor() {
         if (mProgressMonitorThread != null) {
@@ -605,7 +692,7 @@ public class TorrentPlayerManager implements AlertListener {
             Log.d(TAG, "ProgressMonitor: started");
             try {
                 while (!Thread.currentThread().isInterrupted() && mCurrentTorrent != null) {
-                    Thread.sleep(3000); // 每 3 秒检查一次
+                    Thread.sleep(1000); // 每 1 秒检查一次
                     
                     if (mCurrentTorrent == null || !mCurrentTorrent.isValid()) {
                         break;
@@ -623,37 +710,21 @@ public class TorrentPlayerManager implements AlertListener {
                         long totalWantedDone = status.totalWantedDone();
                         int progress = totalWanted > 0 ? (int) (totalWantedDone * 100 / totalWanted) : 0;
                         long downloadRate = status.downloadRate();
+                        long uploadRate = status.uploadRate();
                         
                         Log.d(TAG, "ProgressMonitor: overall progress=" + progress + "%, downloaded=" + 
                                 formatBytes(totalWantedDone) + "/" + formatBytes(totalWanted) + 
                                 ", speed=" + formatBytes(downloadRate) + "/s");
                         
-                        // 输出每个文件的下载状态
-                        int numFiles = torrentInfo.numFiles();
-                        for (int i = 0; i < numFiles; i++) {
-                            String filePath = torrentInfo.files().filePath(i);
-                            long fileSize = torrentInfo.files().fileSize(i);
-                            
-                            // 获取文件优先级
-                            org.libtorrent4j.Priority priority = mCurrentTorrent.filePriority(i);
-                            
-                            // 检查文件是否存在以及大小
-                            File saveDir = new File(mCurrentTorrent.savePath());
-                            File file = new File(saveDir, filePath);
-                            boolean exists = file.exists();
-                            long actualSize = exists ? file.length() : 0;
-                            
-                            // 只输出有优先级的文件或已经存在的文件
-                            if (priority != org.libtorrent4j.Priority.IGNORE || exists) {
-                                String marker = (i == mTargetFileIndex) ? " ★TARGET★" : "";
-                                Log.d(TAG, "ProgressMonitor: file[" + i + "]" + marker + " " + filePath + 
-                                        " - priority=" + priority + 
-                                        ", size=" + formatBytes(fileSize) + 
-                                        ", exists=" + exists + 
-                                        ", actualSize=" + formatBytes(actualSize) + 
-                                        " (" + (fileSize > 0 ? (actualSize * 100 / fileSize) : 0) + "%)");
+                        // 通知下载进度回调（用于显示网速和进度）
+                        final int finalProgress = progress;
+                        final long finalDownloadRate = downloadRate;
+                        final long finalUploadRate = uploadRate;
+                        mMainHandler.post(() -> {
+                            if (mCallback != null) {
+                                mCallback.onDownloadProgress(finalProgress, finalDownloadRate, finalUploadRate);
                             }
-                        }
+                        });
                         
                     } catch (Throwable t) {
                         Log.w(TAG, "ProgressMonitor: failed to get status", t);

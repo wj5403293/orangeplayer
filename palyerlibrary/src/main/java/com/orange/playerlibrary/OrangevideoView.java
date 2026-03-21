@@ -1005,15 +1005,32 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
-        android.util.Log.d(TAG, "setUp() called with url=" + url);
+        android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        android.util.Log.d(TAG, "setUp() called with:");
+        android.util.Log.d(TAG, "  url=" + url);
+        android.util.Log.d(TAG, "  cacheWithPlay=" + cacheWithPlay);
+        android.util.Log.d(TAG, "  title=" + title);
         
         // 清除旧URL，防止播放旧视频
         mVideoUrl = null;
         mOriginUrl = null;
+        
         // 种子播放统一入口（magnet/.torrent）
         boolean isTorrent = com.orange.playerlibrary.torrent.TorrentSupport.isTorrentUrl(url);
         android.util.Log.d(TAG, "setUp: isTorrentUrl=" + isTorrent + " for url=" + url);
+        
         if (isTorrent) {
+            android.util.Log.d(TAG, "setUp: detected torrent URL, checking availability...");
+            
+            // 检查文件是否存在（如果是文件路径）
+            if (!url.toLowerCase().startsWith("magnet:") && !url.toLowerCase().startsWith("torrent:")) {
+                java.io.File torrentFile = new java.io.File(url);
+                android.util.Log.d(TAG, "setUp: torrent file path=" + torrentFile.getAbsolutePath());
+                android.util.Log.d(TAG, "setUp: torrent file exists=" + torrentFile.exists());
+                android.util.Log.d(TAG, "setUp: torrent file size=" + torrentFile.length() + " bytes");
+                android.util.Log.d(TAG, "setUp: torrent file canRead=" + torrentFile.canRead());
+            }
+            
             String reason = com.orange.playerlibrary.torrent.TorrentSupport.getJlibtorrentMissingReason();
             android.util.Log.d(TAG, "setUp torrent: missingReason=" + reason);
             if (reason != null) {
@@ -1022,6 +1039,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
 
             // 设置加载中状态
+            android.util.Log.d(TAG, "setUp: setting up loading state...");
             setOrangePlayState(PlayerConstants.STATE_PREPARING);
             setStateAndUi(CURRENT_STATE_PREPAREING);
             if (mPrepareView != null) {
@@ -1032,12 +1050,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mPendingTorrentLoad = true;
 
             java.io.File saveDir = com.orange.playerlibrary.torrent.TorrentSupport.defaultSaveDir(getContext());
+            android.util.Log.d(TAG, "setUp: saveDir=" + saveDir.getAbsolutePath());
+            
             String cleanUrl = com.orange.playerlibrary.torrent.TorrentSupport.extractMagnetUrl(url);
             if (cleanUrl != null && cleanUrl.toLowerCase().startsWith("magnet:")) {
+                android.util.Log.d(TAG, "setUp: calling playMagnet()...");
                 playMagnet(cleanUrl, saveDir, null);
             } else {
+                android.util.Log.d(TAG, "setUp: calling playTorrent()...");
                 playTorrent(new java.io.File(url), saveDir, null);
             }
+            android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             return true;
         }
 
@@ -1107,6 +1130,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                     @Override
                     public void onDownloadProgress(int progress, long downloadSpeed, long uploadSpeed) {
+                        // 显示下载进度和网速（解析成功后进入下载状态）
+                        String speedText = formatSpeed(downloadSpeed);
+                        String progressText = String.format("下载中 %d%% - %s/s", progress, speedText);
+                        setCustomLoadingText(progressText);
+                        
                         if (callback != null) {
                             callback.onDownloadProgress(progress, downloadSpeed, uploadSpeed);
                         }
@@ -1114,10 +1142,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                     @Override
                     public void onError(String error) {
-                        // 清除种子加载标记
+                        // 清除种子加载标记和自定义加载文本
                         mPendingTorrentLoad = false;
+                        setCustomLoadingText(null);
                         if (callback != null) {
                             callback.onError(error);
+                        }
+                    }
+                    
+                    @Override
+                    public void onTorrentLoading(int elapsedSeconds, int totalSeconds) {
+                        // 显示本地种子文件加载进度
+                        int progress = (int) (elapsedSeconds * 100.0 / totalSeconds);
+                        String progressText = String.format("加载种子文件中 %d/%ds (%d%%)", 
+                                elapsedSeconds, totalSeconds, progress);
+                        setCustomLoadingText(progressText);
+                        
+                        if (callback != null) {
+                            callback.onTorrentLoading(elapsedSeconds, totalSeconds);
                         }
                     }
                 });
@@ -1161,6 +1203,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void onDownloadProgress(int progress, long downloadSpeed, long uploadSpeed) {
+                // 显示下载进度和网速（解析成功后进入下载状态）
+                String speedText = formatSpeed(downloadSpeed);
+                String progressText = String.format("下载中 %d%% - %s/s", progress, speedText);
+                setCustomLoadingText(progressText);
+                
                 if (callback != null) {
                     callback.onDownloadProgress(progress, downloadSpeed, uploadSpeed);
                 }
@@ -1186,6 +1233,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 
                 if (callback != null) {
                     callback.onMagnetResolving(elapsedSeconds, totalSeconds);
+                }
+            }
+            
+            @Override
+            public void onTorrentLoading(int elapsedSeconds, int totalSeconds) {
+                // 显示本地种子文件加载进度
+                int progress = (int) (elapsedSeconds * 100.0 / totalSeconds);
+                String progressText = String.format("加载种子文件中 %d/%ds (%d%%)", 
+                        elapsedSeconds, totalSeconds, progress);
+                setCustomLoadingText(progressText);
+                
+                if (callback != null) {
+                    callback.onTorrentLoading(elapsedSeconds, totalSeconds);
                 }
             }
         });
