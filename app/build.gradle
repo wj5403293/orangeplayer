@@ -100,7 +100,15 @@ dependencies {
     implementation 'cz.adaptech.tesseract4android:tesseract4android:4.7.0'   // OCR 识别
     implementation 'com.google.mlkit:translate:17.0.2'                        // ML Kit 翻译
     implementation 'com.alphacephei:vosk-android:0.3.47'                      // 语音识别
-    
+
+    // Torrent playback (libtorrent4j) - runtime dependencies
+    def libtorrent_version = '2.0.6-26'
+    implementation "org.libtorrent4j:libtorrent4j:${libtorrent_version}"
+    implementation "org.libtorrent4j:libtorrent4j-android-arm:${libtorrent_version}"
+    implementation "org.libtorrent4j:libtorrent4j-android-arm64:${libtorrent_version}"
+    implementation "org.libtorrent4j:libtorrent4j-android-x86:${libtorrent_version}"
+    implementation "org.libtorrent4j:libtorrent4j-android-x86_64:${libtorrent_version}"
+
     // VideoDownloader 依赖（M3U8 下载功能需要）
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation 'com.google.code.gson:gson:2.10.1'

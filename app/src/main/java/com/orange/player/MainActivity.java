@@ -197,6 +197,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void playInputUrl(boolean useSniff) {
         String url = mEtVideoUrl.getText().toString().trim();
+        android.util.Log.d("MainActivity", "playInputUrl: url=" + url + ", useSniff=" + useSniff);
         if (TextUtils.isEmpty(url)) {
             log("❌ 请输入视频链接");
             return;
@@ -215,11 +216,13 @@ public class MainActivity extends AppCompatActivity {
             // 先释放旧的播放器资源
             mVideoView.release();
             // 设置新视频（启用边看边存）
+            android.util.Log.d("MainActivity", "calling setUp with url=" + url);
             mVideoView.setUp(url, true, mCurrentTitle);
             // 延迟一帧再开始播放，让播放器有时间完成重置
             mVideoView.post(new Runnable() {
                 @Override
                 public void run() {
+                    android.util.Log.d("MainActivity", "calling startPlayLogic");
                     mVideoView.startPlayLogic();
                 }
             });

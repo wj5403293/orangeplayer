@@ -68,10 +68,23 @@ dependencies {
     
     // Vosk 离线语音识别 - compileOnly（需要 API 21+，用户按需添加）
     compileOnly 'com.alphacephei:vosk-android:0.3.47'
+
+    // libtorrent4j 种子播放 - compileOnly（可选）
+    // 使用 libtorrent4j（jlibtorrent 的 fork，API 更完善）
+    def libtorrent_version = '2.0.6-26'
+    compileOnly "org.libtorrent4j:libtorrent4j:${libtorrent_version}"
+    compileOnly "org.libtorrent4j:libtorrent4j-android-arm:${libtorrent_version}"
+    compileOnly "org.libtorrent4j:libtorrent4j-android-arm64:${libtorrent_version}"
+    compileOnly "org.libtorrent4j:libtorrent4j-android-x86:${libtorrent_version}"
+    compileOnly "org.libtorrent4j:libtorrent4j-android-x86_64:${libtorrent_version}"
     
     // VideoDownloader 依赖
     // 注意：VideoDownloader 源码已集成到项目中，这些是它的依赖
     compileOnly 'com.google.code.gson:gson:2.10.1'
+    
+    // Unit testing dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:4.0.0'
 }
 
 

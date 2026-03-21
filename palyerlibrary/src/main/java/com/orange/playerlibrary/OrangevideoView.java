@@ -31,29 +31,29 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     private static final String TAG = "OrangevideoView";
     private static final String SURFACE_CONTROL_NAME = "OrangeExoSurface";
-    
+
     public static final int STATE_STARTSNIFFING = PlayerConstants.STATE_STARTSNIFFING;
     public static final int STATE_ENDSNIFFING = PlayerConstants.STATE_ENDSNIFFING;
-    
+
     public static OrangeSharedSqlite sqlite;
-    
+
     private String mVideoUrl;
     private Map<String, String> mVideoHeaders;
     private static float sSpeed = 1.0f;
-    private static float sLongSpeed = 3.0f;  // 默认 3.0x，最高 3.0x
+    private static float sLongSpeed = 3.0f; // 默认 3.0x，最高 3.0x
     private boolean mKeepVideoPlaying = false;
     private boolean mAutoThumbnailEnabled = true;
     private Object mDefaultThumbnail = null;
     private boolean mIsLiveVideo = false;
     private boolean mIsSniffing = false;
     private boolean mAutoRotateOnFullscreen = true;
-    
+
     // 首帧加载状态
     private boolean mIsLoadingThumbnail = false;
-    
+
     // 用户主动暂停标记（用于修复后台自动恢复播放bug）
     private boolean mUserPaused = false;
-    
+
     private SkipManager mSkipManager;
     private VideoScaleManager mVideoScaleManager;
     private PlaybackStateManager mPlaybackStateManager;
@@ -61,20 +61,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private ErrorRecoveryManager mErrorRecoveryManager;
     private CustomFullscreenHelper mFullscreenHelper;
     private M3U8AdManager mM3U8AdManager;
-    
+
     // M3U8去广告重试相关
-    private String mOriginalM3U8Url = null;      // 原始m3u8 URL
+    private String mOriginalM3U8Url = null; // 原始m3u8 URL
     private boolean mIsPlayingAdRemovedM3U8 = false; // 是否正在播放去广告后的m3u8
-    private boolean mHasRetriedOriginalUrl = false;  // 是否已重试过原始URL
-    
+    private boolean mHasRetriedOriginalUrl = false; // 是否已重试过原始URL
+
     // ExoPlayer Surface 切换相关 (Android Q+)
     private SurfaceControl mExoSurfaceControl;
     private Surface mExoVideoSurface;
     private boolean mUseExoSurfaceControl = false;
-    
+
     private com.orange.playerlibrary.interfaces.ControlWrapper mControlWrapper;
     private OrangeVideoController mOrangeController;
-    
+
     private com.orange.playerlibrary.component.PrepareView mPrepareView;
     private com.orange.playerlibrary.component.TitleView mTitleView;
     private com.orange.playerlibrary.component.VodControlView mVodControlView;
@@ -82,17 +82,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private com.orange.playerlibrary.component.CompleteView mCompleteView;
     private com.orange.playerlibrary.component.ErrorView mErrorView;
     private boolean mUseOrangeComponents = true;
-    
+
     private List<OnStateChangeListener> mStateChangeListeners;
     private OnProgressListener mProgressListener;
     private OnPlayCompleteListener mPlayCompleteListener;
-    
+
     private int mCurrentPlayState = PlayerConstants.STATE_IDLE;
     private int mCurrentPlayerState = PlayerConstants.PLAYER_NORMAL;
-    
+
     private boolean mDebug = false;
     private boolean mEnteringPiPMode = false;
-    
+
     // 网速显示相关
     private android.widget.TextView mLoadingSpeedText;
     private android.os.Handler mSpeedHandler;
@@ -100,6 +100,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     // 网速计算相关
     private long mLastRxBytes = 0;
     private long mLastSpeedTime = 0;
+    // 自定义加载文本（用于磁力链接解析等场景）
+    private String mCustomLoadingText = null;
     // 播放器核心是否已初始化
     private boolean mPlayerFactoryInitialized = false;
     private final Runnable mSpeedUpdateRunnable = new Runnable() {
@@ -111,13 +113,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     };
-    
+
     private DebugLogCallback mDebugLogCallback;
 
     public interface DebugLogCallback {
         void onLog(String msg);
     }
-    
+
     /**
      * 兼容 API 16+ 的 isAttachedToWindow 方法
      * API 19+ 使用 View.isAttachedToWindow()
@@ -157,33 +159,33 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mStateChangeListeners == null) {
             mStateChangeListeners = new ArrayList<>();
         }
-        
+
         mUseOrangeComponents = true;
-        
+
         // 初始化播放核心（必须在这里初始化，因为需要 Context）
         initPlayerFactory();
-        
+
         mSkipManager = new SkipManager();
         mSkipManager.attachVideoView(this);
-        
+
         mVideoScaleManager = new VideoScaleManager(this, PlayerSettingsManager.getInstance(getContext()));
         mPlaybackStateManager = new PlaybackStateManager();
         mComponentStateManager = new ComponentStateManager();
-        
+
         mErrorRecoveryManager = new ErrorRecoveryManager();
         mErrorRecoveryManager.attachVideoView(this);
-        
+
         mFullscreenHelper = new CustomFullscreenHelper(this);
         // 应用自动旋转设置
         mFullscreenHelper.setAutoRotateEnabled(
-            PlayerSettingsManager.getInstance(getContext()).isAutoRotateEnabled());
-        
+                PlayerSettingsManager.getInstance(getContext()).isAutoRotateEnabled());
+
         // 初始化M3U8去广告管理器
         mM3U8AdManager = M3U8AdManager.getInstance(getContext());
-        
+
         // 初始化网速更新 Handler
         mSpeedHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-        
+
         setShowFullAnimation(false);
         setRotateViewAuto(false);
         setNeedLockFull(false);
@@ -193,34 +195,35 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setNeedOrientationUtils(false);
         setIsTouchWiget(true);
         setIsTouchWigetFull(true);
-        
+
         if (mUseOrangeComponents) {
             initOrangeComponents();
         }
-        
+
         if (mComponentStateManager != null) {
             mComponentStateManager.reregisterProgressListener(this);
         }
-        
+
         setVideoAllCallBack(new GSYSampleCallBack() {
             @Override
             public void onPrepared(String url, Object... objects) {
                 super.onPrepared(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PREPARED);
                 long duration = getDuration();
-                android.util.Log.d(TAG, "onPrepared: url=" + url + ", duration=" + duration + "ms (" + (duration/1000) + "s)");
+                android.util.Log.d(TAG,
+                        "onPrepared: url=" + url + ", duration=" + duration + "ms (" + (duration / 1000) + "s)");
                 if (duration <= 0) {
                     mIsLiveVideo = true;
                 }
                 if (mVideoScaleManager != null) {
                     mVideoScaleManager.applyVideoScale();
                 }
-                
+
                 if (mFullscreenHelper != null && mFullscreenHelper.getPendingSeekPosition() > 0) {
                     final long pendingPosition = mFullscreenHelper.getPendingSeekPosition();
                     final boolean pendingResume = mFullscreenHelper.isPendingResume();
                     mFullscreenHelper.clearPendingSeekPosition();
-                    
+
                     postDelayed(new Runnable() {
                         @Override
                         public void run() {
@@ -239,7 +242,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     // 直接检查并执行跳过片头，不依赖 SkipManager.mVideoView
                     long skipTime = mSkipManager.getSkipIntroTime();
                     boolean enabled = mSkipManager.isSkipIntroEnabled();
-                    android.util.Log.d(TAG, "Checking skip intro: enabled=" + enabled + ", skipTime=" + skipTime + ", skipped=" + mSkipManager.isIntroSkipped());
+                    android.util.Log.d(TAG, "Checking skip intro: enabled=" + enabled + ", skipTime=" + skipTime
+                            + ", skipped=" + mSkipManager.isIntroSkipped());
                     if (enabled && skipTime > 0 && !mSkipManager.isIntroSkipped()) {
                         android.util.Log.d(TAG, "Performing skip intro: seeking to " + skipTime + "ms");
                         mSkipManager.setIntroSkipped(true);
@@ -247,10 +251,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     }
                 }
                 setOrangePlayState(PlayerConstants.STATE_PLAYING);
-                
+
                 // 启动播放历史自动保存
                 startPlayHistoryAutoSave();
-                
+
                 // 尝试自动加载已记忆的字幕
                 if (mOrangeController != null) {
                     VideoEventManager eventManager = mOrangeController.getVideoEventManager();
@@ -264,13 +268,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onAutoComplete(String url, Object... objects) {
                 super.onAutoComplete(url, objects);
                 setOrangePlayState(PlayerConstants.STATE_PLAYBACK_COMPLETED);
-                
+
                 // 停止播放历史自动保存
                 stopPlayHistoryAutoSave();
-                
+
                 // 播放完成，删除历史进度记录
                 PlayHistoryManager.getInstance(getContext()).deleteHistory(url);
-                
+
                 if (mKeepVideoPlaying) {
                     clearSavedProgress();
                 }
@@ -280,7 +284,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 if (mPlayCompleteListener != null) {
                     mPlayCompleteListener.onPlayComplete();
                 }
-                
+
                 // 处理播放模式（顺序播放、单集循环等）
                 if (mOrangeController != null) {
                     VideoEventManager eventManager = mOrangeController.getVideoEventManager();
@@ -294,18 +298,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onPlayError(String url, Object... objects) {
                 super.onPlayError(url, objects);
                 android.util.Log.e(TAG, "onPlayError: url=" + url + ", objects=" + java.util.Arrays.toString(objects));
-                
+
                 // 如果正在播放去广告后的m3u8且还没重试过，尝试播放原始URL
                 if (mIsPlayingAdRemovedM3U8 && !mHasRetriedOriginalUrl && mOriginalM3U8Url != null) {
-                    android.util.Log.w(TAG, "Ad-removed m3u8 playback failed, retrying with original URL: " + mOriginalM3U8Url);
+                    android.util.Log.w(TAG,
+                            "Ad-removed m3u8 playback failed, retrying with original URL: " + mOriginalM3U8Url);
                     mHasRetriedOriginalUrl = true;
                     mIsPlayingAdRemovedM3U8 = false;
-                    
+
                     // 清除失败的缓存
                     if (mM3U8AdManager != null) {
                         mM3U8AdManager.clearCacheForUrl(mOriginalM3U8Url);
                     }
-                    
+
                     // 重试原始URL（跳过去广告流程）
                     post(() -> {
                         release();
@@ -329,9 +334,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     });
                     return;
                 }
-                
+
                 setOrangePlayState(PlayerConstants.STATE_ERROR);
-                
+
                 // 如果播放的是本地缓存的m3u8文件，清除该缓存
                 if (url != null && url.contains("m3u8_cache") && mM3U8AdManager != null) {
                     // 尝试从保存的原始URL清除缓存
@@ -361,11 +366,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             }
         });
-        
+
         // 启动错误检测定时器
         startErrorDetectionTimer();
     }
-    
+
     /**
      * 启动错误检测定时器
      * 检测播放器是否卡在 PREPARING 状态超过 30 秒
@@ -391,10 +396,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }, 5000); // 每 5 秒检测一次
         }
     }
-    
+
     // 记录进入 PREPARING 状态的时间
     private long mPreparingStartTime = 0;
-    
+
     /**
      * 初始化播放器核心
      * 根据用户设置选择合适的播放引擎
@@ -404,11 +409,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mPlayerFactoryInitialized) {
             return; // 已经初始化过了
         }
-        
+
         PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
         String engine = settingsManager.getPlayerEngine();
         boolean fallbackToSystem = false;
-        
+
         // 根据设置切换播放器核心
         switch (engine) {
             case PlayerConstants.ENGINE_IJK:
@@ -421,7 +426,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                             android.util.Log.d(TAG, "initPlayerFactory: 使用 Orange IJK 播放器（支持本地文件）");
                             // IJK 播放器使用 TextureView 模式（更稳定）
                             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                         } catch (Exception e) {
                             android.util.Log.w(TAG, "initPlayerFactory: IJK 播放器初始化失败，回退到系统播放器", e);
                             fallbackToSystem = true;
@@ -435,7 +440,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     fallbackToSystem = true;
                 }
                 break;
-                
+
             case PlayerConstants.ENGINE_EXO:
                 // ExoPlayer 需要 Android 5.0+ (API 21)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -444,11 +449,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     try {
                         PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
                         android.util.Log.d(TAG, "initPlayerFactory: 使用 ExoPlayer");
-                        
+
                         // 默认强制使用 TextureView 渲染模式（已修复横竖屏切换崩溃问题）
                         // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
                         com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                         com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
                         android.util.Log.d(TAG, "initPlayerFactory: 默认使用 TextureView 渲染模式");
                     } catch (Exception e) {
@@ -456,8 +461,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         // 回退到 GSY 原生 Exo2PlayerManager
                         try {
                             @SuppressWarnings("unchecked")
-                            Class<? extends IPlayerManager> exoClass = 
-                                (Class<? extends IPlayerManager>) Class.forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
+                            Class<? extends IPlayerManager> exoClass = (Class<? extends IPlayerManager>) Class
+                                    .forName("tv.danmaku.ijk.media.exo2.Exo2PlayerManager");
                             PlayerFactory.setPlayManager(exoClass);
                             android.util.Log.d(TAG, "initPlayerFactory: 回退到 GSY Exo2PlayerManager");
                         } catch (ClassNotFoundException ex) {
@@ -470,15 +475,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     fallbackToSystem = true;
                 }
                 break;
-                
+
             case PlayerConstants.ENGINE_ALI:
                 // 阿里云播放器需要 Android 5.0+ (API 21)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     // GSY AliPlayer 类名: com.shuyu.aliplay.AliPlayerManager
                     try {
                         @SuppressWarnings("unchecked")
-                        Class<? extends IPlayerManager> aliClass = 
-                            (Class<? extends IPlayerManager>) Class.forName("com.shuyu.aliplay.AliPlayerManager");
+                        Class<? extends IPlayerManager> aliClass = (Class<? extends IPlayerManager>) Class
+                                .forName("com.shuyu.aliplay.AliPlayerManager");
                         PlayerFactory.setPlayManager(aliClass);
                         android.util.Log.d(TAG, "initPlayerFactory: 使用阿里云播放器");
                     } catch (ClassNotFoundException e) {
@@ -490,39 +495,39 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     fallbackToSystem = true;
                 }
                 break;
-                
+
             case PlayerConstants.ENGINE_DEFAULT:
             default:
                 fallbackToSystem = true;
                 break;
         }
-        
+
         // 回退到系统播放器
         if (fallbackToSystem) {
             // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
             PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
             android.util.Log.d(TAG, "initPlayerFactory: 使用系统播放器");
-            
+
             // 默认强制使用 TextureView 渲染模式（已修复横竖屏切换崩溃问题）
             // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
             com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
             android.util.Log.d(TAG, "initPlayerFactory: 默认使用 TextureView 渲染模式");
-            
+
             // 如果用户设置的不是系统播放器，但回退到了系统播放器，更新设置
             if (!PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
                 settingsManager.setPlayerEngine(PlayerConstants.ENGINE_DEFAULT);
                 android.util.Log.i(TAG, "initPlayerFactory: 已自动切换到系统播放器，并更新设置");
             }
         }
-        
+
         // 应用解码方式设置
         applyDecodeMode(settingsManager);
-        
+
         mPlayerFactoryInitialized = true;
     }
-    
+
     /**
      * 检查 IJK 播放器是否可用
      * 同时检查 Java 类和 native 库
@@ -535,7 +540,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.d(TAG, "isIjkPlayerAvailable: IJK Java 类未找到");
             return false;
         }
-        
+
         // 2. 再检查 SO 库是否可用
         try {
             // 尝试加载 IJK 的 native 库
@@ -552,13 +557,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return false;
         }
     }
-    
+
     /**
      * 应用解码方式设置
      */
     private void applyDecodeMode(PlayerSettingsManager settingsManager) {
         boolean useHardware = settingsManager.isHardwareDecode();
-        
+
         if (useHardware) {
             // 硬件解码
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodec();
@@ -566,29 +571,31 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 软件解码
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.disableMediaCodec();
         }
-        
+
         // 关键修复：无论硬解还是软解，都启用 MediaCodecTexture
         // 这样 TextureView 在横竖屏切换时会保留 SurfaceTexture，不会重新创建
         // 避免 ExoPlayer 和系统播放器在 TextureView 模式下横竖屏切换时崩溃
-        // 
-        // 原理：enableMediaCodecTexture() 会让 GSYTextureView.onSurfaceTextureDestroyed() 返回 false
+        //
+        // 原理：enableMediaCodecTexture() 会让 GSYTextureView.onSurfaceTextureDestroyed() 返回
+        // false
         // 这样系统就不会销毁 SurfaceTexture，横竖屏切换时可以复用
         com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
         android.util.Log.d(TAG, "applyDecodeMode: 已启用 MediaCodecTexture（保留 SurfaceTexture，避免横竖屏切换重建）");
     }
-    
+
     /**
      * 设置渲染模式
      * 
      * @param useTextureView true: 使用 TextureView（推荐，已修复横竖屏切换崩溃）
-     *                       false: 使用 SurfaceView（Android Q+ 支持 SurfaceControl 无缝切换）
+     *                       false: 使用 SurfaceView（Android Q+ 支持 SurfaceControl
+     *                       无缝切换）
      */
     public void setRenderMode(boolean useTextureView) {
         if (useTextureView) {
             // 使用 TextureView 渲染
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
-            
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+
             // 设置播放器管理器的强制模式
             String engine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
             if (PlayerConstants.ENGINE_EXO.equals(engine)) {
@@ -596,13 +603,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             } else if (PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
                 com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
             }
-            
+
             android.util.Log.d(TAG, "setRenderMode: 已切换到 TextureView 渲染模式");
         } else {
             // 使用 SurfaceView 渲染
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
-            
+                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.SURFACE);
+
             // 设置播放器管理器的强制模式
             String engine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
             if (PlayerConstants.ENGINE_EXO.equals(engine)) {
@@ -610,25 +617,25 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             } else if (PlayerConstants.ENGINE_DEFAULT.equals(engine)) {
                 com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(false);
             }
-            
+
             android.util.Log.d(TAG, "setRenderMode: 已切换到 SurfaceView 渲染模式");
         }
-        
+
         // 智能检测：如果使用 TextureView，确保启用 MediaCodecTexture
         if (useTextureView) {
             com.shuyu.gsyvideoplayer.utils.GSYVideoType.enableMediaCodecTexture();
             android.util.Log.d(TAG, "setRenderMode: 已自动启用 MediaCodecTexture（TextureView 模式必需）");
         }
     }
-    
+
     /**
      * 获取当前渲染模式
      * 
      * @return true: TextureView, false: SurfaceView
      */
     public boolean isTextureViewMode() {
-        return com.shuyu.gsyvideoplayer.utils.GSYVideoType.getRenderType() == 
-               com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE;
+        return com.shuyu.gsyvideoplayer.utils.GSYVideoType
+                .getRenderType() == com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE;
     }
 
     public void setDebugLogCallback(DebugLogCallback callback) {
@@ -636,7 +643,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void enableOrangeComponents() {
-        if (mUseOrangeComponents) return;
+        if (mUseOrangeComponents)
+            return;
         mUseOrangeComponents = true;
         initOrangeComponents();
     }
@@ -653,7 +661,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         android.util.Log.d(TAG, "  VideoView 实例: @" + Integer.toHexString(this.hashCode()));
 
         mControlWrapper = createControlWrapper();
-        
+
         // 自动创建控制器（如果用户没有手动设置）
         if (mOrangeController == null) {
             mOrangeController = new OrangeVideoController(context);
@@ -662,13 +670,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         } else {
             android.util.Log.d(TAG, "  复用已有控制器: @" + Integer.toHexString(mOrangeController.hashCode()));
         }
-        
+
         mPrepareView = new com.orange.playerlibrary.component.PrepareView(context);
         mPrepareView.attach(mControlWrapper);
         mPrepareView.setClickStart();
         addView(mPrepareView, matchParentParams);
         android.util.Log.d(TAG, "  PrepareView: @" + Integer.toHexString(mPrepareView.hashCode()));
-        
+
         mCompleteView = new com.orange.playerlibrary.component.CompleteView(context);
         mCompleteView.attach(mControlWrapper);
         addView(mCompleteView, matchParentParams);
@@ -691,10 +699,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mVodControlView.attach(mControlWrapper);
         addView(mVodControlView, matchParentParams);
         android.util.Log.d(TAG, "  VodControlView: @" + Integer.toHexString(mVodControlView.hashCode()));
-        
+
         android.util.Log.d(TAG, "initOrangeComponents: 组件初始化完成");
         android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
+
         // 使用 post 延迟状态通知，确保所有组件都已附加到窗口
         // 这样可以避免在 setUp() 后立即调用 startPlayLogic() 时出现的问题
         post(new Runnable() {
@@ -703,7 +711,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 setOrangePlayState(PlayerConstants.STATE_IDLE);
             }
         });
-        
+
         ensureEventBinding();
     }
 
@@ -717,16 +725,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController == null) {
             return;
         }
-        
+
         VideoEventManager eventManager = mOrangeController.getVideoEventManager();
         if (eventManager == null) {
             return;
         }
-        
+
         if (mVodControlView != null) {
             eventManager.bindControllerComponents(mVodControlView);
         }
-        
+
         if (mTitleView != null) {
             eventManager.bindTitleView(mTitleView);
         }
@@ -915,22 +923,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public int getCutoutHeight() {
                 return 0;
             }
-            
+
             @Override
             public int getVideoWidth() {
                 return videoView.getCurrentVideoWidth();
             }
-            
+
             @Override
             public int getVideoHeight() {
                 return videoView.getCurrentVideoHeight();
             }
-            
+
             @Override
             public String getVideoUrl() {
                 return videoView.getVideoUrl();
             }
-            
+
             @Override
             public String getVideoTitle() {
                 // GSY基类使用 mTitle 存储标题
@@ -972,7 +980,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     // ==================== 重写 setUp 方法以支持预览功能 ====================
-    
+
     /**
      * 保存视频 URL 并设置预览功能
      * 所有 setUp 方法的公共逻辑
@@ -982,7 +990,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // 设置视频URL给VodControlView用于预览功能
         com.orange.playerlibrary.component.VodControlView.setVideoUrl(url);
     }
-    
+
     /**
      * 更新标题到 TitleView
      */
@@ -991,15 +999,54 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mTitleView.setTitle(title);
         }
     }
-    
+
+    // 标记是否正在异步加载种子（防止外部 startPlayLogic 提前触发）
+    private boolean mPendingTorrentLoad = false;
+
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
+        android.util.Log.d(TAG, "setUp() called with url=" + url);
+        
+        // 清除旧URL，防止播放旧视频
+        mVideoUrl = null;
+        mOriginUrl = null;
+        // 种子播放统一入口（magnet/.torrent）
+        boolean isTorrent = com.orange.playerlibrary.torrent.TorrentSupport.isTorrentUrl(url);
+        android.util.Log.d(TAG, "setUp: isTorrentUrl=" + isTorrent + " for url=" + url);
+        if (isTorrent) {
+            String reason = com.orange.playerlibrary.torrent.TorrentSupport.getJlibtorrentMissingReason();
+            android.util.Log.d(TAG, "setUp torrent: missingReason=" + reason);
+            if (reason != null) {
+                android.util.Log.e(TAG, "Torrent playback unavailable: " + reason);
+                return false;
+            }
+
+            // 设置加载中状态
+            setOrangePlayState(PlayerConstants.STATE_PREPARING);
+            setStateAndUi(CURRENT_STATE_PREPAREING);
+            if (mPrepareView != null) {
+                mPrepareView.setVisibility(View.VISIBLE);
+            }
+            hideAllWidget();
+            // 标记正在异步加载种子
+            mPendingTorrentLoad = true;
+
+            java.io.File saveDir = com.orange.playerlibrary.torrent.TorrentSupport.defaultSaveDir(getContext());
+            String cleanUrl = com.orange.playerlibrary.torrent.TorrentSupport.extractMagnetUrl(url);
+            if (cleanUrl != null && cleanUrl.toLowerCase().startsWith("magnet:")) {
+                playMagnet(cleanUrl, saveDir, null);
+            } else {
+                playTorrent(new java.io.File(url), saveDir, null);
+            }
+            return true;
+        }
+
         // 如果是HTTP m3u8且启用了去广告，先处理URL
         if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(url)) {
             processM3U8WithAdRemoval(url, cacheWithPlay, title, null);
             return true;
         }
-        
+
         saveVideoUrl(url);
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
@@ -1018,47 +1065,179 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         updateTitleView(title);
         return result;
     }
-    
+
+    // ===== 种子播放功能（可选） =====
+
+    public void playTorrent(java.io.File torrentFile, java.io.File saveDir,
+            com.orange.playerlibrary.torrent.TorrentPlayerManager.TorrentCallback callback) {
+        android.util.Log.d(TAG, "playTorrent() called with torrentFile=" + torrentFile + ", exists=" + torrentFile.exists());
+        com.orange.playerlibrary.torrent.TorrentPlayerManager manager = com.orange.playerlibrary.torrent.TorrentPlayerManager
+                .getInstance(getContext());
+
+        if (!manager.isAvailable()) {
+            String reason = com.orange.playerlibrary.torrent.TorrentSupport.getJlibtorrentMissingReason();
+            if (callback != null) {
+                callback.onError(reason != null ? reason : "Torrent playback unavailable");
+            }
+            return;
+        }
+
+        java.io.File dir = saveDir != null ? saveDir
+                : com.orange.playerlibrary.torrent.TorrentSupport.defaultSaveDir(getContext());
+
+        manager.loadTorrent(torrentFile, dir,
+                new com.orange.playerlibrary.torrent.TorrentPlayerManager.TorrentCallback() {
+                    @Override
+                    public void onReady(String proxyUrl, String fileName, long fileSize) {
+                        // 清除种子加载标记
+                        mPendingTorrentLoad = false;
+                        setUpInternal(proxyUrl, false, fileName);
+                        startPlayLogic();
+                        if (callback != null) {
+                            callback.onReady(proxyUrl, fileName, fileSize);
+                        }
+                    }
+
+                    @Override
+                    public void onBufferProgress(int bufferedPieces, int totalPieces, long bufferedBytes) {
+                        if (callback != null) {
+                            callback.onBufferProgress(bufferedPieces, totalPieces, bufferedBytes);
+                        }
+                    }
+
+                    @Override
+                    public void onDownloadProgress(int progress, long downloadSpeed, long uploadSpeed) {
+                        if (callback != null) {
+                            callback.onDownloadProgress(progress, downloadSpeed, uploadSpeed);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        // 清除种子加载标记
+                        mPendingTorrentLoad = false;
+                        if (callback != null) {
+                            callback.onError(error);
+                        }
+                    }
+                });
+    }
+
+    public void playMagnet(String magnetUri, java.io.File saveDir,
+            com.orange.playerlibrary.torrent.TorrentPlayerManager.TorrentCallback callback) {
+        com.orange.playerlibrary.torrent.TorrentPlayerManager manager = com.orange.playerlibrary.torrent.TorrentPlayerManager
+                .getInstance(getContext());
+
+        if (!manager.isAvailable()) {
+            String reason = com.orange.playerlibrary.torrent.TorrentSupport.getJlibtorrentMissingReason();
+            if (callback != null) {
+                callback.onError(reason != null ? reason : "Torrent playback unavailable");
+            }
+            return;
+        }
+
+        java.io.File dir = saveDir != null ? saveDir
+                : com.orange.playerlibrary.torrent.TorrentSupport.defaultSaveDir(getContext());
+
+        manager.loadMagnet(magnetUri, dir, new com.orange.playerlibrary.torrent.TorrentPlayerManager.TorrentCallback() {
+            @Override
+            public void onReady(String proxyUrl, String fileName, long fileSize) {
+                // 清除种子加载标记和自定义加载文本
+                mPendingTorrentLoad = false;
+                setCustomLoadingText(null);
+                setUpInternal(proxyUrl, false, fileName);
+                startPlayLogic();
+                if (callback != null) {
+                    callback.onReady(proxyUrl, fileName, fileSize);
+                }
+            }
+
+            @Override
+            public void onBufferProgress(int bufferedPieces, int totalPieces, long bufferedBytes) {
+                if (callback != null) {
+                    callback.onBufferProgress(bufferedPieces, totalPieces, bufferedBytes);
+                }
+            }
+
+            @Override
+            public void onDownloadProgress(int progress, long downloadSpeed, long uploadSpeed) {
+                if (callback != null) {
+                    callback.onDownloadProgress(progress, downloadSpeed, uploadSpeed);
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                // 清除种子加载标记和自定义加载文本
+                mPendingTorrentLoad = false;
+                setCustomLoadingText(null);
+                if (callback != null) {
+                    callback.onError(error);
+                }
+            }
+            
+            @Override
+            public void onMagnetResolving(int elapsedSeconds, int totalSeconds) {
+                // 显示磁力链接解析进度
+                int progress = (int) (elapsedSeconds * 100.0 / totalSeconds);
+                String progressText = String.format("解析磁力链接中 %d/%ds (%d%%)", 
+                        elapsedSeconds, totalSeconds, progress);
+                setCustomLoadingText(progressText);
+                
+                if (callback != null) {
+                    callback.onMagnetResolving(elapsedSeconds, totalSeconds);
+                }
+            }
+        });
+    }
+
+    public void stopTorrent() {
+        com.orange.playerlibrary.torrent.TorrentPlayerManager manager = com.orange.playerlibrary.torrent.TorrentPlayerManager
+                .getInstance(getContext());
+        manager.stop();
+    }
+
     /**
      * 处理M3U8去广告并播放
      */
-    private void processM3U8WithAdRemoval(String url, boolean cacheWithPlay, String title, Map<String, String> headers) {
+    private void processM3U8WithAdRemoval(String url, boolean cacheWithPlay, String title,
+            Map<String, String> headers) {
         android.util.Log.d(TAG, "Processing M3U8 for ad removal: " + url);
-        
+
         // 保存原始URL用于重试
         mOriginalM3U8Url = url;
         mHasRetriedOriginalUrl = false;
-        
+
         // 先清除视频URL，避免短暂播放之前的视频
         mVideoUrl = null;
         mOriginUrl = null;
-        
+
         // 设置准备中状态，显示加载动画（覆盖之前的画面）
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
         setStateAndUi(CURRENT_STATE_PREPAREING);
-        
+
         // 显示加载状态
         if (mPrepareView != null) {
             mPrepareView.setVisibility(View.VISIBLE);
         }
-        
+
         // 隐藏所有控件（包括视频画面），只显示加载动画
         hideAllWidget();
-        
+
         // 释放当前播放状态，然后延迟执行去广告处理
         release();
-        
+
         // 延迟执行，确保release和状态切换完成
         postDelayed(() -> {
             mM3U8AdManager.processVideoUrl(url, new M3U8AdManager.Callback() {
                 @Override
                 public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message) {
-                    android.util.Log.d(TAG, "M3U8 ad removal result: isLocalFile=" + isLocalFile + 
-                        ", adSegmentsRemoved=" + adSegmentsRemoved + ", message=" + message);
-                    
+                    android.util.Log.d(TAG, "M3U8 ad removal result: isLocalFile=" + isLocalFile +
+                            ", adSegmentsRemoved=" + adSegmentsRemoved + ", message=" + message);
+
                     // 记录是否正在播放去广告后的m3u8（有广告被移除且是本地文件）
                     mIsPlayingAdRemovedM3U8 = (adSegmentsRemoved > 0 && isLocalFile);
-                    
+
                     // 在主线程中设置播放
                     post(() -> {
                         saveVideoUrl(playUrl);
@@ -1086,23 +1265,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     });
                 }
             });
-        }, 350);  // 延迟350ms确保release和状态切换完成
+        }, 350); // 延迟350ms确保release和状态切换完成
     }
-    
+
     /**
      * 内部setUp方法，用于去广告后设置播放
      */
     private boolean setUpInternal(String url, boolean cacheWithPlay, String title) {
         return super.setUp(url, cacheWithPlay, title);
     }
-    
+
     /**
      * 内部setUp方法，用于去广告后设置播放（带headers）
      */
-    private boolean setUpInternal(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
+    private boolean setUpInternal(String url, boolean cacheWithPlay, java.io.File cachePath,
+            Map<String, String> mapHeadData, String title) {
         return super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
     }
-    
+
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
         saveVideoUrl(url);
@@ -1120,9 +1300,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         updateTitleView(title);
         return result;
     }
-    
+
     @Override
-    public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData, String title) {
+    public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData,
+            String title) {
         saveVideoUrl(url);
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
@@ -1138,7 +1319,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         updateTitleView(title);
         return result;
     }
-    
+
     /**
      * 根据 URL 自动选择最合适的播放器内核
      * 
@@ -1156,44 +1337,44 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (!PlayerSettingsManager.getInstance(getContext()).isAutoSelectEngine()) {
             return;
         }
-        
+
         if (url == null || url.isEmpty()) {
             return;
         }
-        
+
         // 使用智能内核选择器
         String recommendedEngine = com.orange.playerlibrary.utils.PlayerEngineSelector.selectEngine(url);
-        
+
         // 检查推荐的内核是否可用
         if (!isEngineAvailable(recommendedEngine)) {
-            android.util.Log.w(TAG, "推荐的播放器内核不可用: " + 
-                com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) + 
-                "，将使用当前内核");
+            android.util.Log.w(TAG, "推荐的播放器内核不可用: " +
+                    com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) +
+                    "，将使用当前内核");
             return;
         }
-        
+
         // 只在需要时才切换内核（避免不必要的切换）
         String currentEngine = getCurrentPlayerEngine();
         if (!currentEngine.equals(recommendedEngine)) {
             selectPlayerFactory(recommendedEngine);
-            android.util.Log.i(TAG, "自动切换播放器内核: " + 
-                com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) + 
-                " (协议: " + com.orange.playerlibrary.utils.PlayerEngineSelector.getProtocolType(url) + ")");
+            android.util.Log.i(TAG, "自动切换播放器内核: " +
+                    com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) +
+                    " (协议: " + com.orange.playerlibrary.utils.PlayerEngineSelector.getProtocolType(url) + ")");
         }
     }
-    
+
     /**
      * 获取当前使用的播放器内核
      */
     private String getCurrentPlayerEngine() {
         IPlayerManager currentManager = GSYVideoManager.instance().getPlayer();
-        
+
         if (currentManager == null) {
             return PlayerConstants.ENGINE_EXO; // 默认 ExoPlayer
         }
-        
+
         String className = currentManager.getClass().getName();
-        
+
         if (className.contains("OrangeExoPlayerManager")) {
             return PlayerConstants.ENGINE_EXO;
         } else if (className.contains("IjkPlayerManager")) {
@@ -1203,7 +1384,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         } else if (className.contains("SystemPlayerManager")) {
             return PlayerConstants.ENGINE_DEFAULT;
         }
-        
+
         return PlayerConstants.ENGINE_EXO; // 默认
     }
 
@@ -1213,13 +1394,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public void setUrl(String url, Map<String, String> headers) {
         this.mVideoHeaders = headers;
-        
+
         // 如果是HTTP m3u8且启用了去广告，走去广告流程
         if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(url)) {
             processM3U8WithAdRemoval(url, true, "", headers);
             return;
         }
-        
+
         if (headers != null) {
             setUp(url, true, null, headers, "");
         } else {
@@ -1240,10 +1421,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void start() {
-        mUserPaused = false;  // 清除用户暂停标记
+        mUserPaused = false; // 清除用户暂停标记
         mIsSniffing = false;
         mIsLiveVideo = false;
-        mIsLoadingThumbnail = false;  // 重置首帧加载状态
+        mIsLoadingThumbnail = false; // 重置首帧加载状态
         if (mSkipManager != null) {
             mSkipManager.reset();
         }
@@ -1255,14 +1436,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null) {
             mOrangeController.setThumbnail(null);
         }
-        
+
         // 不在这里设置 STATE_PREPARING，移到 startPlayLogic() 中
         // 确保在 PrepareView 附加到窗口后才发送状态通知
         startPlayLogic();
     }
 
     public void pause() {
-        mUserPaused = true;  // 标记用户主动暂停
+        mUserPaused = true; // 标记用户主动暂停
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
@@ -1273,13 +1454,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void resume() {
-        mUserPaused = false;  // 清除用户暂停标记
+        mUserPaused = false; // 清除用户暂停标记
         onVideoResume();
         if (mSkipManager != null) {
             mSkipManager.startOutroCheck();
         }
     }
-
 
     /**
      * 重写 onSurfaceDestroyed - 关键方法
@@ -1310,25 +1490,25 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 return true;
             }
         }
-        
+
         // TextureView 模式下（OCR 功能启用时），先切换到 PlaceholderSurface
         // 这样可以避免 MediaCodec 渲染到已销毁的 Surface 导致崩溃
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
-        boolean isExoTextureMode = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
-            && com.orange.playerlibrary.exo.OrangeExoPlayerManager.isForceTextureViewMode();
+        boolean isExoTextureMode = PlayerConstants.ENGINE_EXO.equals(currentEngine)
+                && com.orange.playerlibrary.exo.OrangeExoPlayerManager.isForceTextureViewMode();
         boolean isSystemTextureMode = PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)
-            && com.orange.playerlibrary.player.OrangeSystemPlayerManager.isForceTextureViewMode();
-        
+                && com.orange.playerlibrary.player.OrangeSystemPlayerManager.isForceTextureViewMode();
+
         if (isExoTextureMode || isSystemTextureMode) {
             // 通过 setDisplay(null) 触发切换到 PlaceholderSurface
             setDisplay(null);
             // 返回 true 表示我们已经处理了 Surface 销毁
             return true;
         }
-        
+
         return super.onSurfaceDestroyed(surface);
     }
-    
+
     /**
      * 重写 setDisplay - 关键方法
      * 
@@ -1342,7 +1522,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         boolean isExoPlayer = PlayerConstants.ENGINE_EXO.equals(currentEngine);
         boolean isSystemPlayer = PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
-        
+
         // Android Q+ 使用 SurfaceControl.reparent 方式处理 Surface 切换
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (isExoPlayer) {
@@ -1353,7 +1533,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 return;
             }
         }
-        
+
         // 其他播放器或低版本 Android，使用原有逻辑
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
             if (surface != null) {
@@ -1364,7 +1544,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         super.setDisplay(surface);
     }
-    
+
     /**
      * 系统播放器专用的 Surface 切换方法
      * 使用 OrangeSystemPlayerManager 的 setDisplayNew 方法实现无缝切换
@@ -1372,13 +1552,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.Q)
     private void setDisplayForSystem(Surface surface) {
         com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = GSYVideoManager.instance().getPlayer();
-        
+
         boolean isSurfaceView = mTextureView != null && mTextureView.getShowView() instanceof SurfaceView;
-        
+
         if (playerManager instanceof com.orange.playerlibrary.player.OrangeSystemPlayerManager) {
-            com.orange.playerlibrary.player.OrangeSystemPlayerManager systemManager = 
-                (com.orange.playerlibrary.player.OrangeSystemPlayerManager) playerManager;
-            
+            com.orange.playerlibrary.player.OrangeSystemPlayerManager systemManager = (com.orange.playerlibrary.player.OrangeSystemPlayerManager) playerManager;
+
             if (surface != null && isSurfaceView) {
                 SurfaceView surfaceView = (SurfaceView) mTextureView.getShowView();
                 systemManager.setDisplayNew(surfaceView);
@@ -1393,7 +1572,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     /**
      * ExoPlayer 专用的 Surface 切换方法
      * 完全按照 GSY 官方 GSYExo2PlayerView 的实现方式
@@ -1403,14 +1582,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private void setDisplayForExo(Surface surface) {
         // 获取当前的 PlayerManager
         com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = GSYVideoManager.instance().getPlayer();
-        
+
         // 添加调试日志
         boolean isSurfaceView = mTextureView != null && mTextureView.getShowView() instanceof SurfaceView;
         // 检查是否是 OrangeExoPlayerManager
         if (playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
-            com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
-                (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
-            
+            com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
+
             // 完全按照 GSY 官方的逻辑
             if (surface != null && isSurfaceView) {
                 // 使用 SurfaceView 进行 reparent
@@ -1430,7 +1608,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     /**
      * 使用 SurfaceControl.reparent 切换 Surface
      * 这是 GSY 官方 ExoPlayer 示例的核心方法
@@ -1445,24 +1623,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
             return;
         }
-        
+
         try {
             if (surfaceView == null) {
                 // reparent 到空，隐藏视频
                 new SurfaceControl.Transaction()
-                    .reparent(mExoSurfaceControl, null)
-                    .setBufferSize(mExoSurfaceControl, 0, 0)
-                    .setVisibility(mExoSurfaceControl, false)
-                    .apply();
+                        .reparent(mExoSurfaceControl, null)
+                        .setBufferSize(mExoSurfaceControl, 0, 0)
+                        .setVisibility(mExoSurfaceControl, false)
+                        .apply();
             } else {
                 // reparent 到新的 SurfaceView
                 SurfaceControl newParentSurfaceControl = surfaceView.getSurfaceControl();
                 if (newParentSurfaceControl != null && newParentSurfaceControl.isValid()) {
                     new SurfaceControl.Transaction()
-                        .reparent(mExoSurfaceControl, newParentSurfaceControl)
-                        .setBufferSize(mExoSurfaceControl, surfaceView.getWidth(), surfaceView.getHeight())
-                        .setVisibility(mExoSurfaceControl, true)
-                        .apply();
+                            .reparent(mExoSurfaceControl, newParentSurfaceControl)
+                            .setBufferSize(mExoSurfaceControl, surfaceView.getWidth(), surfaceView.getHeight())
+                            .setVisibility(mExoSurfaceControl, true)
+                            .apply();
                 } else {
                     // SurfaceControl 无效，回退到普通方式
                     super.setDisplay(surfaceView.getHolder().getSurface());
@@ -1475,7 +1653,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     /**
      * 初始化 ExoPlayer 的 SurfaceControl
      * 在播放开始时调用
@@ -1485,19 +1663,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mExoSurfaceControl != null) {
             return; // 已初始化
         }
-        
+
         try {
             mExoSurfaceControl = new SurfaceControl.Builder()
-                .setName(SURFACE_CONTROL_NAME)
-                .setBufferSize(0, 0)
-                .build();
+                    .setName(SURFACE_CONTROL_NAME)
+                    .setBufferSize(0, 0)
+                    .build();
             mExoVideoSurface = new Surface(mExoSurfaceControl);
             mUseExoSurfaceControl = true;
         } catch (Exception e) {
             mUseExoSurfaceControl = false;
         }
     }
-    
+
     /**
      * 释放 ExoPlayer 的 SurfaceControl
      */
@@ -1512,7 +1690,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         mUseExoSurfaceControl = false;
     }
-    
+
     /**
      * 重写 releaseSurface - 关键方法
      * 
@@ -1525,7 +1703,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mUseExoSurfaceControl) {
             return;
         }
-        
+
         if (mFullscreenHelper != null && mFullscreenHelper.isFullscreenTransitioning()) {
             return;
         }
@@ -1547,30 +1725,30 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mEnteringPiPMode) {
             return;
         }
-        
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
                 return;
             }
         }
-        
+
         // 如果已经是暂停状态，不需要再次暂停
         if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
             return;
         }
-        
-        boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
-                                     mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
-                                     mCurrentPlayState == PlayerConstants.STATE_BUFFERED);
-        
+
+        boolean shouldUpdateState = (mCurrentPlayState == PlayerConstants.STATE_PLAYING ||
+                mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
+                mCurrentPlayState == PlayerConstants.STATE_BUFFERED);
+
         // 直接调用 GSYVideoManager 暂停，确保立即生效
         try {
             getGSYVideoManager().getPlayer().pause();
         } catch (Exception e) {
         }
         super.onVideoPause();
-        
+
         if (shouldUpdateState) {
             mCurrentPlayState = PlayerConstants.STATE_PAUSED;
             notifyComponentsPlayStateChanged(PlayerConstants.STATE_PAUSED);
@@ -1578,7 +1756,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mCurrentState = CURRENT_STATE_PAUSE;
             }
         }
-        
+
         long endTime = System.currentTimeMillis();
     }
 
@@ -1588,26 +1766,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // seek=true 适用于"从指定位置恢复"的场景，而非切后台继续
         onVideoResume(false);
     }
-    
+
     @Override
     public void onVideoResume(boolean seek) {
         if (mUserPaused) {
             return;
         }
-        
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Activity activity = getActivity();
             if (activity != null && activity.isInPictureInPictureMode()) {
                 return;
             }
         }
-        
+
         // 检查当前播放器内核
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
-        boolean isExoOrSystem = PlayerConstants.ENGINE_EXO.equals(currentEngine) 
-            || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
+        boolean isExoOrSystem = PlayerConstants.ENGINE_EXO.equals(currentEngine)
+                || PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
         boolean isIjk = PlayerConstants.ENGINE_IJK.equals(currentEngine);
-        
+
         if ((isExoOrSystem || isIjk) && mCurrentState == CURRENT_STATE_PAUSE) {
             // ExoPlayer、系统播放器和 IJK 播放器都需要特殊处理
             // 保存暂停时的位置（GSY 基类的 mCurrentPosition 在 onVideoPause 时保存）
@@ -1643,13 +1821,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                             getGSYVideoManager().seekTo(savedPosition);
                         }
                     }
-                    
+
                     setStateAndUi(CURRENT_STATE_PLAYING);
-                    
+
                     // 更新 Orange 状态
                     mCurrentPlayState = PlayerConstants.STATE_PLAYING;
                     notifyComponentsPlayStateChanged(PlayerConstants.STATE_PLAYING);
-                    
+
                     // 清零位置（与 GSY 基类行为一致）
                     mCurrentPosition = 0;
                 }
@@ -1673,7 +1851,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void setEnteringPiPMode(boolean entering) {
         this.mEnteringPiPMode = entering;
     }
-    
+
     public boolean isEnteringPiPMode() {
         return mEnteringPiPMode;
     }
@@ -1682,7 +1860,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void release() {
         // 停止播放历史自动保存
         stopPlayHistoryAutoSave();
-        
+
         if (mKeepVideoPlaying) {
             savePlaybackProgress();
         }
@@ -1720,10 +1898,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public void setSpeed(float speed) {
         // 扩大倍速范围限制：0.35x - 5.0x（普通倍速）
-        if (speed < 0.35f) speed = 0.35f;
-        if (speed > 5.0f) speed = 5.0f;
+        if (speed < 0.35f)
+            speed = 0.35f;
+        if (speed > 5.0f)
+            speed = 5.0f;
         sSpeed = speed;
-        
+
         // 添加日志
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         // 直接设置倍速
@@ -1731,7 +1911,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             super.setSpeed(speed);
         } catch (Exception e) {
         }
-        
+
         // 对于 IJK 和系统播放器，确保倍速立即生效
         // 某些情况下需要在播放状态下才能设置倍速
         if (isPlaying()) {
@@ -1753,8 +1933,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public static void setSpeeds(float speed) {
         // 扩大倍速范围限制：0.35x - 5.0x
-        if (speed < 0.35f) speed = 0.35f;
-        if (speed > 5.0f) speed = 5.0f;
+        if (speed < 0.35f)
+            speed = 0.35f;
+        if (speed > 5.0f)
+            speed = 5.0f;
         sSpeed = speed;
     }
 
@@ -1772,7 +1954,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (settingsManager != null && settingsManager.isSmartFullscreenEnabled()) {
             // 智能全屏：根据视频宽高比自动选择全屏模式
             android.util.Log.d(TAG, "startFullScreen: 智能全屏已启用，检测视频宽高比");
-            
+
             // 延迟执行，确保视频尺寸已经准备好
             postDelayed(new Runnable() {
                 @Override
@@ -1796,7 +1978,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mFullscreenHelper.exitFullscreen(activity);
         }
     }
-    
+
     /**
      * 进入竖屏全屏模式
      * 不旋转屏幕，只是将播放器移动到全屏显示
@@ -1806,7 +1988,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mFullscreenHelper.startPortraitFullScreen();
         }
     }
-    
+
     /**
      * 退出竖屏全屏模式
      */
@@ -1815,7 +1997,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mFullscreenHelper.stopPortraitFullScreen();
         }
     }
-    
+
     /**
      * 是否竖屏全屏
      */
@@ -1826,7 +2008,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public boolean isFullScreen() {
         return mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
     }
-    
+
     /**
      * 智能全屏：根据视频宽高比自动选择全屏模式
      * 横屏视频（宽 > 高）→ 横屏全屏
@@ -1834,19 +2016,19 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     private void applySmartFullscreen() {
         android.util.Log.d(TAG, "applySmartFullscreen: 开始智能全屏检测");
-        
+
         // 检查 mFullscreenHelper 是否为 null
         if (mFullscreenHelper == null) {
             android.util.Log.e(TAG, "applySmartFullscreen: mFullscreenHelper 为 null，无法执行全屏操作");
             return;
         }
-        
+
         // 获取视频宽高
         int videoWidth = getCurrentVideoWidth();
         int videoHeight = getCurrentVideoHeight();
-        
+
         android.util.Log.d(TAG, "applySmartFullscreen: 获取到视频尺寸 width=" + videoWidth + ", height=" + videoHeight);
-        
+
         if (videoWidth <= 0 || videoHeight <= 0) {
             android.util.Log.w(TAG, "applySmartFullscreen: 视频尺寸无效，使用默认横屏全屏");
             // 视频尺寸无效，使用默认横屏全屏
@@ -1859,11 +2041,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
             return;
         }
-        
+
         // 计算宽高比
         float aspectRatio = (float) videoWidth / videoHeight;
-        android.util.Log.d(TAG, "applySmartFullscreen: 视频尺寸 " + videoWidth + "x" + videoHeight + ", 宽高比=" + aspectRatio);
-        
+        android.util.Log.d(TAG,
+                "applySmartFullscreen: 视频尺寸 " + videoWidth + "x" + videoHeight + ", 宽高比=" + aspectRatio);
+
         // 根据宽高比选择全屏模式
         if (videoWidth > videoHeight) {
             // 横屏视频 → 横屏全屏
@@ -1882,9 +2065,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mFullscreenHelper.startPortraitFullScreen();
         }
     }
-    
+
     /**
      * 设置是否启用智能全屏
+     * 
      * @param enabled true 启用，false 禁用
      */
     public void setSmartFullscreenEnabled(boolean enabled) {
@@ -1894,9 +2078,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.d(TAG, "setSmartFullscreenEnabled: " + enabled);
         }
     }
-    
+
     /**
      * 查询智能全屏是否启用
+     * 
      * @return true 启用，false 禁用
      */
     public boolean isSmartFullscreenEnabled() {
@@ -1910,13 +2095,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public void setAutoRotateOnFullscreen(boolean autoRotate) {
         this.mAutoRotateOnFullscreen = autoRotate;
-        
+
         // 同步到 PlayerSettingsManager
         PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
         if (settingsManager != null) {
             settingsManager.setAutoRotateEnabled(autoRotate);
         }
-        
+
         // 同步到 CustomFullscreenHelper
         if (mFullscreenHelper != null) {
             mFullscreenHelper.setAutoRotateEnabled(autoRotate);
@@ -1934,24 +2119,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         // 1. 先释放当前播放器
         GSYVideoManager.releaseAllVideos();
-        
+
         // 2. 设置新的播放器工厂
         switch (engineType) {
             case PlayerConstants.ENGINE_IJK:
                 PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeIjkPlayerManager.class);
                 // IJK 播放器使用 TextureView 模式（更稳定）
                 com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                 break;
             case PlayerConstants.ENGINE_EXO:
                 // 使用自定义的 OrangeExoPlayerManager，支持 SurfaceControl 无缝切换
                 try {
                     PlayerFactory.setPlayManager(com.orange.playerlibrary.exo.OrangeExoPlayerManager.class);
-                    
+
                     // 默认强制使用 TextureView 渲染模式（与 initPlayerFactory 保持一致）
                     // 用户可以通过 setRenderMode() 手动切换到 SurfaceView
                     com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                     com.orange.playerlibrary.exo.OrangeExoPlayerManager.setForceTextureViewMode(true);
                     android.util.Log.d(TAG, "selectPlayerFactory: ExoPlayer 使用 TextureView 渲染模式");
                 } catch (Exception e) {
@@ -1972,7 +2157,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     Class<?> aliClass = Class.forName("com.shuyu.aliplay.AliPlayerManager");
                     PlayerFactory.setPlayManager((Class<? extends IPlayerManager>) aliClass);
                     com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                            com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                     android.util.Log.d(TAG, "selectPlayerFactory: 使用阿里云播放器");
                 } catch (ClassNotFoundException e) {
                     android.util.Log.e(TAG, "selectPlayerFactory: 阿里云播放器未找到，回退到系统播放器", e);
@@ -1983,15 +2168,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             default:
                 // 使用自定义的 OrangeSystemPlayerManager，统一网速计算和 SurfaceControl 支持
                 PlayerFactory.setPlayManager(com.orange.playerlibrary.player.OrangeSystemPlayerManager.class);
-                
+
                 // 默认强制使用 TextureView 渲染模式（与 initPlayerFactory 保持一致）
                 com.shuyu.gsyvideoplayer.utils.GSYVideoType.setRenderType(
-                    com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
+                        com.shuyu.gsyvideoplayer.utils.GSYVideoType.TEXTURE);
                 com.orange.playerlibrary.player.OrangeSystemPlayerManager.setForceTextureViewMode(true);
                 android.util.Log.d(TAG, "selectPlayerFactory: 系统播放器使用 TextureView 渲染模式");
                 break;
         }
-        
+
         // 3. 重置播放器初始化标志，确保下次播放时使用新的工厂
         mPlayerFactoryInitialized = true;
     }
@@ -1999,7 +2184,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void setOrangePlayState(int playState) {
         mCurrentPlayState = playState;
         notifyPlayStateChanged(playState);
-        
+
         post(new Runnable() {
             @Override
             public void run() {
@@ -2033,19 +2218,21 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public int getPlayerState() {
         return mCurrentPlayerState;
     }
-    
+
     // ===== 播放器对象获取方法 =====
-    
+
     /**
      * 获取当前播放器管理器（泛型）
      * 
-     * @param <T> 播放器管理器类型
+     * @param <T>          播放器管理器类型
      * @param managerClass 期望的管理器类型 Class
      * @return 播放器管理器实例，类型不匹配时返回 null
      * 
-     * 示例：
-     * OrangeExoPlayerManager exoManager = videoView.getPlayerManager(OrangeExoPlayerManager.class);
-     * OrangeIjkPlayerManager ijkManager = videoView.getPlayerManager(OrangeIjkPlayerManager.class);
+     *         示例：
+     *         OrangeExoPlayerManager exoManager =
+     *         videoView.getPlayerManager(OrangeExoPlayerManager.class);
+     *         OrangeIjkPlayerManager ijkManager =
+     *         videoView.getPlayerManager(OrangeIjkPlayerManager.class);
      */
     @SuppressWarnings("unchecked")
     public <T extends com.shuyu.gsyvideoplayer.player.IPlayerManager> T getPlayerManager(Class<T> managerClass) {
@@ -2059,7 +2246,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return null;
     }
-    
+
     /**
      * 获取当前播放器管理器（原始类型）
      * 
@@ -2072,26 +2259,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return null;
         }
     }
-    
+
     /**
      * 获取当前播放器内核对象（泛型）
      * 
-     * @param <T> 播放器内核类型
+     * @param <T>         播放器内核类型
      * @param playerClass 期望的播放器类型 Class
      * @return 播放器内核实例，类型不匹配时返回 null
      * 
-     * 示例：
-     * // ExoPlayer 内核
-     * tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer exoPlayer = 
-     *     videoView.getMediaPlayer(tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer.class);
+     *         示例：
+     *         // ExoPlayer 内核
+     *         tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer exoPlayer =
+     *         videoView.getMediaPlayer(tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer.class);
      * 
-     * // IJK 内核
-     * tv.danmaku.ijk.media.player.IjkMediaPlayer ijkPlayer = 
-     *     videoView.getMediaPlayer(tv.danmaku.ijk.media.player.IjkMediaPlayer.class);
+     *         // IJK 内核
+     *         tv.danmaku.ijk.media.player.IjkMediaPlayer ijkPlayer =
+     *         videoView.getMediaPlayer(tv.danmaku.ijk.media.player.IjkMediaPlayer.class);
      * 
-     * // 系统播放器内核
-     * android.media.MediaPlayer systemPlayer = 
-     *     videoView.getMediaPlayer(android.media.MediaPlayer.class);
+     *         // 系统播放器内核
+     *         android.media.MediaPlayer systemPlayer =
+     *         videoView.getMediaPlayer(android.media.MediaPlayer.class);
      */
     @SuppressWarnings("unchecked")
     public <T extends tv.danmaku.ijk.media.player.IMediaPlayer> T getMediaPlayer(Class<T> playerClass) {
@@ -2108,7 +2295,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return null;
     }
-    
+
     /**
      * 获取当前播放器内核对象（原始类型）
      * 
@@ -2125,7 +2312,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return null;
     }
-    
+
     /**
      * 获取当前播放器内核类型
      * 
@@ -2134,7 +2321,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public String getCurrentEngineType() {
         return PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
     }
-    
+
     /**
      * 设置播放器音量（不影响系统音量）
      * 
@@ -2150,7 +2337,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.w(TAG, "setPlayerVolume: 设置播放器音量失败", e);
         }
     }
-    
+
     /**
      * 设置播放器音量（百分比形式）
      * 
@@ -2160,13 +2347,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         float volume = Math.max(0, Math.min(100, volumePercent)) / 100.0f;
         setPlayerVolume(volume);
     }
-    
+
     // ==================== 静音控制 ====================
-    
+
     private boolean mIsMuted = false;
-    
+
     /**
      * 设置静音
+     * 
      * @param isMute 是否静音
      */
     public void setMute(boolean isMute) {
@@ -2180,30 +2368,33 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.w(TAG, "setMute: 设置静音失败", e);
         }
     }
-    
+
     /**
      * 是否静音
+     * 
      * @return true 静音
      */
     public boolean isMute() {
         return mIsMuted;
     }
-    
+
     /**
      * 切换静音状态
+     * 
      * @return 切换后的静音状态
      */
     public boolean toggleMute() {
         setMute(!mIsMuted);
         return mIsMuted;
     }
-    
+
     // ==================== 循环播放 ====================
-    
+
     private boolean mIsLooping = false;
-    
+
     /**
      * 设置循环播放
+     * 
      * @param looping 是否循环
      */
     public void setLooping(boolean looping) {
@@ -2214,75 +2405,79 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             settingsManager.setPlayMode(looping ? "single_loop" : "sequential");
         }
     }
-    
+
     /**
      * 是否循环播放
+     * 
      * @return true 循环
      */
     public boolean isLooping() {
         return mIsLooping;
     }
-    
+
     // ==================== 截图功能 ====================
-    
+
     /**
      * 截图
+     * 
      * @param callback 截图回调
      */
     public void takeScreenshot(com.orange.playerlibrary.screenshot.ScreenshotManager.ScreenshotCallback callback) {
-        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
-            new com.orange.playerlibrary.screenshot.ScreenshotManager(getContext(), this);
+        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = new com.orange.playerlibrary.screenshot.ScreenshotManager(
+                getContext(), this);
         screenshotManager.takeScreenshot(callback);
     }
-    
+
     /**
      * 截图并保存到相册
+     * 
      * @param callback 保存回调
      */
     public void takeScreenshotAndSave(com.orange.playerlibrary.screenshot.ScreenshotManager.SaveCallback callback) {
-        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = 
-            new com.orange.playerlibrary.screenshot.ScreenshotManager(getContext(), this);
+        com.orange.playerlibrary.screenshot.ScreenshotManager screenshotManager = new com.orange.playerlibrary.screenshot.ScreenshotManager(
+                getContext(), this);
         screenshotManager.takeAndSave(callback);
     }
-    
+
     // ==================== 缓冲进度 ====================
-    
+
     /**
      * 获取缓冲进度百分比
+     * 
      * @return 缓冲进度 (0-100)
      */
     public int getBufferedPercentage() {
         return getBuffterPoint();
     }
-    
+
     /**
      * 判断当前是否使用 ExoPlayer 内核
      */
     public boolean isExoPlayerEngine() {
         return PlayerConstants.ENGINE_EXO.equals(getCurrentEngineType());
     }
-    
+
     /**
      * 判断当前是否使用 IJK 内核
      */
     public boolean isIjkPlayerEngine() {
         return PlayerConstants.ENGINE_IJK.equals(getCurrentEngineType());
     }
-    
+
     /**
      * 判断当前是否使用系统播放器内核
      */
     public boolean isSystemPlayerEngine() {
         return PlayerConstants.ENGINE_DEFAULT.equals(getCurrentEngineType());
     }
-    
+
     /**
      * 判断当前是否使用阿里云播放器内核
      */
     public boolean isAliPlayerEngine() {
         return PlayerConstants.ENGINE_ALI.equals(getCurrentEngineType());
     }
-    
+
     /**
      * 检查指定播放器内核是否可用（依赖是否已导入）
      * 
@@ -2321,9 +2516,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
             return false;
         } catch (ClassNotFoundException e) {
-            android.util.Log.w(TAG, "播放器内核不可用: " + 
-                com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(engine) + 
-                " (依赖未导入)");
+            android.util.Log.w(TAG, "播放器内核不可用: " +
+                    com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(engine) +
+                    " (依赖未导入)");
             return false;
         }
     }
@@ -2383,28 +2578,38 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mPrepareView != null) {
             mPrepareView.onPlayStateChanged(playState);
         }
-        if (mCompleteView != null) mCompleteView.onPlayStateChanged(playState);
-        if (mErrorView != null) mErrorView.onPlayStateChanged(playState);
-        if (mTitleView != null) mTitleView.onPlayStateChanged(playState);
-        if (mVodControlView != null) mVodControlView.onPlayStateChanged(playState);
-        if (mLiveControlView != null) mLiveControlView.onPlayStateChanged(playState);
+        if (mCompleteView != null)
+            mCompleteView.onPlayStateChanged(playState);
+        if (mErrorView != null)
+            mErrorView.onPlayStateChanged(playState);
+        if (mTitleView != null)
+            mTitleView.onPlayStateChanged(playState);
+        if (mVodControlView != null)
+            mVodControlView.onPlayStateChanged(playState);
+        if (mLiveControlView != null)
+            mLiveControlView.onPlayStateChanged(playState);
     }
 
     private void notifyComponentsPlayerStateChanged(int playerState) {
-        if (mPrepareView != null) mPrepareView.onPlayerStateChanged(playerState);
-        if (mCompleteView != null) mCompleteView.onPlayerStateChanged(playerState);
-        if (mErrorView != null) mErrorView.onPlayerStateChanged(playerState);
-        if (mTitleView != null) mTitleView.onPlayerStateChanged(playerState);
-        if (mVodControlView != null) mVodControlView.onPlayerStateChanged(playerState);
-        if (mLiveControlView != null) mLiveControlView.onPlayerStateChanged(playerState);
+        if (mPrepareView != null)
+            mPrepareView.onPlayerStateChanged(playerState);
+        if (mCompleteView != null)
+            mCompleteView.onPlayerStateChanged(playerState);
+        if (mErrorView != null)
+            mErrorView.onPlayerStateChanged(playerState);
+        if (mTitleView != null)
+            mTitleView.onPlayerStateChanged(playerState);
+        if (mVodControlView != null)
+            mVodControlView.onPlayerStateChanged(playerState);
+        if (mLiveControlView != null)
+            mLiveControlView.onPlayerStateChanged(playerState);
     }
-
 
     public void updateComponentsProgress(int duration, int position) {
         if (mVodControlView == null && mLiveControlView == null) {
             return;
         }
-        
+
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
             final int finalDuration = duration;
             final int finalPosition = position;
@@ -2418,7 +2623,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             updateComponentsProgressInternal(duration, position);
         }
     }
-    
+
     private void updateComponentsProgressInternal(int duration, int position) {
         // 调试日志：追踪进度更新和组件实例
         if (position % 5000 < 100) { // 每5秒打印一次，避免日志过多
@@ -2426,12 +2631,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.d(TAG, "updateComponentsProgress: 更新进度");
             android.util.Log.d(TAG, "  VideoView: @" + Integer.toHexString(this.hashCode()));
             android.util.Log.d(TAG, "  Duration: " + duration + "ms, Position: " + position + "ms");
-            android.util.Log.d(TAG, "  Controller: " + (mOrangeController != null ? "@" + Integer.toHexString(mOrangeController.hashCode()) : "null"));
-            android.util.Log.d(TAG, "  VodControlView: " + (mVodControlView != null ? "@" + Integer.toHexString(mVodControlView.hashCode()) : "null"));
-            android.util.Log.d(TAG, "  LiveControlView: " + (mLiveControlView != null ? "@" + Integer.toHexString(mLiveControlView.hashCode()) : "null"));
+            android.util.Log.d(TAG, "  Controller: "
+                    + (mOrangeController != null ? "@" + Integer.toHexString(mOrangeController.hashCode()) : "null"));
+            android.util.Log.d(TAG, "  VodControlView: "
+                    + (mVodControlView != null ? "@" + Integer.toHexString(mVodControlView.hashCode()) : "null"));
+            android.util.Log.d(TAG, "  LiveControlView: "
+                    + (mLiveControlView != null ? "@" + Integer.toHexString(mLiveControlView.hashCode()) : "null"));
             android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
-        
+
         // 通过控制器分发进度更新给所有控制组件（包括弹幕）
         if (mOrangeController != null) {
             try {
@@ -2439,7 +2647,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             } catch (Exception e) {
             }
         }
-        
+
         // 保留直接调用以兼容旧代码
         if (mVodControlView != null) {
             try {
@@ -2447,7 +2655,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             } catch (Exception e) {
             }
         }
-        
+
         if (mLiveControlView != null) {
             try {
                 mLiveControlView.setProgress(duration, position);
@@ -2467,14 +2675,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public OrangeVideoController getVideoController() {
         return mOrangeController;
     }
-    
+
     /**
      * 获取全屏辅助类
      */
     public CustomFullscreenHelper getFullscreenHelper() {
         return mFullscreenHelper;
     }
-    
+
     /**
      * 在全屏切换前暂停 OCR 并切换到 SurfaceView 模式
      * 用于避免 TextureView 模式下屏幕旋转导致 MediaCodec 崩溃
@@ -2483,13 +2691,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController == null) {
             return;
         }
-        
+
         try {
             VideoEventManager eventManager = mOrangeController.getVideoEventManager();
             if (eventManager == null) {
                 return;
             }
-            
+
             // 检查是否需要拦截（OCR 运行中 + EXO/系统内核 + Android Q+）
             if (eventManager.shouldInterceptFullscreenForOcr()) {
                 eventManager.pauseOcrForFullscreenSwitch();
@@ -2508,18 +2716,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             if (mTitleView != null) {
                 mTitleView.setController(controller);
             }
-            
+
             if (mVodControlView != null) {
                 mVodControlView.setOrangeVideoController(controller);
             }
-            
+
             // 初始化嗅探组件
             initSniffingView(controller);
-            
+
             ensureEventBinding();
         }
     }
-    
+
     /**
      * 设置控制器可见性是否启用
      * 用于某些播放模式需要保留控制器功能但不显示UI
@@ -2530,7 +2738,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null) {
             mOrangeController.setControllerVisibilityEnabled(enabled);
         }
-        
+
         // 立即触发显示或隐藏控制器
         if (enabled) {
             // 启用时立即显示控制器
@@ -2542,7 +2750,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.d("OrangevideoView", "setControllerVisibilityEnabled(false) - hide controller");
         }
     }
-    
+
     /**
      * 控制器可见性是否启用
      * 
@@ -2603,10 +2811,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (!mKeepVideoPlaying || mVideoUrl == null || mVideoUrl.isEmpty()) {
             return;
         }
-        
+
         long position = getCurrentPosition();
         long duration = getDuration();
-        
+
         if (position > 0 && duration > 0) {
             PlaybackProgressManager.getInstance(getContext())
                     .saveProgress(mVideoUrl, position, duration);
@@ -2617,10 +2825,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (!mKeepVideoPlaying || mVideoUrl == null || mVideoUrl.isEmpty()) {
             return false;
         }
-        
+
         PlaybackProgressManager manager = PlaybackProgressManager.getInstance(getContext());
         long resumePosition = manager.getResumePosition(mVideoUrl);
-        
+
         if (resumePosition > 0) {
             seekTo(resumePosition);
             return true;
@@ -2648,9 +2856,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         PlaybackProgressManager.getInstance(getContext()).removeProgress(mVideoUrl);
     }
-    
+
     // ==================== 播放历史功能 ====================
-    
+
     /**
      * 启动播放历史自动保存
      */
@@ -2658,41 +2866,40 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mVideoUrl == null || mVideoUrl.isEmpty()) {
             return;
         }
-        
+
         String title = "";
         if (mOrangeController != null) {
             title = mOrangeController.getVideoTitle();
         }
         final OrangevideoView self = this;
         PlayHistoryManager.getInstance(getContext()).startAutoSave(
-            mVideoUrl, 
-            title,
-            new PlayHistoryManager.ProgressProvider() {
-                @Override
-                public long getCurrentPosition() {
-                    return self.getCurrentPositionWhenPlaying();
-                }
-                
-                @Override
-                public long getDuration() {
-                    return self.getDuration();
-                }
-                
-                @Override
-                public View getVideoView() {
-                    return self;
-                }
-            }
-        );
+                mVideoUrl,
+                title,
+                new PlayHistoryManager.ProgressProvider() {
+                    @Override
+                    public long getCurrentPosition() {
+                        return self.getCurrentPositionWhenPlaying();
+                    }
+
+                    @Override
+                    public long getDuration() {
+                        return self.getDuration();
+                    }
+
+                    @Override
+                    public View getVideoView() {
+                        return self;
+                    }
+                });
     }
-    
+
     /**
      * 停止播放历史自动保存
      */
     private void stopPlayHistoryAutoSave() {
         PlayHistoryManager.getInstance(getContext()).stopAutoSave();
     }
-    
+
     /**
      * 获取播放历史中保存的进度
      */
@@ -2702,7 +2909,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return PlayHistoryManager.getInstance(getContext()).getProgress(mVideoUrl);
     }
-    
+
     /**
      * 检查是否有播放历史
      */
@@ -2778,15 +2985,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public VideoScaleManager getVideoScaleManager() {
         return mVideoScaleManager;
     }
-    
+
     public PlaybackStateManager getPlaybackStateManager() {
         return mPlaybackStateManager;
     }
-    
+
     public ComponentStateManager getComponentStateManager() {
         return mComponentStateManager;
     }
-    
+
     public ErrorRecoveryManager getErrorRecoveryManager() {
         return mErrorRecoveryManager;
     }
@@ -2794,7 +3001,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void refreshVideoShowType() {
         changeTextureViewShowType();
     }
-    
+
     /**
      * 更新 SurfaceControl 尺寸（如果需要）
      * 用于视频比例切换后更新画面位置
@@ -2804,38 +3011,37 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
             return;
         }
-        
+
         try {
             String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
             boolean isExoPlayer = PlayerConstants.ENGINE_EXO.equals(currentEngine);
             boolean isSystemPlayer = PlayerConstants.ENGINE_DEFAULT.equals(currentEngine);
-            
+
             if (!isExoPlayer && !isSystemPlayer) {
                 return;
             }
-            
-            com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = 
-                GSYVideoManager.instance().getPlayer();
-            
+
+            com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = GSYVideoManager.instance().getPlayer();
+
             if (mTextureView != null && mTextureView.getShowView() instanceof android.view.SurfaceView) {
                 android.view.SurfaceView surfaceView = (android.view.SurfaceView) mTextureView.getShowView();
-                
+
                 if (isExoPlayer && playerManager instanceof com.orange.playerlibrary.exo.OrangeExoPlayerManager) {
-                    com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = 
-                        (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
+                    com.orange.playerlibrary.exo.OrangeExoPlayerManager exoManager = (com.orange.playerlibrary.exo.OrangeExoPlayerManager) playerManager;
                     exoManager.updateSurfaceControlSize(surfaceView);
-                } else if (isSystemPlayer && playerManager instanceof com.orange.playerlibrary.player.OrangeSystemPlayerManager) {
-                    com.orange.playerlibrary.player.OrangeSystemPlayerManager systemManager = 
-                        (com.orange.playerlibrary.player.OrangeSystemPlayerManager) playerManager;
+                } else if (isSystemPlayer
+                        && playerManager instanceof com.orange.playerlibrary.player.OrangeSystemPlayerManager) {
+                    com.orange.playerlibrary.player.OrangeSystemPlayerManager systemManager = (com.orange.playerlibrary.player.OrangeSystemPlayerManager) playerManager;
                     systemManager.updateSurfaceControlSize(surfaceView);
                 }
             }
         } catch (Exception e) {
         }
     }
-    
+
     /**
      * 更新 ExoPlayer 的 SurfaceControl 尺寸（如果需要）
+     * 
      * @deprecated 使用 updateSurfaceControlIfNeeded() 代替
      */
     @Deprecated
@@ -2850,10 +3056,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void setLiveVideo(boolean isLive) {
         this.mIsLiveVideo = isLive;
     }
-    
+
     /**
      * 获取网络速度（字节/秒）
      * 使用 Android 系统 API 计算实时网速，因为 GSY 的 getNetSpeed 在某些播放器返回 0
+     * 
      * @return 网络速度
      */
     public long getNetSpeed() {
@@ -2862,63 +3069,66 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (gsySpeed > 0) {
             return gsySpeed;
         }
-        
+
         // GSY 返回 0，使用系统 API 计算（当前应用的 UID）
         long currentRxBytes = android.net.TrafficStats.getUidRxBytes(android.os.Process.myUid());
         long currentTime = System.currentTimeMillis();
-        
+
         // 处理不支持的情况
         if (currentRxBytes == android.net.TrafficStats.UNSUPPORTED) {
             return 0;
         }
-        
+
         if (mLastRxBytes == 0 || mLastSpeedTime == 0) {
             mLastRxBytes = currentRxBytes;
             mLastSpeedTime = currentTime;
             return 0;
         }
-        
+
         long timeDiff = currentTime - mLastSpeedTime;
         if (timeDiff <= 0) {
             mLastSpeedTime = currentTime;
             return 0;
         }
-        
+
         long bytesDiff = currentRxBytes - mLastRxBytes;
         long speed = (bytesDiff * 1000) / timeDiff; // 字节/秒
-        
+
         mLastRxBytes = currentRxBytes;
         mLastSpeedTime = currentTime;
-        
+
         return Math.max(0, speed);
     }
-    
+
     /**
      * 获取网络速度（兼容旧 API）
+     * 
      * @return 网络速度
      */
     public long getTcpSpeed() {
         return getNetSpeed();
     }
-    
+
     /**
      * 获取格式化的网速文本
+     * 
      * @return 网速文本，如 "1.5 MB/s"
      */
     public String getNetSpeedText() {
         long speed = getNetSpeed();
         return formatSpeed(speed);
     }
-    
+
     /**
      * 格式化网速
      */
     private String formatSpeed(long speed) {
-        if (speed <= 0) return "0 KB/s";
-        
+        if (speed <= 0)
+            return "0 KB/s";
+
         final long KB = 1024;
         final long MB = KB * 1024;
-        
+
         if (speed < KB) {
             return speed + " B/s";
         } else if (speed < MB) {
@@ -2926,9 +3136,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return String.format(speedKB >= 100 ? "%.0f KB/s" : "%.1f KB/s", speedKB);
         } else {
             float speedMB = speed / (float) MB;
-            return speedMB >= 10 ?
-                    String.format("%.1f MB/s", speedMB) :
-                    String.format("%.2f MB/s", speedMB);
+            return speedMB >= 10 ? String.format("%.1f MB/s", speedMB) : String.format("%.2f MB/s", speedMB);
         }
     }
 
@@ -2946,11 +3154,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     public void startSniffing(String url, java.util.Map<String, String> headers) {
         mIsSniffing = true;
         setOrangePlayState(STATE_STARTSNIFFING);
-        
+
         // 检查是否启用自动播放
         PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
         boolean autoPlay = settingsManager.isSniffingAutoPlayEnabled();
-        
+
         // 只有在未启用自动播放时才显示嗅探组件
         if (mOrangeController != null) {
             com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
@@ -2962,25 +3170,27 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 sniffingView.startSniffing();
             }
         }
-        
+
         Context context = getContext();
         VideoSniffing.startSniffing(context, url, headers, new VideoSniffing.Call() {
             @Override
-            public void received(String contentType, java.util.HashMap<String, String> respHeaders, 
-                               String title, String videoUrl) {
+            public void received(String contentType, java.util.HashMap<String, String> respHeaders,
+                    String title, String videoUrl) {
                 // 添加到嗅探组件
                 if (mOrangeController != null) {
                     com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
                     if (sniffingView != null) {
-                        VideoSniffing.VideoInfo videoInfo = new VideoSniffing.VideoInfo(videoUrl, contentType, title, respHeaders);
+                        VideoSniffing.VideoInfo videoInfo = new VideoSniffing.VideoInfo(videoUrl, contentType, title,
+                                respHeaders);
                         sniffingView.addSniffingResult(videoInfo);
                     }
                 }
-                
+
                 if (mStateChangeListeners != null) {
                     for (OnStateChangeListener listener : mStateChangeListeners) {
                         if (listener instanceof OnSniffingListener) {
-                            ((OnSniffingListener) listener).onSniffingReceived(contentType, respHeaders, title, videoUrl);
+                            ((OnSniffingListener) listener).onSniffingReceived(contentType, respHeaders, title,
+                                    videoUrl);
                         }
                     }
                 }
@@ -2990,18 +3200,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             public void onFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize) {
                 mIsSniffing = false;
                 setOrangePlayState(STATE_ENDSNIFFING);
-                
+
                 // 检查是否启用嗅探自动播放
                 PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
                 boolean autoPlay = settingsManager.isSniffingAutoPlayEnabled();
-                
+
                 // 完成嗅探
                 if (mOrangeController != null) {
                     com.orange.playerlibrary.component.SniffingView sniffingView = mOrangeController.getSniffingView();
                     if (sniffingView != null) {
                         sniffingView.finishSniffing(videoSize);
                         sniffingView.setSniffingResults(videoList);
-                        
+
                         // 如果启用自动播放，隐藏嗅探组件
                         if (autoPlay && videoSize > 0) {
                             sniffingView.hide();
@@ -3010,12 +3220,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     // 更新嗅探按钮状态
                     mOrangeController.updateSniffingButton();
                 }
-                
+
                 // 将嗅探到的视频添加到选集列表
                 if (videoList != null && !videoList.isEmpty() && mOrangeController != null) {
                     // 先清空选集
                     mOrangeController.removeVideoList();
-                    
+
                     // 添加嗅探到的视频到选集
                     for (int i = 0; i < videoList.size(); i++) {
                         VideoSniffing.VideoInfo info = videoList.get(i);
@@ -3026,14 +3236,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         mOrangeController.addVideo(name, info.url, info.headers);
                     }
                 }
-                
+
                 // 如果启用自动播放且有视频，自动播放第一个视频
                 if (autoPlay && videoList != null && !videoList.isEmpty()) {
                     VideoSniffing.VideoInfo firstVideo = videoList.get(0);
                     final String videoUrl = firstVideo.url;
-                    final String videoTitle = firstVideo.title != null && !firstVideo.title.isEmpty() 
-                        ? firstVideo.title : "视频 1";
-                    
+                    final String videoTitle = firstVideo.title != null && !firstVideo.title.isEmpty()
+                            ? firstVideo.title
+                            : "视频 1";
+
                     // 延迟播放，确保 UI 更新完成
                     post(new Runnable() {
                         @Override
@@ -3043,7 +3254,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                     });
                 }
-                
+
                 if (mStateChangeListeners != null) {
                     for (OnStateChangeListener listener : mStateChangeListeners) {
                         if (listener instanceof OnSniffingListener) {
@@ -3067,20 +3278,23 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      * 通过 addOnStateChangeListener 添加时，会在内部检查是否实现此接口
      */
     public interface OnSniffingListener extends OnStateChangeListener {
-        void onSniffingReceived(String contentType, java.util.HashMap<String, String> headers, 
-                               String title, String url);
+        void onSniffingReceived(String contentType, java.util.HashMap<String, String> headers,
+                String title, String url);
+
         void onSniffingFinish(java.util.List<VideoSniffing.VideoInfo> videoList, int videoSize);
     }
-    
+
     /**
      * 嗅探监听器适配器（提供默认空实现）
      */
     public static abstract class OnSniffingAdapter implements OnSniffingListener {
         @Override
-        public void onPlayStateChanged(int playState) {}
-        
+        public void onPlayStateChanged(int playState) {
+        }
+
         @Override
-        public void onPlayerStateChanged(int playerState) {}
+        public void onPlayerStateChanged(int playerState) {
+        }
     }
 
     public void setDebug(boolean debug) {
@@ -3118,10 +3332,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void touchSurfaceMove(float deltaX, float deltaY, float y) {
         // 判断是否全屏
         boolean isFullscreen = mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
-        
+
         int curWidth;
         int curHeight;
-        
+
         if (isFullscreen) {
             // 全屏横屏模式：使用 View 的实际尺寸
             curWidth = getWidth();
@@ -3131,7 +3345,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             curWidth = mScreenWidth;
             curHeight = mScreenHeight;
         }
-        
+
         if (mChangePosition) {
             long totalTimeDuration = getDuration();
             mSeekTimePosition = (int) (mDownPosition + (deltaX * totalTimeDuration / curWidth) / mSeekRatio);
@@ -3146,8 +3360,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         } else if (mChangeVolume) {
             deltaY = -deltaY;
             // 直接获取 AudioManager，不依赖 GSY 的 mAudioFocusManager
-            android.media.AudioManager audioManager = (android.media.AudioManager) 
-                getContext().getSystemService(android.content.Context.AUDIO_SERVICE);
+            android.media.AudioManager audioManager = (android.media.AudioManager) getContext()
+                    .getSystemService(android.content.Context.AUDIO_SERVICE);
             if (audioManager != null) {
                 int max = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
                 int deltaV = (int) (max * deltaY * 3 / curHeight);
@@ -3181,10 +3395,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     protected void touchSurfaceMoveFullLogic(float absDeltaX, float absDeltaY) {
         int curWidth;
-        
+
         // 判断是否全屏
         boolean isFullscreen = mFullscreenHelper != null && mFullscreenHelper.isFullscreen();
-        
+
         if (isFullscreen) {
             // 全屏横屏模式：使用 View 的实际宽度
             curWidth = getWidth();
@@ -3192,7 +3406,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 竖屏模式：使用屏幕宽度（与基类保持一致）
             curWidth = mScreenWidth;
         }
-        
+
         if (absDeltaX > mThreshold || absDeltaY > mThreshold) {
             cancelProgressTimer();
             if (absDeltaX >= mThreshold) {
@@ -3217,8 +3431,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 if (!mBrightness) {
                     mChangeVolume = noEnd;
                     // 直接获取 AudioManager，不依赖 GSY 的 mAudioFocusManager
-                    android.media.AudioManager audioManager = (android.media.AudioManager) 
-                        getContext().getSystemService(android.content.Context.AUDIO_SERVICE);
+                    android.media.AudioManager audioManager = (android.media.AudioManager) getContext()
+                            .getSystemService(android.content.Context.AUDIO_SERVICE);
                     if (audioManager != null) {
                         mGestureDownVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
                     }
@@ -3247,7 +3461,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     @Override
-    protected void showProgressDialog(float deltaX, String seekTime, long seekTimePosition, String totalTime, long totalTimeDuration) {
+    protected void showProgressDialog(float deltaX, String seekTime, long seekTimePosition, String totalTime,
+            long totalTimeDuration) {
         ensureGestureView();
         if (mGestureView != null) {
             mGestureView.onStartSlide();
@@ -3301,7 +3516,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setOrangePlayerState(state);
     }
 
-
     @Override
     public int getLayoutId() {
         return R.layout.layout_orange_base_player;
@@ -3328,7 +3542,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (activity == null) {
             return null;
         }
-        android.view.ViewGroup vp = (android.view.ViewGroup) activity.findViewById(android.view.Window.ID_ANDROID_CONTENT);
+        android.view.ViewGroup vp = (android.view.ViewGroup) activity
+                .findViewById(android.view.Window.ID_ANDROID_CONTENT);
         final android.view.View full = vp.findViewById(getFullId());
         OrangevideoView orangeVideoView = null;
         if (full != null && full instanceof OrangevideoView) {
@@ -3349,7 +3564,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             OrangevideoView fullPlayer = getOrangeFullWindowPlayer();
             if (fullPlayer != null && fullPlayer.mCurrentState != mCurrentState) {
                 if (fullPlayer.mCurrentState == CURRENT_STATE_PLAYING_BUFFERING_START
-                    && mCurrentState != CURRENT_STATE_PREPAREING) {
+                        && mCurrentState != CURRENT_STATE_PREPAREING) {
                     fullPlayer.setStateAndUi(mCurrentState);
                 }
             }
@@ -3357,26 +3572,26 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     };
 
     @Override
-    @SuppressWarnings({"ResourceType", "unchecked"})
+    @SuppressWarnings({ "ResourceType", "unchecked" })
     public GSYBaseVideoPlayer startWindowFullscreen(Context context, boolean actionBar, boolean statusBar) {
         // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
         pauseOcrForFullscreenSwitch();
-        
+
         hideStatusBarAndNavigation(context);
-        
+
         if (mAutoRotateOnFullscreen) {
             Activity activity = getActivity();
             if (activity != null) {
                 activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             }
         }
-        
+
         GSYBaseVideoPlayer fullPlayer = super.startWindowFullscreen(context, true, true);
-        
+
         if (fullPlayer instanceof OrangevideoView) {
             final OrangevideoView orangeFullPlayer = (OrangevideoView) fullPlayer;
             orangeFullPlayer.mIfCurrentIsFullscreen = true;
-            
+
             orangeFullPlayer.postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -3387,30 +3602,30 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                             orangeFullPlayer.mTitleView.setController(mOrangeController);
                         }
                     }
-                    
+
                     if (mOrangeController != null && orangeFullPlayer.mVodControlView != null) {
-                        com.orange.playerlibrary.VideoEventManager eventManager = 
-                                mOrangeController.getVideoEventManager();
+                        com.orange.playerlibrary.VideoEventManager eventManager = mOrangeController
+                                .getVideoEventManager();
                         if (eventManager != null) {
                             eventManager.bindControllerComponents(orangeFullPlayer.mVodControlView);
                         }
                     }
-                    
+
                     // 重新附加字幕视图到全屏播放器（解决全屏模式下字幕不显示的问题）
                     if (mOrangeController != null) {
                         mOrangeController.reattachSubtitleView(orangeFullPlayer);
                     }
-                    
+
                     orangeFullPlayer.setOrangePlayState(mCurrentPlayState);
                     orangeFullPlayer.setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
-                    
+
                     if (orangeFullPlayer.mComponentStateManager != null) {
                         orangeFullPlayer.mComponentStateManager.reregisterProgressListener(orangeFullPlayer);
                     }
-                    
+
                     // 先隐藏原始播放器的控制器
                     hideController();
-                    
+
                     // 强制刷新全屏播放器的控制器：先隐藏再显示
                     orangeFullPlayer.hideController();
                     orangeFullPlayer.postDelayed(new Runnable() {
@@ -3424,7 +3639,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                             if (orangeFullPlayer.mVodControlView != null) {
                                 orangeFullPlayer.mVodControlView.setVisibility(android.view.View.VISIBLE);
                                 orangeFullPlayer.mVodControlView.bringToFront();
-                                orangeFullPlayer.mVodControlView.onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
+                                orangeFullPlayer.mVodControlView
+                                        .onPlayerStateChanged(PlayerConstants.PLAYER_FULL_SCREEN);
                                 // 强制刷新进度
                                 if (mComponentStateManager != null) {
                                     int duration = (int) getDuration();
@@ -3438,11 +3654,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }
             }, 300);
         }
-        
+
         setOrangePlayerState(PlayerConstants.PLAYER_FULL_SCREEN);
         return fullPlayer;
     }
-    
+
     private void hideStatusBarAndNavigation(Context context) {
         Activity activity = com.shuyu.gsyvideoplayer.utils.CommonUtil.scanForActivity(context);
         if (activity != null) {
@@ -3454,12 +3670,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
             decorView.setSystemUiVisibility(uiOptions);
-            
+
             if (activity.getActionBar() != null) {
                 activity.getActionBar().hide();
             }
             if (activity instanceof androidx.appcompat.app.AppCompatActivity) {
-                androidx.appcompat.app.ActionBar supportActionBar = ((androidx.appcompat.app.AppCompatActivity) activity).getSupportActionBar();
+                androidx.appcompat.app.ActionBar supportActionBar = ((androidx.appcompat.app.AppCompatActivity) activity)
+                        .getSupportActionBar();
                 if (supportActionBar != null) {
                     supportActionBar.hide();
                 }
@@ -3473,7 +3690,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (!mFullAnimEnd) {
             return;
         }
-        
+
         final android.view.ViewGroup vp = getViewGroup();
         final android.view.View oldF = vp.findViewById(getFullId());
         if (oldF != null && oldF instanceof OrangevideoView) {
@@ -3483,7 +3700,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
             orangeVideoPlayer.mIfCurrentIsFullscreen = false;
         }
-        
+
         mIfCurrentIsFullscreen = false;
         int delay = 0;
         if (mOrientationUtils != null) {
@@ -3511,16 +3728,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     protected void orangeBackToNormal() {
         // OCR 全屏切换处理：先暂停 OCR 并切换到 SurfaceView
         pauseOcrForFullscreenSwitch();
-        
+
         final android.view.ViewGroup vp = getViewGroup();
         final android.view.View oldF = vp.findViewById(getFullId());
         final OrangevideoView orangeVideoPlayer;
-        
+
         if (oldF != null && oldF instanceof OrangevideoView) {
             orangeVideoPlayer = (OrangevideoView) oldF;
             if (mShowFullAnimation && mListItemRect != null && mListItemSize != null) {
                 android.transition.TransitionManager.beginDelayedTransition(vp);
-                android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) orangeVideoPlayer.getLayoutParams();
+                android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) orangeVideoPlayer
+                        .getLayoutParams();
                 lp.setMargins(mListItemRect[0], mListItemRect[1], 0, 0);
                 lp.width = mListItemSize[0];
                 lp.height = mListItemSize[1];
@@ -3540,33 +3758,34 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
     }
 
-    protected void orangeResolveNormalVideoShow(android.view.View oldF, android.view.ViewGroup vp, OrangevideoView orangeVideoPlayer) {
+    protected void orangeResolveNormalVideoShow(android.view.View oldF, android.view.ViewGroup vp,
+            OrangevideoView orangeVideoPlayer) {
         // 移除全屏 View
         if (oldF != null && oldF.getParent() != null) {
             android.view.ViewGroup viewGroup = (android.view.ViewGroup) oldF.getParent();
             vp.removeView(viewGroup);
         }
-        
+
         // 恢复状态（与 GSY 基类保持一致）
         mCurrentState = getGSYVideoManager().getLastState();
-        
+
         if (orangeVideoPlayer != null) {
             cloneParams(orangeVideoPlayer, this);
         }
-        
+
         if (mCurrentState != CURRENT_STATE_NORMAL
-            || mCurrentState != CURRENT_STATE_AUTO_COMPLETE) {
+                || mCurrentState != CURRENT_STATE_AUTO_COMPLETE) {
             createNetWorkState();
         }
-        
+
         // 切换监听器（关键：让原始播放器接管）
         getGSYVideoManager().setListener(getGSYVideoManager().lastListener());
         getGSYVideoManager().setLastListener(null);
         setStateAndUi(mCurrentState);
-        
+
         // 重新添加 TextureView（GSY 基类的标准做法）
         addTextureView();
-        
+
         // 延迟恢复组件状态（不做 seekTo，避免 ExoPlayer 状态混乱）
         postDelayed(new Runnable() {
             @Override
@@ -3575,15 +3794,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     mComponentStateManager.restoreComponentState(OrangevideoView.this);
                     mComponentStateManager.reregisterProgressListener(OrangevideoView.this);
                 }
-                
+
                 notifyComponentsPlayStateChanged(mCurrentPlayState);
                 notifyComponentsPlayerStateChanged(PlayerConstants.PLAYER_NORMAL);
-                
+
                 // 重新附加字幕视图到原始播放器（解决退出全屏后字幕不显示的问题）
                 if (mOrangeController != null) {
                     mOrangeController.reattachSubtitleView(OrangevideoView.this);
                 }
-                
+
                 // 强制刷新控制器：先隐藏再显示，确保使用正确的实例
                 hideController();
                 postDelayed(new Runnable() {
@@ -3603,7 +3822,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 }, 100);
             }
         }, 300);
-        
+
         mSaveChangeViewTIme = System.currentTimeMillis();
         if (mVideoAllCallBack != null) {
             mVideoAllCallBack.onQuitFullscreen(mOriginUrl, mTitle, this);
@@ -3636,7 +3855,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mIfCurrentIsFullscreen = false;
             setOrangePlayerState(PlayerConstants.PLAYER_NORMAL);
             if (context instanceof Activity) {
-                ((Activity) context).setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                ((Activity) context)
+                        .setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             }
             return true;
         }
@@ -3649,7 +3869,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             setOrangePlayState(8);
         }
     }
-    
+
     /**
      * 重写 setStateAndUi 添加详细日志
      */
@@ -3659,9 +3879,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (state == CURRENT_STATE_PREPAREING && mCurrentState != CURRENT_STATE_PREPAREING) {
             mPreparingStartTime = System.currentTimeMillis();
         }
-        
+
         super.setStateAndUi(state);
-        
+
         // 关键修复：同步 GSY 状态到 Orange 状态
         // GSY 的 setStateAndUi 会改变 mCurrentState，但不会触发 Orange 组件的状态通知
         // 所以我们需要手动同步状态
@@ -3670,7 +3890,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             setOrangePlayState(orangeState);
         }
     }
-    
+
     /**
      * 将 GSY 状态映射到 Orange 状态
      */
@@ -3694,20 +3914,28 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 return -1; // 不映射
         }
     }
-    
+
     /**
      * 获取状态名称（用于日志）
      */
     private String getStateName(int state) {
         switch (state) {
-            case CURRENT_STATE_NORMAL: return "NORMAL";
-            case CURRENT_STATE_PREPAREING: return "PREPARING";
-            case CURRENT_STATE_PLAYING: return "PLAYING";
-            case CURRENT_STATE_PLAYING_BUFFERING_START: return "BUFFERING_START";
-            case CURRENT_STATE_PAUSE: return "PAUSE";
-            case CURRENT_STATE_AUTO_COMPLETE: return "COMPLETE";
-            case CURRENT_STATE_ERROR: return "ERROR";
-            default: return "UNKNOWN_" + state;
+            case CURRENT_STATE_NORMAL:
+                return "NORMAL";
+            case CURRENT_STATE_PREPAREING:
+                return "PREPARING";
+            case CURRENT_STATE_PLAYING:
+                return "PLAYING";
+            case CURRENT_STATE_PLAYING_BUFFERING_START:
+                return "BUFFERING_START";
+            case CURRENT_STATE_PAUSE:
+                return "PAUSE";
+            case CURRENT_STATE_AUTO_COMPLETE:
+                return "COMPLETE";
+            case CURRENT_STATE_ERROR:
+                return "ERROR";
+            default:
+                return "UNKNOWN_" + state;
         }
     }
 
@@ -3717,7 +3945,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     @Override
     protected void changeUiToPreparingShow() {
         // 视频加载时显示加载动画
@@ -3725,72 +3953,73 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
-    
+
     @Override
     protected void changeUiToPlayingShow() {
         android.util.Log.d(TAG, "changeUiToPlayingShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         // 不停止网速更新，让它持续运行，updateLoadingSpeed 会根据 loading 可见性决定是否显示
     }
-    
+
     @Override
     protected void changeUiToPlayingBufferingShow() {
-        android.util.Log.d(TAG, "changeUiToPlayingBufferingShow: 显示缓冲动画, state=" + mCurrentState + ", bufferPercent=" + getBuffterPoint());
+        android.util.Log.d(TAG, "changeUiToPlayingBufferingShow: 显示缓冲动画, state=" + mCurrentState + ", bufferPercent="
+                + getBuffterPoint());
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
-    
+
     @Override
     protected void changeUiToPauseShow() {
         android.util.Log.d(TAG, "changeUiToPauseShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     @Override
     protected void changeUiToError() {
         android.util.Log.e(TAG, "changeUiToError: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     @Override
     protected void changeUiToCompleteShow() {
         android.util.Log.d(TAG, "changeUiToCompleteShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     protected void changeUiToPrepareingClear() {
         android.util.Log.d(TAG, "changeUiToPrepareingClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     protected void changeUiToPlayingClear() {
         android.util.Log.d(TAG, "changeUiToPlayingClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     protected void changeUiToPlayingBufferingClear() {
         android.util.Log.d(TAG, "changeUiToPlayingBufferingClear: 隐藏缓冲动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     protected void changeUiToPauseClear() {
         android.util.Log.d(TAG, "changeUiToPauseClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     protected void changeUiToCompleteClear() {
         android.util.Log.d(TAG, "changeUiToCompleteClear: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     /**
      * 嗅探开始 - 显示加载动画
      */
@@ -3799,7 +4028,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
-    
+
     /**
      * 嗅探结束 - 隐藏加载动画
      */
@@ -3808,23 +4037,23 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     @Override
     protected void hideAllWidget() {
         android.util.Log.d(TAG, "hideAllWidget: 隐藏所有组件包括加载动画, state=" + mCurrentState);
-        
+
         // 在 PREPARING 和 BUFFERING 状态下，不隐藏加载动画
         // 这些状态下用户需要看到加载进度
-        if (mCurrentState == CURRENT_STATE_PREPAREING || 
-            mCurrentState == CURRENT_STATE_PLAYING_BUFFERING_START) {
+        if (mCurrentState == CURRENT_STATE_PREPAREING ||
+                mCurrentState == CURRENT_STATE_PLAYING_BUFFERING_START) {
             android.util.Log.d(TAG, "hideAllWidget: 跳过隐藏加载动画（正在加载/缓冲）");
             return;
         }
-        
+
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
-    
+
     /**
      * 开始网速更新
      */
@@ -3840,7 +4069,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 查找网速文本视图
             if (mLoadingSpeedText == null && mLoadingProgressBar != null) {
                 if (mLoadingProgressBar instanceof android.view.ViewGroup) {
-                    mLoadingSpeedText = ((android.view.ViewGroup) mLoadingProgressBar).findViewById(R.id.tv_loading_speed);
+                    mLoadingSpeedText = ((android.view.ViewGroup) mLoadingProgressBar)
+                            .findViewById(R.id.tv_loading_speed);
                 } else {
                     android.view.ViewParent parent = mLoadingProgressBar.getParent();
                     if (parent instanceof android.view.ViewGroup) {
@@ -3854,7 +4084,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mSpeedHandler.post(mSpeedUpdateRunnable);
         }
     }
-    
+
     /**
      * 停止网速更新
      */
@@ -3867,20 +4097,27 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     /**
      * 更新网速显示
      * 只在网速大于 1 KB/s 且正在缓冲时显示
      */
     private void updateLoadingSpeed() {
         if (mLoadingSpeedText != null && mIsShowingLoading) {
-            long speed = getNetSpeed();
+            // 如果有自定义加载文本，优先显示自定义文本
+            if (mCustomLoadingText != null) {
+                mLoadingSpeedText.setText(mCustomLoadingText);
+                mLoadingSpeedText.setVisibility(VISIBLE);
+                return;
+            }
             
+            long speed = getNetSpeed();
+
             // 限制最大显示速度为 100 MB/s，避免异常值
             if (speed > 100 * 1024 * 1024) {
                 speed = 100 * 1024 * 1024;
             }
-            
+
             // 只在网速大于 1 KB/s (1024 字节) 时显示
             if (speed > 1024) {
                 String speedText = formatSpeed(speed);
@@ -3893,6 +4130,18 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
     }
     
+    /**
+     * 设置自定义加载文本（用于磁力链接解析等场景）
+     * 
+     * @param text 自定义文本，null 表示恢复显示网速
+     */
+    public void setCustomLoadingText(String text) {
+        mCustomLoadingText = text;
+        if (mIsShowingLoading) {
+            updateLoadingSpeed();
+        }
+    }
+
     /**
      * 设置加载动画指示器
      * 
@@ -3912,7 +4161,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     private static final int AUTO_HIDE_DELAY = 4000;
     private Runnable mAutoHideRunnable;
 
@@ -3923,14 +4172,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.d("OrangevideoView", "onClickUiToggle - controller visibility disabled, ignore click");
             return;
         }
-        
-        if (mCurrentPlayState != PlayerConstants.STATE_PLAYING && 
-            mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
-            mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
-            mCurrentPlayState != PlayerConstants.STATE_BUFFERED) {
+
+        if (mCurrentPlayState != PlayerConstants.STATE_PLAYING &&
+                mCurrentPlayState != PlayerConstants.STATE_PAUSED &&
+                mCurrentPlayState != PlayerConstants.STATE_BUFFERING &&
+                mCurrentPlayState != PlayerConstants.STATE_BUFFERED) {
             return;
         }
-        
+
         boolean isShowing = isControllerShowing();
         if (isShowing) {
             hideController();
@@ -3938,14 +4187,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             showController();
         }
     }
-    
+
     public void showController() {
         // 检查控制器可见性是否被禁用
         if (!isControllerVisibilityEnabled()) {
             android.util.Log.d("OrangevideoView", "showController - controller visibility disabled, skip show");
             return;
         }
-        
+
         // 检查锁定状态
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
         if (mVodControlView != null) {
@@ -3957,24 +4206,25 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
         // 锁定状态下不显示标题栏
-        if (mTitleView != null && !isLocked && (mIfCurrentIsFullscreen || mCurrentPlayerState == PlayerConstants.PLAYER_FULL_SCREEN)) {
+        if (mTitleView != null && !isLocked
+                && (mIfCurrentIsFullscreen || mCurrentPlayerState == PlayerConstants.PLAYER_FULL_SCREEN)) {
             mTitleView.setVisibility(android.view.View.VISIBLE);
         }
         startAutoHideTimer();
-        
+
         // 同步 Controller 的显示状态
         if (mOrangeController != null) {
             mOrangeController.setShowing(true);
         }
     }
-    
+
     public void hideController() {
         // 检查是否正在拖动进度条，如果是则不隐藏
         if (mVodControlView != null && mVodControlView.isDragging()) {
             android.util.Log.d("OrangevideoView", "hideController() - VodControlView is dragging, skip hide");
             return;
         }
-        
+
         // 检查锁定状态
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
         if (mVodControlView != null) {
@@ -3989,15 +4239,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mTitleView.setVisibility(android.view.View.GONE);
         }
         cancelAutoHideTimer();
-        
+
         // 同步 Controller 的显示状态
         if (mOrangeController != null) {
             mOrangeController.setShowing(false);
         }
     }
-    
+
     /**
      * 锁定状态变化时调用，通知其他组件（不包括 VodControlView，它自己处理）
+     * 
      * @param locked 是否锁定
      */
     public void onLockStateChanged(boolean locked) {
@@ -4005,7 +4256,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null) {
             mOrangeController.setLockedInternal(locked);
         }
-        
+
         // 只更新 TitleView，VodControlView 自己处理自己的 UI
         if (locked) {
             // 锁定时隐藏标题栏
@@ -4019,10 +4270,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     /**
      * 设置手势和自动旋转的锁定状态
      * 锁定时禁用手势和自动旋转，解锁时恢复设置中的自动旋转状态
+     * 
      * @param locked 是否锁定
      */
     public void setGestureAndRotationLocked(boolean locked) {
@@ -4030,7 +4282,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 锁定时禁用手势
             setIsTouchWiget(false);
             setIsTouchWigetFull(false);
-            
+
             // 锁定时禁用自动旋转（通过 CustomFullscreenHelper）
             if (mFullscreenHelper != null) {
                 mFullscreenHelper.setAutoRotateEnabled(false);
@@ -4039,7 +4291,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             // 解锁时恢复手势
             setIsTouchWiget(true);
             setIsTouchWigetFull(true);
-            
+
             // 解锁时恢复设置中的自动旋转状态
             PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(getContext());
             boolean autoRotateEnabled = settingsManager.isAutoRotateEnabled();
@@ -4048,7 +4300,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     public boolean isControllerShowing() {
         // 锁定状态下，检查锁定按钮是否可见
         boolean isLocked = mOrangeController != null && mOrangeController.isLocked();
@@ -4057,7 +4309,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return mVodControlView != null && mVodControlView.getVisibility() == android.view.View.VISIBLE;
     }
-    
+
     private Runnable getAutoHideRunnable() {
         if (mAutoHideRunnable == null) {
             mAutoHideRunnable = new Runnable() {
@@ -4069,14 +4321,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return mAutoHideRunnable;
     }
-    
+
     private void startAutoHideTimer() {
         cancelAutoHideTimer();
         if (mCurrentPlayState == PlayerConstants.STATE_PLAYING && mInnerHandler != null) {
             mInnerHandler.postDelayed(getAutoHideRunnable(), AUTO_HIDE_DELAY);
         }
     }
-    
+
     private void cancelAutoHideTimer() {
         if (mInnerHandler != null && mAutoHideRunnable != null) {
             mInnerHandler.removeCallbacks(mAutoHideRunnable);
@@ -4086,15 +4338,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     // 双击事件时间戳，用于防止双击后的单击事件干扰
     private static long sLastDoubleClickTime = 0;
     private static final long DOUBLE_CLICK_BLOCK_INTERVAL = 600; // 双击后600ms内阻止单击
-    
+
     public static long getLastDoubleClickTime() {
         return sLastDoubleClickTime;
     }
-    
+
     public static long getDoubleClickBlockInterval() {
         return DOUBLE_CLICK_BLOCK_INTERVAL;
     }
-    
+
     @Override
     protected void touchDoubleUp(android.view.MotionEvent e) {
         // 检查控制器可见性是否被禁用
@@ -4102,51 +4354,51 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             android.util.Log.d("OrangevideoView", "touchDoubleUp - controller visibility disabled, ignore double tap");
             return;
         }
-        
+
         sLastDoubleClickTime = System.currentTimeMillis();
-        if (mCurrentPlayState == PlayerConstants.STATE_PLAYING || 
-            mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
-            mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
+        if (mCurrentPlayState == PlayerConstants.STATE_PLAYING ||
+                mCurrentPlayState == PlayerConstants.STATE_BUFFERING ||
+                mCurrentPlayState == PlayerConstants.STATE_BUFFERED) {
             pause();
         } else if (mCurrentPlayState == PlayerConstants.STATE_PAUSED) {
             resume();
         }
     }
-    
+
     // ===== 长按倍速功能 =====
     private boolean mIsLongPressing = false;
     private float mNormalSpeedBeforeLongPress = 1.0f;
-    
+
     @Override
     protected void touchLongPress(android.view.MotionEvent e) {
         // 只在播放状态下响应长按
         if (!isPlaying()) {
             return;
         }
-        
+
         mIsLongPressing = true;
         mNormalSpeedBeforeLongPress = getSpeed();
-        
+
         // 从设置中获取长按倍速
         float longPressSpeed = PlayerSettingsManager.getInstance(getContext()).getLongPressSpeed();
-        
+
         // IJK 内核限制：如果设置的长按倍速 > 2.0x，则限制为 2.0x
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         if (PlayerConstants.ENGINE_IJK.equals(currentEngine) && longPressSpeed > 2.0f) {
             longPressSpeed = 2.0f;
         }
-        
+
         setSpeed(longPressSpeed);
-        
+
         // 使用 GestureView 显示提示
         showLongPressSpeedHint(longPressSpeed, true);
     }
-    
+
     @Override
     public boolean onTouch(android.view.View v, android.view.MotionEvent event) {
         // 处理长按结束
         if (event.getAction() == android.view.MotionEvent.ACTION_UP ||
-            event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
             if (mIsLongPressing) {
                 mIsLongPressing = false;
                 setSpeed(mNormalSpeedBeforeLongPress);
@@ -4156,10 +4408,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return super.onTouch(v, event);
     }
-    
+
     /**
      * 显示长按倍速提示
-     * @param speed 当前速度
+     * 
+     * @param speed       当前速度
      * @param isLongPress true=长按加速中，false=恢复正常
      */
     private void showLongPressSpeedHint(float speed, boolean isLongPress) {
@@ -4181,6 +4434,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void startPlayLogic() {
+        // 如果正在异步加载种子，跳过（等待回调触发）
+        if (mPendingTorrentLoad) {
+            android.util.Log.d(TAG, "startPlayLogic: skipped due to pending torrent load");
+            return;
+        }
         // 检查 PrepareView 是否已附加到窗口
         // 使用兼容方法支持 API 16+
         if (mPrepareView != null && !isViewAttachedToWindow(mPrepareView)) {
@@ -4195,20 +4453,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         // 在这里设置 STATE_PREPARING，确保 PrepareView 已附加到窗口
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
-        
+
         // 添加日志显示当前播放核心
         String currentEngine = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
         com.shuyu.gsyvideoplayer.player.IPlayerManager playerManager = getGSYVideoManager().getPlayer();
         String playerClass = playerManager != null ? playerManager.getClass().getSimpleName() : "null";
         // ExoPlayer 使用 SurfaceControl 处理全屏切换 (Android Q+)
-        if (PlayerConstants.ENGINE_EXO.equals(currentEngine) && 
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (PlayerConstants.ENGINE_EXO.equals(currentEngine) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             initExoSurfaceControl();
         } else {
             // 非 ExoPlayer，确保释放之前的 SurfaceControl
             releaseExoSurfaceControl();
         }
-        
+
         prepareVideo();
     }
 
@@ -4224,9 +4482,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         super.startAfterPrepared();
         setSpeed(sSpeed);
     }
-    
+
     // ==================== 首帧预览功能 ====================
-    
+
     /**
      * 异步获取视频首帧作为封面
      * 使用 MediaMetadataRetriever（IJK/系统播放器自带支持）
@@ -4236,7 +4494,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (!mAutoThumbnailEnabled) {
             return;
         }
-        
+
         // 如果已设置默认缩略图，直接使用
         if (mDefaultThumbnail != null) {
             if (mOrangeController != null) {
@@ -4244,13 +4502,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
             return;
         }
-        
+
         // 避免重复加载
         if (mIsLoadingThumbnail) {
             return;
         }
         mIsLoadingThumbnail = true;
-        
+
         // 使用AsyncTask异步获取首帧
         new android.os.AsyncTask<Void, Void, android.graphics.Bitmap>() {
             @Override
@@ -4271,11 +4529,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 } catch (Exception e) {
                     try {
                         retriever.release();
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                     return null;
                 }
             }
-            
+
             @Override
             protected void onPostExecute(android.graphics.Bitmap bitmap) {
                 mIsLoadingThumbnail = false;
@@ -4288,21 +4547,21 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }.execute();
     }
-    
+
     /**
      * 检查用户是否主动暂停
      */
     public boolean isUserPaused() {
         return mUserPaused;
     }
-    
+
     /**
      * 清除用户暂停状态（用于外部控制恢复播放）
      */
     public void clearUserPausedState() {
         mUserPaused = false;
     }
-    
+
     /**
      * 初始化嗅探视图组件
      */
@@ -4310,59 +4569,60 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (controller == null) {
             return;
         }
-        
+
         // 创建嗅探视图
-        com.orange.playerlibrary.component.SniffingView sniffingView = 
-                new com.orange.playerlibrary.component.SniffingView(getContext());
-        
+        com.orange.playerlibrary.component.SniffingView sniffingView = new com.orange.playerlibrary.component.SniffingView(
+                getContext());
+
         // 设置到控制器
         controller.setSniffingView(sniffingView);
-        
+
         // 添加到播放器容器
         addView(sniffingView);
-        
+
         // 设置视频选择监听器
-        sniffingView.setOnVideoSelectedListener(new com.orange.playerlibrary.component.SniffingView.OnVideoSelectedListener() {
-            @Override
-            public void onVideoSelected(VideoSniffing.VideoInfo videoInfo) {
-                // 如果正在嗅探，立即停止
-                if (mIsSniffing) {
-                    stopSniffing();
-                }
-                
-                // 播放选中的视频
-                String url = videoInfo.url;
-                String title = videoInfo.title;
-                if (title == null || title.isEmpty()) {
-                    title = "嗅探视频";
-                }
-                
-                // 释放旧的播放器
-                release();
-                
-                // 设置新视频
-                setUp(url, false, title);
-                
-                // 设置请求头
-                if (videoInfo.headers != null && !videoInfo.headers.isEmpty()) {
-                    setMapHeadData(videoInfo.headers);
-                }
-                
-                // 开始播放
-                post(new Runnable() {
+        sniffingView.setOnVideoSelectedListener(
+                new com.orange.playerlibrary.component.SniffingView.OnVideoSelectedListener() {
                     @Override
-                    public void run() {
-                        startPlayLogic();
+                    public void onVideoSelected(VideoSniffing.VideoInfo videoInfo) {
+                        // 如果正在嗅探，立即停止
+                        if (mIsSniffing) {
+                            stopSniffing();
+                        }
+
+                        // 播放选中的视频
+                        String url = videoInfo.url;
+                        String title = videoInfo.title;
+                        if (title == null || title.isEmpty()) {
+                            title = "嗅探视频";
+                        }
+
+                        // 释放旧的播放器
+                        release();
+
+                        // 设置新视频
+                        setUp(url, false, title);
+
+                        // 设置请求头
+                        if (videoInfo.headers != null && !videoInfo.headers.isEmpty()) {
+                            setMapHeadData(videoInfo.headers);
+                        }
+
+                        // 开始播放
+                        post(new Runnable() {
+                            @Override
+                            public void run() {
+                                startPlayLogic();
+                            }
+                        });
+
+                        // 更新标题
+                        if (getTitleView() != null) {
+                            getTitleView().setTitle(title);
+                        }
                     }
                 });
-                
-                // 更新标题
-                if (getTitleView() != null) {
-                    getTitleView().setTitle(title);
-                }
-            }
-        });
-        
+
         // 绑定 TitleView 的嗅探按钮
         if (mTitleView != null) {
             mTitleView.setOnSniffingClickListener(new View.OnClickListener() {
@@ -4377,14 +4637,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     }
                 }
             });
-            
+
             // 初始化时更新嗅探按钮状态
             mTitleView.updateSniffingButton(sniffingView.getResultCount() > 0);
         }
     }
-    
+
     // ===== M3U8去广告TS白名单API =====
-    
+
     /**
      * 添加TS片段到白名单
      * 白名单中的片段不会被当作广告过滤
@@ -4397,7 +4657,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mM3U8AdManager.addTsToWhitelist(tsUrl);
         }
     }
-    
+
     /**
      * 批量添加TS片段到白名单
      * 
@@ -4408,7 +4668,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mM3U8AdManager.addTsToWhitelist(tsUrls);
         }
     }
-    
+
     /**
      * 从白名单移除TS片段
      * 
@@ -4419,7 +4679,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mM3U8AdManager.removeTsFromWhitelist(tsUrl);
         }
     }
-    
+
     /**
      * 清空TS白名单
      */
@@ -4428,7 +4688,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mM3U8AdManager.clearTsWhitelist();
         }
     }
-    
+
     /**
      * 检查URL是否在白名单中
      * 
@@ -4441,7 +4701,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
         return false;
     }
-    
+
     /**
      * 获取TS白名单大小
      */
