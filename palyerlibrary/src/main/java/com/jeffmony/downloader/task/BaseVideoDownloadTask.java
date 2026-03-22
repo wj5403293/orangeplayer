@@ -155,14 +155,28 @@ public class BaseVideoDownloadTask extends VideoDownloadTask {
             }
             
             String extension = getCorrectExtension();
-            String correctFileName = mSaveName + extension;
+            
+            // 优先使用 title 作为文件名，如果没有 title 则使用 mSaveName (md5)
+            String targetName = mTaskItem.getTitle();
+            if (targetName != null && !targetName.isEmpty()) {
+                targetName = targetName.replaceAll("[\\\\/:*?\"<>|]", "_"); // 移除非法字符
+            } else {
+                targetName = mSaveName;
+            }
+            
+            String correctFileName = targetName + extension;
             File correctFile = new File(mSaveDir, correctFileName);
             
-            if (correctFile.exists()) {
-                correctFile.delete();
+            // 处理同名文件冲突
+            int counter = 1;
+            while (correctFile.exists() && !correctFile.getAbsolutePath().equals(tempFile.getAbsolutePath())) {
+                correctFileName = targetName + "_" + counter + extension;
+                correctFile = new File(mSaveDir, correctFileName);
+                counter++;
             }
             
             boolean renamed = tempFile.renameTo(correctFile);
+            LogUtils.i(DownloadConstants.TAG, "[MP4_RENAME] Rename result: " + renamed + ", from=" + tempFileName + ", to=" + correctFileName);
             if (renamed) {
                 mTaskItem.setFileName(correctFileName);
                 mTaskItem.setFilePath(correctFile.getAbsolutePath());
