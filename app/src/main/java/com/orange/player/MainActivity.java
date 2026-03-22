@@ -69,6 +69,9 @@ public class MainActivity extends AppCompatActivity {
         // 开启 M3U8 去广告功能（必须在 setContentView 之前设置）
         com.orange.playerlibrary.M3U8AdManager.getInstance(this).setEnabled(true);
         
+        // 默认在 Demo 中开启记忆播放功能
+        com.orange.playerlibrary.PlayerSettingsManager.getInstance(this).setMemoryPlayEnabled(true);
+        
         // 恢复下载路径到外部隐私可见目录，方便测试和查看下载的文件是否完整
         java.io.File privateDir = new java.io.File(getExternalFilesDir(null), "Download");
         com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(this).setDownloadPath(privateDir.getAbsolutePath());
@@ -327,6 +330,9 @@ public class MainActivity extends AppCompatActivity {
         // 设置测试视频列表
         setupVideoList();
 
+        // 启用记忆播放标志位，使得 PlaybackProgressManager 能够生效
+        mVideoView.setKeepVideoPlaying(true);
+
         // 设置第一个视频（不自动播放，点击播放器可播放）
         if (mCurrentUrl != null && !mCurrentUrl.isEmpty()) {
             mVideoView.setUp(mCurrentUrl, true, mCurrentTitle);
@@ -562,11 +568,14 @@ public class MainActivity extends AppCompatActivity {
         if (mPiPHelper != null && mPiPHelper.handleOnStop()) {
             return;
         }
-        // 在 onStop 中暂停播放
+        // 在 onStop 中暂停播放，并强制保存一次播放进度
         mWasPlayingBeforeBackground = mVideoView.isPlaying();
-        if (mWasPlayingBeforeBackground) {
-            mVideoView.onVideoPause();
-            log("📱 App 切到后台，暂停播放");
+        if (mVideoView != null) {
+            mVideoView.savePlaybackProgress();
+            if (mWasPlayingBeforeBackground) {
+                mVideoView.onVideoPause();
+                log("📱 App 切到后台，暂停播放并保存进度");
+            }
         }
     }
 
@@ -599,7 +608,11 @@ public class MainActivity extends AppCompatActivity {
         if (mController != null) {
             mController.releaseDanmaku();
         }
-        mVideoView.release();
+        if (mVideoView != null) {
+            // 销毁前强制保存进度
+            mVideoView.savePlaybackProgress();
+            mVideoView.release();
+        }
     }
 
     // ===== Demo 辅助方法 =====

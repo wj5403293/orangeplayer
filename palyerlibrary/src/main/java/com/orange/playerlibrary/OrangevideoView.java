@@ -234,20 +234,28 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                     }, 100);
                 } else {
+                    boolean hasRestoredProgress = false;
                     if (mKeepVideoPlaying) {
-                        restorePlaybackProgress();
+                        hasRestoredProgress = restorePlaybackProgress();
+                        android.util.Log.d(TAG, "Tried to restore playback progress: " + hasRestoredProgress);
                     }
-                }
-                if (mSkipManager != null) {
-                    // 直接检查并执行跳过片头，不依赖 SkipManager.mVideoView
-                    long skipTime = mSkipManager.getSkipIntroTime();
-                    boolean enabled = mSkipManager.isSkipIntroEnabled();
-                    android.util.Log.d(TAG, "Checking skip intro: enabled=" + enabled + ", skipTime=" + skipTime
-                            + ", skipped=" + mSkipManager.isIntroSkipped());
-                    if (enabled && skipTime > 0 && !mSkipManager.isIntroSkipped()) {
-                        android.util.Log.d(TAG, "Performing skip intro: seeking to " + skipTime + "ms");
-                        mSkipManager.setIntroSkipped(true);
-                        seekTo(skipTime);
+                    
+                    if (mSkipManager != null) {
+                        // 直接检查并执行跳过片头，不依赖 SkipManager.mVideoView
+                        long skipTime = mSkipManager.getSkipIntroTime();
+                        boolean enabled = mSkipManager.isSkipIntroEnabled();
+                        android.util.Log.d(TAG, "Checking skip intro: enabled=" + enabled + ", skipTime=" + skipTime
+                                + ", skipped=" + mSkipManager.isIntroSkipped() + ", hasRestoredProgress=" + hasRestoredProgress);
+                        
+                        // 如果已经恢复了记忆播放，就不再执行跳过片头（因为记忆的位置肯定更靠后）
+                        if (hasRestoredProgress) {
+                            mSkipManager.setIntroSkipped(true);
+                            android.util.Log.d(TAG, "Skipping intro skipped because playback progress was restored");
+                        } else if (enabled && skipTime > 0 && !mSkipManager.isIntroSkipped()) {
+                            android.util.Log.d(TAG, "Performing skip intro: seeking to " + skipTime + "ms");
+                            mSkipManager.setIntroSkipped(true);
+                            seekTo(skipTime);
+                        }
                     }
                 }
                 setOrangePlayState(PlayerConstants.STATE_PLAYING);
@@ -2852,7 +2860,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         }
 
         PlaybackProgressManager manager = PlaybackProgressManager.getInstance(getContext());
-        long resumePosition = manager.getResumePosition(mVideoUrl);
+        long resumePosition = manager.getResumePosition(mVideoUrl, getContext());
 
         if (resumePosition > 0) {
             seekTo(resumePosition);

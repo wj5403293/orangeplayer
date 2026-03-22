@@ -13,6 +13,9 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.orange.playerlibrary.PlaybackProgressManager;
+import com.orange.playerlibrary.PlayerSettingsManager;
+
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,10 +97,25 @@ public class PlayHistoryManager {
         mAutoSaveRunnable = new Runnable() {
             @Override
             public void run() {
+                // 如果全局记忆播放开关关闭，则不保存进度到数据库
+                if (!PlayerSettingsManager.getInstance(mContext).isMemoryPlayEnabled()) {
+                    mAutoSaveHandler.postDelayed(this, AUTO_SAVE_INTERVAL);
+                    return;
+                }
+                
                 if (mProgressProvider != null && mCurrentUrl != null) {
                     long position = mProgressProvider.getCurrentPosition();
                     long duration = mProgressProvider.getDuration();
-                    if (position > 0 && duration > 0) {
+                    
+                    // 过滤条件：进度大于1分钟且距离结尾大于1分钟才触发记忆写入
+                    boolean shouldSave = true;
+                    if (position < 60000) {
+                        shouldSave = false;
+                    } else if (duration > 0 && (duration - position) < 60000) {
+                        shouldSave = false;
+                    }
+                    
+                    if (shouldSave && position > 0 && duration > 0) {
                         // 定期保存时也更新缩略图
                         String thumbnailBase64 = null;
                         View videoView = mProgressProvider.getVideoView();
@@ -105,7 +123,13 @@ public class PlayHistoryManager {
                             thumbnailBase64 = captureVideoThumbnail(videoView);
                         }
                         saveProgressWithThumbnail(mCurrentUrl, mCurrentTitle, duration, position, thumbnailBase64);
-                        Log.d(TAG, "Auto save: position=" + position);
+                        
+                        // 同时同步更新到 PlaybackProgressManager，以保证两边逻辑统一
+                        PlaybackProgressManager.getInstance(mContext).saveProgress(mCurrentUrl, position, duration);
+                        
+                        Log.d(TAG, "Auto save (real-time to db): position=" + position);
+                    } else {
+                        Log.d(TAG, "Auto save skipped due to filter conditions: position=" + position + ", duration=" + duration);
                     }
                 }
                 mAutoSaveHandler.postDelayed(this, AUTO_SAVE_INTERVAL);
@@ -171,12 +195,21 @@ public class PlayHistoryManager {
             mAutoSaveHandler.removeCallbacks(mAutoSaveRunnable);
             mAutoSaveRunnable = null;
         }
-        // 停止时保存一次
-        if (mProgressProvider != null && mCurrentUrl != null) {
+        // 停止时保存一次，同样要判断开关和条件
+        if (mProgressProvider != null && mCurrentUrl != null && PlayerSettingsManager.getInstance(mContext).isMemoryPlayEnabled()) {
             long position = mProgressProvider.getCurrentPosition();
             long duration = mProgressProvider.getDuration();
-            if (position > 0 && duration > 0) {
+            
+            boolean shouldSave = true;
+            if (position < 60000) {
+                shouldSave = false;
+            } else if (duration > 0 && (duration - position) < 60000) {
+                shouldSave = false;
+            }
+            
+            if (shouldSave && position > 0 && duration > 0) {
                 saveProgress(mCurrentUrl, mCurrentTitle, duration, position);
+                PlaybackProgressManager.getInstance(mContext).saveProgress(mCurrentUrl, position, duration);
             }
         }
         mProgressProvider = null;

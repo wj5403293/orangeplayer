@@ -194,24 +194,43 @@ public class PlaybackProgressManager {
 
     /**
      * 判断是否应该恢复播放
-     * 如果进度超过 95%，则认为已播放完成，不需要恢复
+     * 只有当保存的进度大于 1 分钟，且距离结尾大于 1 分钟时才恢复
+     * 并且优先级需要大于跳过片头功能（恢复时会覆盖跳过片头）
      * @param url 视频地址
+     * @param context 上下文（用于获取全局设置）
      * @return true 应该恢复播放
      */
-    public boolean shouldResumePlayback(String url) {
-        int percent = getProgressPercent(url);
-        // 进度在 1% - 95% 之间才恢复
-        return percent > 1 && percent < 95;
+    public boolean shouldResumePlayback(String url, Context context) {
+        // 首先检查全局记忆播放开关是否开启
+        if (context != null && !PlayerSettingsManager.getInstance(context).isMemoryPlayEnabled()) {
+            return false;
+        }
+        
+        long progress = getProgress(url);
+        long duration = getDuration(url);
+        
+        // 如果进度小于 1 分钟，不触发记忆播放
+        if (progress < 60000) {
+            return false;
+        }
+        
+        // 如果距离结尾小于 1 分钟，不触发记忆播放
+        if (duration > 0 && (duration - progress) < 60000) {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
      * 获取恢复播放的位置
      * 如果不应该恢复，返回 0
      * @param url 视频地址
+     * @param context 上下文
      * @return 恢复位置（毫秒）
      */
-    public long getResumePosition(String url) {
-        if (shouldResumePlayback(url)) {
+    public long getResumePosition(String url, Context context) {
+        if (shouldResumePlayback(url, context)) {
             return getProgress(url);
         }
         return 0;

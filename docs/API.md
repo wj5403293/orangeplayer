@@ -1492,6 +1492,10 @@ void setDanmakuTextSize(float size)
 void setDanmakuSpeed(float speed)
 void setDanmakuAlpha(float alpha)
 
+// 记忆播放设置（默认关闭）
+void setMemoryPlayEnabled(boolean enabled)
+boolean isMemoryPlayEnabled()
+
 // 下载功能开关
 void setDownloadEnabled(boolean enabled)
 boolean isDownloadEnabled()

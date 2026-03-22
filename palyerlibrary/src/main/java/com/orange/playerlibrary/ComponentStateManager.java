@@ -133,6 +133,9 @@ public class ComponentStateManager {
                 
                 // 同步全屏播放器的进度
                 syncFullScreenProgress(videoView, (int) duration, (int) currentPosition);
+                
+                // 实时写入记忆播放和历史进度
+                saveRealTimeProgress(videoView, (int) duration, (int) currentPosition);
             }
         };
         
@@ -227,6 +230,50 @@ public class ComponentStateManager {
             }
         } catch (Exception e) {
             Log.e(TAG, "syncFullScreenProgress: 同步全屏播放器进度失败", e);
+        }
+    }
+
+    private long mLastRealTimeSaveTime = 0;
+
+    /**
+     * 实时写入记忆播放和历史进度
+     */
+    private void saveRealTimeProgress(OrangevideoView videoView, int duration, int position) {
+        if (videoView == null || !videoView.isKeepVideoPlaying()) {
+            return;
+        }
+
+        String url = videoView.getVideoUrl();
+        if (url == null || url.isEmpty()) {
+            return;
+        }
+
+        // 检查全局记忆播放开关
+        com.orange.playerlibrary.PlayerSettingsManager settingsManager = 
+            com.orange.playerlibrary.PlayerSettingsManager.getInstance(videoView.getContext());
+        if (settingsManager == null || !settingsManager.isMemoryPlayEnabled()) {
+            return;
+        }
+
+        // 过滤条件：进度大于1分钟且距离结尾大于1分钟才触发记忆写入
+        if (position >= 60000 && duration > 0 && (duration - position) >= 60000) {
+            // 降低数据库写入频率，每 1 秒写入一次
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - mLastRealTimeSaveTime > 1000) {
+                mLastRealTimeSaveTime = currentTime;
+                
+                // 1. 保存到 SharedPreferences (用于下一次恢复)
+                PlaybackProgressManager.getInstance(videoView.getContext())
+                        .saveProgress(url, position, duration);
+                
+                // 2. 保存到历史数据库
+                String title = "";
+                if (videoView.getVideoController() != null) {
+                    title = videoView.getVideoController().getVideoTitle();
+                }
+                com.orange.playerlibrary.history.PlayHistoryManager.getInstance(videoView.getContext())
+                        .saveProgress(url, title, duration, position);
+            }
         }
     }
     

@@ -47,6 +47,9 @@ public class PlayerSettingsManager {
     
     private static final String KEY_DOWNLOAD_ENABLED = "download_enabled";
     
+    // 记忆播放设置
+    private static final String KEY_MEMORY_PLAY_ENABLED = "memory_play_enabled";
+    
     // ===== 实例 =====
     private static volatile PlayerSettingsManager sInstance;
     private SharedPreferences mPreferences;
@@ -458,5 +461,23 @@ public class PlayerSettingsManager {
      */
     public boolean isDownloadEnabled() {
         return mPreferences.getBoolean(KEY_DOWNLOAD_ENABLED, true);
+    }
+    
+    // ===== 记忆播放设置 =====
+    
+    /**
+     * 设置是否启用记忆播放功能
+     * @param enabled true 启用，false 禁用
+     */
+    public void setMemoryPlayEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_MEMORY_PLAY_ENABLED, enabled).apply();
+    }
+    
+    /**
+     * 查询是否启用了记忆播放功能
+     * @return true 启用，false 禁用（默认禁用）
+     */
+    public boolean isMemoryPlayEnabled() {
+        return mPreferences.getBoolean(KEY_MEMORY_PLAY_ENABLED, false); // 默认关闭
     }
 }
