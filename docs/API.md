@@ -10,6 +10,7 @@
 - [LanguagePackManager](#languagepackmanager) - OCR 语言包管理
 - [PlayerSettingsManager](#playersettingsmanager) - 设置管理器
 - [PlayerConstants](#playerconstants) - 常量定义
+- [视频下载 API](#视频下载-api) - 下载与选集下载功能
 - [监听器接口](#监听器接口) - 回调接口
 - [UI组件访问](#ui组件访问) - 自定义控件样式和行为
 
@@ -1491,6 +1492,10 @@ void setDanmakuTextSize(float size)
 void setDanmakuSpeed(float speed)
 void setDanmakuAlpha(float alpha)
 
+// 下载功能开关
+void setDownloadEnabled(boolean enabled)
+boolean isDownloadEnabled()
+
 // 底部进度条
 void setBottomProgressEnabled(boolean enabled)
 boolean isBottomProgressEnabled()
@@ -1521,6 +1526,91 @@ int STATE_ERROR = 6
 // 播放器状态
 int PLAYER_NORMAL = 10
 int PLAYER_FULL_SCREEN = 11
+```
+
+---
+
+## 视频下载 API
+
+OrangePlayer 提供了强大的下载管理功能，支持直接下载 MP4、M3U8，并提供了统一的 API 以及完善的 UI（包括下载管理弹窗和多选集下载面板）。核心 API 封装在 `SimpleDownloadManager` 中。
+
+### 基础调用
+
+通过单例模式获取下载管理器：
+
+```java
+import com.orange.playerlibrary.download.SimpleDownloadManager;
+
+SimpleDownloadManager downloadManager = SimpleDownloadManager.getInstance(context);
+```
+
+### 核心方法
+
+#### startDownload()
+
+强制开始一个新的下载任务。
+
+```java
+long startDownload(String url, String title, String description)
+```
+
+**参数：**
+- `url` - 视频地址（支持 MP4、FLV、M3U8 自动解析合并）
+- `title` - 视频标题（将作为最终保存的文件名）
+- `description` - 描述信息（可选）
+
+#### startDownloadWithLocalCheck()
+
+带本地检查的安全下载（推荐）。如果在下载中或已下载完成，会直接 Toast 提示拦截。
+
+```java
+String startDownloadWithLocalCheck(String url, String title)
+```
+
+**返回值：**
+- 如果已下载，返回本地绝对路径（可直接传给播放器播放）。
+- 如果未下载或正在下载，返回 `null`。
+
+#### getLocalVideoPath()
+
+查询某个视频是否已下载完成。
+
+```java
+String getLocalVideoPath(String url)
+```
+
+#### isDownloading()
+
+查询某个视频是否正在下载中。
+
+```java
+boolean isDownloading(String url)
+```
+
+### 全局下载开关控制
+
+你可以通过 `PlayerSettingsManager` 随时禁用或启用播放器内置的下载功能。禁用后，播放器右上角的下载按钮将被拦截并给出提示。
+
+```java
+PlayerSettingsManager settingsManager = PlayerSettingsManager.getInstance(context);
+
+// 禁用下载功能
+settingsManager.setDownloadEnabled(false);
+
+// 检查当前下载功能状态
+boolean isEnabled = settingsManager.isDownloadEnabled();
+```
+
+### 选集批量下载
+
+当播放器设置了选集列表 (`setVideoList()`) 时，点击下载按钮会自动弹出“下载选集”面板。用户可以在面板中进行多选。
+如果在业务层需要手动触发选集下载面板，可调用 `VideoEventManager`：
+
+```java
+if (mController != null && mController.getVideoEventManager() != null) {
+    // 这将自动调起包含多选、已下载状态识别的选集下载面板
+    mController.getVideoEventManager().showDownloadPlaylistDialog();
+}
 ```
 
 ---

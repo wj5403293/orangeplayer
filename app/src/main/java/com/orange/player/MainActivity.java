@@ -183,7 +183,17 @@ public class MainActivity extends AppCompatActivity {
         Button btnTestFeature = findViewById(R.id.btn_test_feature);
 
         btnCastScreen.setOnClickListener(v -> testCastScreen());
-        btnDownloadVideo.setOnClickListener(v -> testDownloadVideo());
+        btnDownloadVideo.setOnClickListener(v -> {
+            // 在 MainActivity 中点击下载测试按钮，也要遵循全局禁用配置
+            com.orange.playerlibrary.PlayerSettingsManager settingsManager = 
+                com.orange.playerlibrary.PlayerSettingsManager.getInstance(this);
+            if (settingsManager != null && !settingsManager.isDownloadEnabled()) {
+                log("✗ 无法下载：全局下载功能已被禁用");
+                android.widget.Toast.makeText(this, "下载功能已被禁用，请在底部开启", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            testDownloadVideo();
+        });
         btnClearEpisodes.setOnClickListener(v -> clearEpisodes());
         btnTestFeature.setOnClickListener(v -> showMoreTestDialog());
 
@@ -197,6 +207,25 @@ public class MainActivity extends AppCompatActivity {
             log("🔄 跳转到测试页面");
             android.content.Intent intent = new android.content.Intent(this, TestActivity.class);
             startActivity(intent);
+        });
+
+        // 禁用/开启下载功能测试按钮
+        Button btnToggleDownload = findViewById(R.id.btn_toggle_download);
+        btnToggleDownload.setOnClickListener(v -> {
+            com.orange.playerlibrary.PlayerSettingsManager settingsManager = com.orange.playerlibrary.PlayerSettingsManager.getInstance(this);
+            boolean isEnabled = settingsManager.isDownloadEnabled();
+            settingsManager.setDownloadEnabled(!isEnabled);
+            
+            // 增加控制台日志输出和醒目的 Toast
+            String status = !isEnabled ? "开启" : "禁用";
+            log("⚙️ 切换下载功能: " + status);
+            // 某些设备可能屏蔽了系统 Toast，这里使用全局 Context 或直接修改 UI 状态保证可见性
+            android.widget.Toast.makeText(getApplicationContext(), "下载功能已" + status, android.widget.Toast.LENGTH_LONG).show();
+            
+            // 如果处于播放状态，顺便在播放器内部弹个自定义 Toast，百分百能看见
+            if (mVideoView != null) {
+                com.orange.playerlibrary.OrangeToast.show(mVideoView, "下载功能已" + status);
+            }
         });
 
         log("🍊 橘子播放器 SDK Demo 启动");
@@ -216,6 +245,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (useSniff) {
             log("🔍 开始嗅探: " + getShortUrl(url));
+            
             // 使用嗅探播放 - 先设置URL再启动嗅探
             mVideoView.setUrl(url);
             mVideoView.startSniffing();

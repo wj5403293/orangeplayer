@@ -45,8 +45,11 @@ public class PlayerSettingsManager {
     // 自动旋转设置
     private static final String KEY_AUTO_ROTATE = "auto_rotate";
     
-    private static PlayerSettingsManager sInstance;
-    private final SharedPreferences mPreferences;
+    private static final String KEY_DOWNLOAD_ENABLED = "download_enabled";
+    
+    // ===== 实例 =====
+    private static volatile PlayerSettingsManager sInstance;
+    private SharedPreferences mPreferences;
     
     // 播放器引擎变更监听器
     private EngineChangeListener mEngineChangeListener;
@@ -437,5 +440,23 @@ public class PlayerSettingsManager {
     private String hashVideoUrl(String url) {
         if (url == null) return "null";
         return String.valueOf(url.hashCode());
+    }
+
+    // ===== 下载功能设置 =====
+    
+    /**
+     * 设置是否启用下载功能
+     * @param enabled true 启用，false 禁用
+     */
+    public void setDownloadEnabled(boolean enabled) {
+        mPreferences.edit().putBoolean(KEY_DOWNLOAD_ENABLED, enabled).apply();
+    }
+    
+    /**
+     * 查询是否启用了下载功能
+     * @return true 启用，false 禁用（默认启用）
+     */
+    public boolean isDownloadEnabled() {
+        return mPreferences.getBoolean(KEY_DOWNLOAD_ENABLED, true);
     }
 }

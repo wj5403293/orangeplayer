@@ -1250,6 +1250,16 @@ public class VideoEventManager {
             mCurrentSetupDialog.dismiss();
         }
         
+        // 检查全局下载开关是否开启
+        com.orange.playerlibrary.PlayerSettingsManager settingsManager = 
+            com.orange.playerlibrary.PlayerSettingsManager.getInstance(mContext);
+        if (settingsManager != null && !settingsManager.isDownloadEnabled()) {
+            android.util.Log.w(TAG, "onDownloadVideoClick: 下载功能已被禁用");
+            // 使用自定义的 showToast 方法（在播放器中央弹出，不受系统限制）
+            showToast("下载功能已被禁用，请在设置中开启");
+            return;
+        }
+        
         // 获取当前视频URL和标题
         // getUrl() 会返回 mOriginUrl（当前播放的 URL）或 mVideoUrl
         String url = mVideoView.getUrl();
@@ -1314,7 +1324,17 @@ public class VideoEventManager {
             showDownloadManagerDialog();
         });
         
-        // 复制链接按钮 - 已移除，简化对话框
+        // 选集下载按钮判断
+        android.widget.Button btnDownloadPlaylist = view.findViewById(R.id.btn_download_playlist);
+        if (mController != null && mController.getVideoList() != null && !mController.getVideoList().isEmpty()) {
+            btnDownloadPlaylist.setVisibility(android.view.View.VISIBLE);
+            btnDownloadPlaylist.setOnClickListener(v -> {
+                dialog.dismiss();
+                showDownloadPlaylistDialog();
+            });
+        } else {
+            btnDownloadPlaylist.setVisibility(android.view.View.GONE);
+        }
         
         // 取消按钮
         view.findViewById(R.id.btn_cancel).setOnClickListener(v -> {
@@ -1347,6 +1367,166 @@ public class VideoEventManager {
         mDownloadDialog.show();
     }
     
+    /**
+     * 显示下载选集对话框
+     */
+    private void showDownloadPlaylistDialog() {
+        final ArrayList<HashMap<String, Object>> originalList = mController.getVideoList();
+        if (originalList == null || originalList.isEmpty()) {
+            showToast("暂无选集");
+            return;
+        }
+
+        // 创建自定义对话框
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(mContext);
+        android.view.View dialogView = android.view.LayoutInflater.from(mContext).inflate(
+                R.layout.dialog_download_playlist, null);
+        builder.setView(dialogView);
+        
+        final android.app.AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        // 初始化组件
+        androidx.recyclerview.widget.RecyclerView recyclerView = dialogView.findViewById(R.id.recycler_playlist);
+        android.widget.TextView btnSelectAll = dialogView.findViewById(R.id.btn_select_all);
+        android.widget.TextView tvSelectedCount = dialogView.findViewById(R.id.tv_selected_count);
+        android.widget.Button btnStartDownload = dialogView.findViewById(R.id.btn_start_download);
+
+        recyclerView.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(mContext));
+
+        // 选中的集合
+        final java.util.Set<Integer> selectedPositions = new java.util.HashSet<>();
+        com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(mContext);
+
+        // 适配器
+        androidx.recyclerview.widget.RecyclerView.Adapter adapter = new androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
+            @androidx.annotation.NonNull
+            @Override
+            public androidx.recyclerview.widget.RecyclerView.ViewHolder onCreateViewHolder(@androidx.annotation.NonNull android.view.ViewGroup parent, int viewType) {
+                android.view.View view = android.view.LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_download_playlist, parent, false);
+                return new androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {};
+            }
+
+            @Override
+            public void onBindViewHolder(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder holder, int position) {
+                HashMap<String, Object> itemData = originalList.get(position);
+                String title = itemData.get("name") != null ? itemData.get("name").toString() : "第" + (position + 1) + "集";
+                String url = itemData.get("url") != null ? itemData.get("url").toString() : "";
+
+                android.widget.TextView tvTitle = holder.itemView.findViewById(R.id.tv_title);
+                android.widget.CheckBox cbSelect = holder.itemView.findViewById(R.id.cb_select);
+                android.widget.TextView tvStatus = holder.itemView.findViewById(R.id.tv_status);
+
+                tvTitle.setText(title);
+
+                // 检查是否已下载或正在下载
+                boolean isDownloaded = downloadManager.getLocalVideoPath(url) != null;
+                boolean isDownloading = downloadManager.isDownloading(url);
+
+                if (isDownloaded) {
+                    tvStatus.setVisibility(android.view.View.VISIBLE);
+                    tvStatus.setText("已下载");
+                    tvStatus.setTextColor(android.graphics.Color.parseColor("#4CAF50"));
+                    cbSelect.setVisibility(android.view.View.GONE);
+                    holder.itemView.setClickable(false);
+                } else if (isDownloading) {
+                    tvStatus.setVisibility(android.view.View.VISIBLE);
+                    tvStatus.setText("下载中");
+                    tvStatus.setTextColor(android.graphics.Color.parseColor("#FF9800"));
+                    cbSelect.setVisibility(android.view.View.GONE);
+                    holder.itemView.setClickable(false);
+                } else {
+                    tvStatus.setVisibility(android.view.View.GONE);
+                    cbSelect.setVisibility(android.view.View.VISIBLE);
+                    
+                    // 绑定选中状态
+                    cbSelect.setOnCheckedChangeListener(null); // 防止复用引发问题
+                    cbSelect.setChecked(selectedPositions.contains(position));
+                    
+                    android.view.View.OnClickListener clickListener = v -> {
+                        if (selectedPositions.contains(position)) {
+                            selectedPositions.remove(position);
+                            cbSelect.setChecked(false);
+                        } else {
+                            selectedPositions.add(position);
+                            cbSelect.setChecked(true);
+                        }
+                        tvSelectedCount.setText("已选择 " + selectedPositions.size() + " 集");
+                    };
+                    holder.itemView.setOnClickListener(clickListener);
+                    cbSelect.setOnClickListener(clickListener);
+                }
+            }
+
+            @Override
+            public int getItemCount() {
+                return originalList.size();
+            }
+        };
+        recyclerView.setAdapter(adapter);
+
+        // 全选/反选逻辑
+        btnSelectAll.setOnClickListener(v -> {
+            boolean isAllSelected = true;
+            int availableCount = 0;
+            
+            for (int i = 0; i < originalList.size(); i++) {
+                String url = originalList.get(i).get("url") != null ? originalList.get(i).get("url").toString() : "";
+                if (downloadManager.getLocalVideoPath(url) == null && !downloadManager.isDownloading(url)) {
+                    availableCount++;
+                    if (!selectedPositions.contains(i)) {
+                        isAllSelected = false;
+                    }
+                }
+            }
+            
+            if (availableCount == 0) {
+                showToast("所有剧集均已下载或正在下载");
+                return;
+            }
+
+            if (isAllSelected) {
+                selectedPositions.clear();
+            } else {
+                for (int i = 0; i < originalList.size(); i++) {
+                    String url = originalList.get(i).get("url") != null ? originalList.get(i).get("url").toString() : "";
+                    if (downloadManager.getLocalVideoPath(url) == null && !downloadManager.isDownloading(url)) {
+                        selectedPositions.add(i);
+                    }
+                }
+            }
+            adapter.notifyDataSetChanged();
+            tvSelectedCount.setText("已选择 " + selectedPositions.size() + " 集");
+        });
+
+        // 开始下载
+        btnStartDownload.setOnClickListener(v -> {
+            if (selectedPositions.isEmpty()) {
+                showToast("请先选择要下载的剧集");
+                return;
+            }
+            dialog.dismiss();
+            
+            int addCount = 0;
+            for (Integer pos : selectedPositions) {
+                HashMap<String, Object> itemData = originalList.get(pos);
+                String title = itemData.get("name") != null ? itemData.get("name").toString() : "第" + (pos + 1) + "集";
+                String url = itemData.get("url") != null ? itemData.get("url").toString() : "";
+                if (!url.isEmpty()) {
+                    downloadManager.startDownload(url, title, "批量下载");
+                    addCount++;
+                }
+            }
+            showToast("已添加 " + addCount + " 个下载任务");
+            showDownloadManagerDialog();
+        });
+
+        dialog.show();
+    }
+
     /**
      * 开始下载（使用 VideoDownloader）
      */
