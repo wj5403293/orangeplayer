@@ -1005,32 +1005,33 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
-        android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        android.util.Log.d(TAG, "setUp() called with:");
-        android.util.Log.d(TAG, "  url=" + url);
-        android.util.Log.d(TAG, "  cacheWithPlay=" + cacheWithPlay);
-        android.util.Log.d(TAG, "  title=" + title);
+        android.util.Log.d(TAG, "setUp() called with url=" + url);
         
+        // 检查本地是否已下载，如果已下载则使用本地路径
+        String finalUrl = url;
+        try {
+            com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(getContext());
+            String localPath = downloadManager.getLocalVideoPath(url);
+            if (localPath != null && !localPath.isEmpty()) {
+                java.io.File localFile = new java.io.File(localPath);
+                if (localFile.exists()) {
+                    android.util.Log.d(TAG, "setUp: Found local downloaded video, playing local file: " + localPath);
+                    finalUrl = localPath;
+                    // 播放本地文件不需要缓存
+                    cacheWithPlay = false;
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "Error checking local downloaded video", e);
+        }
+
         // 清除旧URL，防止播放旧视频
         mVideoUrl = null;
         mOriginUrl = null;
-        
         // 种子播放统一入口（magnet/.torrent）
-        boolean isTorrent = com.orange.playerlibrary.torrent.TorrentSupport.isTorrentUrl(url);
-        android.util.Log.d(TAG, "setUp: isTorrentUrl=" + isTorrent + " for url=" + url);
-        
+        boolean isTorrent = com.orange.playerlibrary.torrent.TorrentSupport.isTorrentUrl(finalUrl);
+        android.util.Log.d(TAG, "setUp: isTorrentUrl=" + isTorrent + " for url=" + finalUrl);
         if (isTorrent) {
-            android.util.Log.d(TAG, "setUp: detected torrent URL, checking availability...");
-            
-            // 检查文件是否存在（如果是文件路径）
-            if (!url.toLowerCase().startsWith("magnet:") && !url.toLowerCase().startsWith("torrent:")) {
-                java.io.File torrentFile = new java.io.File(url);
-                android.util.Log.d(TAG, "setUp: torrent file path=" + torrentFile.getAbsolutePath());
-                android.util.Log.d(TAG, "setUp: torrent file exists=" + torrentFile.exists());
-                android.util.Log.d(TAG, "setUp: torrent file size=" + torrentFile.length() + " bytes");
-                android.util.Log.d(TAG, "setUp: torrent file canRead=" + torrentFile.canRead());
-            }
-            
             String reason = com.orange.playerlibrary.torrent.TorrentSupport.getJlibtorrentMissingReason();
             android.util.Log.d(TAG, "setUp torrent: missingReason=" + reason);
             if (reason != null) {
@@ -1039,7 +1040,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
 
             // 设置加载中状态
-            android.util.Log.d(TAG, "setUp: setting up loading state...");
             setOrangePlayState(PlayerConstants.STATE_PREPARING);
             setStateAndUi(CURRENT_STATE_PREPAREING);
             if (mPrepareView != null) {
@@ -1050,36 +1050,31 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             mPendingTorrentLoad = true;
 
             java.io.File saveDir = com.orange.playerlibrary.torrent.TorrentSupport.defaultSaveDir(getContext());
-            android.util.Log.d(TAG, "setUp: saveDir=" + saveDir.getAbsolutePath());
-            
-            String cleanUrl = com.orange.playerlibrary.torrent.TorrentSupport.extractMagnetUrl(url);
+            String cleanUrl = com.orange.playerlibrary.torrent.TorrentSupport.extractMagnetUrl(finalUrl);
             if (cleanUrl != null && cleanUrl.toLowerCase().startsWith("magnet:")) {
-                android.util.Log.d(TAG, "setUp: calling playMagnet()...");
                 playMagnet(cleanUrl, saveDir, null);
             } else {
-                android.util.Log.d(TAG, "setUp: calling playTorrent()...");
-                playTorrent(new java.io.File(url), saveDir, null);
+                playTorrent(new java.io.File(finalUrl), saveDir, null);
             }
-            android.util.Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             return true;
         }
 
         // 如果是HTTP m3u8且启用了去广告，先处理URL
-        if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(url)) {
-            processM3U8WithAdRemoval(url, cacheWithPlay, title, null);
+        if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(finalUrl)) {
+            processM3U8WithAdRemoval(finalUrl, cacheWithPlay, title, null);
             return true;
         }
 
-        saveVideoUrl(url);
+        saveVideoUrl(finalUrl);
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
-            mOrangeController.getVideoEventManager().resetTemporarySettings(url);
+            mOrangeController.getVideoEventManager().resetTemporarySettings(finalUrl);
         }
         // 自动选择最合适的播放器内核
-        autoSelectPlayerEngine(url);
+        autoSelectPlayerEngine(finalUrl);
         // 异步获取视频首帧作为封面
-        getVideoFirstFrameAsync(url);
-        boolean result = super.setUp(url, cacheWithPlay, title);
+        getVideoFirstFrameAsync(finalUrl);
+        boolean result = super.setUp(finalUrl, cacheWithPlay, title);
         // 重新绑定 SkipManager（必须在 super.setUp() 之后，因为 setUp 内部会调用 release() 解绑）
         if (mSkipManager != null) {
             mSkipManager.attachVideoView(this);
@@ -1130,11 +1125,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                     @Override
                     public void onDownloadProgress(int progress, long downloadSpeed, long uploadSpeed) {
-                        // 显示下载进度和网速（解析成功后进入下载状态）
-                        String speedText = formatSpeed(downloadSpeed);
-                        String progressText = String.format("下载中 %d%% - %s/s", progress, speedText);
-                        setCustomLoadingText(progressText);
-                        
                         if (callback != null) {
                             callback.onDownloadProgress(progress, downloadSpeed, uploadSpeed);
                         }
@@ -1142,24 +1132,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                     @Override
                     public void onError(String error) {
-                        // 清除种子加载标记和自定义加载文本
+                        // 清除种子加载标记
                         mPendingTorrentLoad = false;
-                        setCustomLoadingText(null);
                         if (callback != null) {
                             callback.onError(error);
-                        }
-                    }
-                    
-                    @Override
-                    public void onTorrentLoading(int elapsedSeconds, int totalSeconds) {
-                        // 显示本地种子文件加载进度
-                        int progress = (int) (elapsedSeconds * 100.0 / totalSeconds);
-                        String progressText = String.format("加载种子文件中 %d/%ds (%d%%)", 
-                                elapsedSeconds, totalSeconds, progress);
-                        setCustomLoadingText(progressText);
-                        
-                        if (callback != null) {
-                            callback.onTorrentLoading(elapsedSeconds, totalSeconds);
                         }
                     }
                 });
@@ -1203,11 +1179,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
             @Override
             public void onDownloadProgress(int progress, long downloadSpeed, long uploadSpeed) {
-                // 显示下载进度和网速（解析成功后进入下载状态）
-                String speedText = formatSpeed(downloadSpeed);
-                String progressText = String.format("下载中 %d%% - %s/s", progress, speedText);
-                setCustomLoadingText(progressText);
-                
                 if (callback != null) {
                     callback.onDownloadProgress(progress, downloadSpeed, uploadSpeed);
                 }
@@ -1233,19 +1204,6 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 
                 if (callback != null) {
                     callback.onMagnetResolving(elapsedSeconds, totalSeconds);
-                }
-            }
-            
-            @Override
-            public void onTorrentLoading(int elapsedSeconds, int totalSeconds) {
-                // 显示本地种子文件加载进度
-                int progress = (int) (elapsedSeconds * 100.0 / totalSeconds);
-                String progressText = String.format("加载种子文件中 %d/%ds (%d%%)", 
-                        elapsedSeconds, totalSeconds, progress);
-                setCustomLoadingText(progressText);
-                
-                if (callback != null) {
-                    callback.onTorrentLoading(elapsedSeconds, totalSeconds);
                 }
             }
         });

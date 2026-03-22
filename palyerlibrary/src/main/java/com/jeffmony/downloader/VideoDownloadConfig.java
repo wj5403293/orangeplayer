@@ -23,6 +23,10 @@ public class VideoDownloadConfig {
         return mCacheRoot;
     }
 
+    public void setCacheRoot(String cacheRoot) {
+        mCacheRoot = cacheRoot;
+    }
+
     public int getReadTimeOut() {
         return mReadTimeOut;
     }

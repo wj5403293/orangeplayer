@@ -19,7 +19,7 @@ public class SimpleDownloadDialogView {
     
     public SimpleDownloadDialogView(Context context) {
         mContext = context;
-        mDownloadManager = new SimpleDownloadManager(context);
+        mDownloadManager = SimpleDownloadManager.getInstance(context);
     }
     
     /**

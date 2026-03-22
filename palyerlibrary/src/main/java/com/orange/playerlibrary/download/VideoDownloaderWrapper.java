@@ -23,6 +23,7 @@ public class VideoDownloaderWrapper {
     private static VideoDownloaderWrapper sInstance;
     private Map<String, DownloadCallback> mCallbackMap = new ConcurrentHashMap<>();
     private boolean mInitialized = false;
+    private String mCustomDownloadPath;  // 自定义下载路径
     
     private VideoDownloaderWrapper(Context context) {
         mContext = context.getApplicationContext();
@@ -46,9 +47,15 @@ public class VideoDownloaderWrapper {
     public void init() {
         android.util.Log.d("VideoDownloaderWrapper", "========== init() START ==========");
         
-        // 使用应用私有目录，避免重装后权限冲突
-        // context.getExternalFilesDir() 返回应用私有目录，卸载后自动清理
-        File cacheDir = new File(mContext.getExternalFilesDir(null), "Download");
+        // 优先使用自定义下载路径，否则使用应用私有目录
+        File cacheDir;
+        if (mCustomDownloadPath != null) {
+            cacheDir = new File(mCustomDownloadPath);
+            android.util.Log.d("VideoDownloaderWrapper", "Using custom download path: " + mCustomDownloadPath);
+        } else {
+            cacheDir = new File(mContext.getExternalFilesDir(null), "Download");
+            android.util.Log.d("VideoDownloaderWrapper", "Using default private directory: " + cacheDir.getAbsolutePath());
+        }
         
         android.util.Log.d("VideoDownloaderWrapper", "Cache directory: " + cacheDir.getAbsolutePath());
         
@@ -163,6 +170,16 @@ public class VideoDownloaderWrapper {
                     String filePath = item.getFilePath();
                     android.util.Log.d("VideoDownloaderWrapper", "========== Download SUCCESS ==========");
                     android.util.Log.d("VideoDownloaderWrapper", "FilePath: " + filePath);
+                    android.util.Log.d("VideoDownloaderWrapper", "Title: " + item.getTitle());
+                    android.util.Log.d("VideoDownloaderWrapper", "FileName: " + item.getFileName());
+                    android.util.Log.d("VideoDownloaderWrapper", "FileHash: " + item.getFileHash());
+                    
+                    // 重命名文件为用户设置的标题
+                    String renamedPath = renameFileToTitle(item);
+                    if (renamedPath != null) {
+                        filePath = renamedPath;
+                    }
+                    
                     notifyCallbackSuccess(item, filePath);
                 }
             });
@@ -332,5 +349,213 @@ public class VideoDownloaderWrapper {
                 }
             }
         }).start();
+    }
+    
+    /**
+     * 下载完成后重命名文件为用户设置的标题
+     */
+    private String renameFileToTitle(VideoTaskItem item) {
+        try {
+            String originalPath = item.getFilePath();
+            if (originalPath == null || originalPath.isEmpty()) {
+                android.util.Log.w("VideoDownloaderWrapper", "[RENAME] filePath is null");
+                return null;
+            }
+            
+            File originalFile = new File(originalPath);
+            if (!originalFile.exists()) {
+                android.util.Log.w("VideoDownloaderWrapper", "[RENAME] File not found: " + originalPath);
+                return null;
+            }
+            
+            // 获取标题作为新文件名
+            String title = item.getTitle();
+            if (title == null || title.isEmpty()) {
+                android.util.Log.w("VideoDownloaderWrapper", "[RENAME] Title is null, keep original filename");
+                return null;
+            }
+            
+            // 移除非法字符
+            String safeName = title.replaceAll("[\\\\/:*?\"<>|]", "_");
+            
+            // 获取文件扩展名
+            String extension = getFileExtension(originalPath);
+            String newFileName = safeName + extension;
+            
+            File parentDir = originalFile.getParentFile();
+            File newFile = new File(parentDir, newFileName);
+            
+            // 如果目标文件已存在，添加序号
+            int counter = 1;
+            while (newFile.exists()) {
+                newFileName = safeName + "_" + counter + extension;
+                newFile = new File(parentDir, newFileName);
+                counter++;
+            }
+            
+            // 重命名文件
+            boolean renamed = originalFile.renameTo(newFile);
+            if (renamed) {
+                String newPath = newFile.getAbsolutePath();
+                android.util.Log.i("VideoDownloaderWrapper", "[RENAME] Success: " + originalPath + " -> " + newPath);
+                
+                // 更新 item 的文件路径
+                item.setFileName(newFileName);
+                item.setFilePath(newPath);
+                
+                return newPath;
+            } else {
+                android.util.Log.w("VideoDownloaderWrapper", "[RENAME] Failed to rename file");
+                return null;
+            }
+        } catch (Exception e) {
+            android.util.Log.e("VideoDownloaderWrapper", "[RENAME] Error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * 获取文件扩展名
+     */
+    private String getFileExtension(String filePath) {
+        if (filePath == null) return ".mp4";
+        int lastDot = filePath.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < filePath.length() - 1) {
+            String ext = filePath.substring(lastDot);
+            // 移除查询参数
+            if (ext.contains("?")) {
+                ext = ext.substring(0, ext.indexOf('?'));
+            }
+            return ext;
+        }
+        return ".mp4";
+    }
+    
+    /**
+     * 检查视频是否已下载
+     * @param url 视频 URL
+     * @return 已下载返回本地文件路径，否则返回 null
+     */
+    public String getLocalVideoPath(String url) {
+        if (url == null || url.isEmpty()) return null;
+        
+        try {
+            // 计算 URL 的 MD5 作为文件夹名
+            String folderHash = computeMD5(url);
+            
+            // 获取下载目录
+            File downloadDir = getDownloadDirectory();
+            if (downloadDir == null || !downloadDir.exists()) return null;
+            
+            // 检查 MD5 文件夹
+            File videoDir = new File(downloadDir, folderHash);
+            if (!videoDir.exists() || !videoDir.isDirectory()) return null;
+            
+            // 查找已完成的视频文件（只返回 .mp4，排除未完成的 .ts）
+            File[] files = videoDir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    String name = file.getName().toLowerCase();
+                    // 只返回 .mp4 文件（已合并完成）
+                    // 不返回 .ts 文件（可能是未完成的下载片段）
+                    if (name.endsWith(".mp4") && file.length() > 0) {
+                        // 额外检查：确保没有正在下载的 TS 文件
+                        boolean hasTsFiles = false;
+                        for (File f : files) {
+                            if (f.getName().toLowerCase().endsWith(".ts")) {
+                                hasTsFiles = true;
+                                break;
+                            }
+                        }
+                        // 如果有 TS 文件，说明可能还在下载或合并中
+                        if (hasTsFiles) {
+                            android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found TS files, video may be incomplete: " + file.getAbsolutePath());
+                            return null;
+                        }
+                        android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found completed video: " + file.getAbsolutePath());
+                        return file.getAbsolutePath();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("VideoDownloaderWrapper", "[LOCAL] Error checking local video: " + e.getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 检查视频是否正在下载中
+     */
+    public boolean isDownloading(String url) {
+        if (url == null) return false;
+        return mCallbackMap.containsKey(url);
+    }
+    
+    /**
+     * 获取当前下载目录
+     */
+    public File getDownloadDirectory() {
+        if (mCustomDownloadPath != null) {
+            File dir = new File(mCustomDownloadPath);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            return dir;
+        }
+        // 默认目录
+        return new File(mContext.getExternalFilesDir(null), "Download");
+    }
+    
+    /**
+     * 设置自定义下载路径
+     * @param path 下载目录路径
+     */
+    public void setDownloadPath(String path) {
+        mCustomDownloadPath = path;
+        android.util.Log.d("VideoDownloaderWrapper", "Download path set to: " + path);
+        
+        // 如果 VideoDownloader 已初始化，更新配置
+        if (mInitialized) {
+            try {
+                File cacheDir = new File(path);
+                if (!cacheDir.exists()) {
+                    cacheDir.mkdirs();
+                }
+                // 重新初始化 VideoDownloader
+                VideoDownloadManager manager = VideoDownloadManager.getInstance();
+                if (manager != null && manager.downloadConfig() != null) {
+                    manager.downloadConfig().setCacheRoot(path);
+                    android.util.Log.d("VideoDownloaderWrapper", "VideoDownloader cache root updated: " + path);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("VideoDownloaderWrapper", "Failed to update download path: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * 获取当前下载路径设置
+     */
+    public String getDownloadPath() {
+        File dir = getDownloadDirectory();
+        return dir != null ? dir.getAbsolutePath() : null;
+    }
+    
+    /**
+     * 计算 MD5 哈希
+     */
+    private String computeMD5(String input) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(input.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return String.valueOf(input.hashCode());
+        }
     }
 }

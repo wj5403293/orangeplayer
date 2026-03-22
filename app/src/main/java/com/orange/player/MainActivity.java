@@ -65,6 +65,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // 开启 M3U8 去广告功能（必须在 setContentView 之前设置）
+        com.orange.playerlibrary.M3U8AdManager.getInstance(this).setEnabled(true);
+        
+        // 设置下载路径到隐私目录测试
+        java.io.File privateDir = new java.io.File(getExternalFilesDir(null), "MyCustomDownload");
+        com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(this).setDownloadPath(privateDir.getAbsolutePath());
+        
         setContentView(R.layout.activity_main);
 
         initViews();
@@ -215,6 +223,8 @@ public class MainActivity extends AppCompatActivity {
             log("▶ 直接播放: " + getShortUrl(url));
             // 先释放旧的播放器资源
             mVideoView.release();
+            com.shuyu.gsyvideoplayer.GSYVideoManager.releaseAllVideos();
+            
             // 设置新视频（启用边看边存）
             android.util.Log.d("MainActivity", "calling setUp with url=" + url);
             mVideoView.setUp(url, true, mCurrentTitle);
@@ -1009,9 +1019,9 @@ public class MainActivity extends AppCompatActivity {
         // 确认下载按钮
         view.findViewById(com.orange.playerlibrary.R.id.btn_download).setOnClickListener(v -> {
             try {
-                // 使用系统 DownloadManager 下载
+                // 使用单例获取下载管理器
                 com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = 
-                    new com.orange.playerlibrary.download.SimpleDownloadManager(this);
+                    com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(this);
                 
                 long downloadId = downloadManager.startDownload(
                     mCurrentUrl,

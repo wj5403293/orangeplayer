@@ -1,4 +1,69 @@
 # OrangePlayer 更新日志
+## [1.2.9] - 2026-03-22
+
+### ✨ 新功能
+
+#### 下载功能增强
+- **下载完成后自动重命名文件**
+  - M3U8 下载合并后自动重命名为用户设置的标题
+  - 解决之前文件名为 MD5 哈希值的问题
+  - 文件名冲突时自动添加序号
+
+- **本地已下载检查**
+  - 新增 `getLocalVideoPath(url)` 方法，检查视频是否已下载
+  - 使用 URL 的 MD5 作为文件夹名，便于查找
+  - 下载前自动检查本地是否已存在，避免重复下载
+  - **播放前自动拦截**：`setUp()` 时自动检查本地已下载，直接播放本地文件
+
+- **下载路径 API**
+  - 新增 `setDownloadPath(path)` 方法，支持自定义下载目录
+  - 新增 `getDownloadPath()` 方法，获取当前下载目录
+  - 支持动态切换下载路径
+
+- **SimpleDownloadManager 单例模式**
+  - 改为单例模式，全局共享同一实例
+  - 配置全局生效，避免多次创建导致状态不同步
+
+#### OrangeToast 公共 API
+- `OrangeToast` 已作为公共 API 开放使用
+- 显示在播放器中央，不受系统 Toast 队列影响
+- 支持短/默认/长三种时长
+- 支持带图标显示
+
+### 🐛 Bug修复
+
+- 修复下载按钮点击时未检查本地是否已下载的问题
+- 修复 `SimpleDownloadManager` 多次创建导致配置不生效的问题
+
+### 📝 API 示例
+
+```java
+// 获取下载管理器单例
+SimpleDownloadManager manager = SimpleDownloadManager.getInstance(context);
+
+// 设置下载路径
+manager.setDownloadPath("/sdcard/MyVideos");
+
+// 检查本地是否已下载
+String localPath = manager.getLocalVideoPath(url);
+if (localPath != null) {
+    // 直接播放本地文件
+    videoView.setUp(localPath, true, "标题");
+}
+
+// 检查是否正在下载
+boolean downloading = manager.isDownloading(url);
+
+// 开始下载（自动检查本地）
+String path = manager.startDownloadWithLocalCheck(url, "视频标题");
+
+// OrangeToast 使用
+OrangeToast.show(videoView, "提示消息");
+OrangeToast.showLong(videoView, "长提示消息");
+```
+
+---
+
 ## [1.2.8] - 2026-03-20
 
 ### 🐛 Bug修复

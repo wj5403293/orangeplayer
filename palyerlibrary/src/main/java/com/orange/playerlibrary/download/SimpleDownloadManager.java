@@ -19,14 +19,36 @@ import android.widget.Toast;
  * 4. 支持下载队列管理
  * 5. M3U8 自动合并为 MP4
  * 6. 应用退出后继续下载
+ * 
+ * 使用方式：
+ * SimpleDownloadManager.getInstance(context).setDownloadPath(path);
  */
 public class SimpleDownloadManager {
+    
+    private static volatile SimpleDownloadManager sInstance;
     
     private Context mContext;
     private VideoDownloaderWrapper mVideoDownloader;
     
-    public SimpleDownloadManager(Context context) {
-        mContext = context.getApplicationContext();
+    /**
+     * 获取单例实例
+     */
+    public static SimpleDownloadManager getInstance(Context context) {
+        if (sInstance == null) {
+            synchronized (SimpleDownloadManager.class) {
+                if (sInstance == null) {
+                    sInstance = new SimpleDownloadManager(context.getApplicationContext());
+                }
+            }
+        }
+        return sInstance;
+    }
+    
+    /**
+     * 私有构造函数，防止外部 new
+     */
+    private SimpleDownloadManager(Context context) {
+        mContext = context;
         mVideoDownloader = VideoDownloaderWrapper.getInstance(mContext);
     }
     
@@ -95,5 +117,67 @@ public class SimpleDownloadManager {
      */
     public void cleanup() {
         // VideoDownloader 的清理由 VideoDownloaderWrapper 管理
+    }
+    
+    /**
+     * 检查视频是否已下载到本地
+     * @param url 视频 URL
+     * @return 已下载返回本地文件路径，否则返回 null
+     */
+    public String getLocalVideoPath(String url) {
+        return mVideoDownloader.getLocalVideoPath(url);
+    }
+    
+    /**
+     * 检查视频是否正在下载中
+     * @param url 视频 URL
+     * @return 是否正在下载
+     */
+    public boolean isDownloading(String url) {
+        return mVideoDownloader.isDownloading(url);
+    }
+    
+    /**
+     * 设置下载路径
+     * @param path 下载目录路径
+     */
+    public void setDownloadPath(String path) {
+        mVideoDownloader.setDownloadPath(path);
+    }
+    
+    /**
+     * 获取当前下载路径
+     * @return 下载目录路径
+     */
+    public String getDownloadPath() {
+        return mVideoDownloader.getDownloadPath();
+    }
+    
+    /**
+     * 开始下载前检查本地是否已下载
+     * 如果已下载，直接返回本地路径；否则开始下载
+     * @param url 下载地址
+     * @param title 视频标题
+     * @return 已下载返回本地路径，否则返回 null 并开始下载
+     */
+    public String startDownloadWithLocalCheck(String url, String title) {
+        // 先检查本地是否已下载
+        String localPath = getLocalVideoPath(url);
+        if (localPath != null) {
+            android.util.Log.d("SimpleDownloadManager", "Video already downloaded: " + localPath);
+            Toast.makeText(mContext, "视频已下载\n位置: " + localPath, Toast.LENGTH_SHORT).show();
+            return localPath;
+        }
+        
+        // 检查是否正在下载
+        if (isDownloading(url)) {
+            android.util.Log.d("SimpleDownloadManager", "Video is downloading");
+            Toast.makeText(mContext, "视频正在下载中", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        
+        // 开始下载
+        startDownload(url, title, null);
+        return null;
     }
 }

@@ -778,8 +778,18 @@ public class VideoDownloadManager {
                 
                 LogUtils.i(DownloadConstants.TAG, "[MERGE] Found " + tsFiles.size() + " TS files to merge");
                 
-                // 合并输出文件路径
-                String outputFileName = fileHash + ".mp4";  // 扩展名用.mp4，播放器自动识别TS内容
+                // 合并输出文件路径 - 优先使用 title 作为文件名
+                String outputFileName;
+                String title = taskItem.getTitle();
+                if (title != null && !title.isEmpty()) {
+                    // 移除非法字符
+                    String safeName = title.replaceAll("[\\\\/:*?\"<>|]", "_");
+                    outputFileName = safeName + ".mp4";
+                    LogUtils.i(DownloadConstants.TAG, "[MERGE] Using title as filename: " + outputFileName);
+                } else {
+                    outputFileName = fileHash + ".mp4";
+                    LogUtils.i(DownloadConstants.TAG, "[MERGE] Using fileHash as filename: " + outputFileName);
+                }
                 File outputFile = new File(dir, outputFileName);
                 
                 // 合并TS文件

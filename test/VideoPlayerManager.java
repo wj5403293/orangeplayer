@@ -70,14 +70,17 @@ public class VideoPlayerManager {
         
         this.mActivity = activity;
         this.mParentContainer = parent;
+        com.orange.playerlibrary.M3U8AdManager.getInstance(this).setEnabled(true);//开启M3U8去广告功能
+         // 设置下载路径到隐私目录测试
+        java.io.File privateDir = new java.io.File(getExternalFilesDir(null), "Download");
+        com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(this).setDownloadPath(privateDir.getAbsolutePath());
         
-        // 设置默认内核（必须在创建 OrangevideoView 之前设置，否则不生效）
+        // 设置默认内核（使用实例方法）
         PlayerSettingsManager.getInstance(activity).setPlayerEngine(PlayerConstants.ENGINE_IJK);
-        
-        // 创建播放器视图（构造函数中会读取引擎设置）
+        // 创建播放器视图
         this.mVideoView = new OrangevideoView(activity);
-        
-        // 创建控制器
+        this.mVideoView.selectPlayerFactory(PlayerConstants.ENGINE_IJK);
+        // 创建控制器（新版SDK只接受Context参数）
         this.mVideoController = new OrangeVideoController(activity);
         
         // 设置预览功能

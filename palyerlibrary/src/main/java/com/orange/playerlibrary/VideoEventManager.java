@@ -1354,10 +1354,26 @@ public class VideoEventManager {
         android.util.Log.d(TAG, "startDownload: url=" + url + ", title=" + title);
         
         try {
-            // 使用 VideoDownloader 下载（支持 M3U8、MP4、FLV 等所有格式）
+            // 使用单例获取下载管理器
             com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = 
-                new com.orange.playerlibrary.download.SimpleDownloadManager(mContext);
+                com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(mContext);
             
+            // 检查本地是否已下载
+            String localPath = downloadManager.getLocalVideoPath(url);
+            if (localPath != null) {
+                android.util.Log.d(TAG, "Video already downloaded: " + localPath);
+                showToast("视频已下载\n位置: " + localPath);
+                return;
+            }
+            
+            // 检查是否正在下载
+            if (downloadManager.isDownloading(url)) {
+                android.util.Log.d(TAG, "Video is already downloading");
+                showToast("视频正在下载中");
+                return;
+            }
+            
+            // 开始下载
             downloadManager.startDownload(
                 url,
                 title != null ? title : "未命名视频",
