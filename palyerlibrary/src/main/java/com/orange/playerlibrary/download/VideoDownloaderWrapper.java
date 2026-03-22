@@ -440,39 +440,47 @@ public class VideoDownloaderWrapper {
         if (url == null || url.isEmpty()) return null;
         
         try {
-            // 计算 URL 的 MD5 作为文件夹名
-            String folderHash = computeMD5(url);
+            // 通过底层下载管理器直接获取任务状态，这是最准确的做法
+            VideoDownloadManager manager = VideoDownloadManager.getInstance();
+            if (manager != null) {
+                com.jeffmony.downloader.model.VideoTaskItem taskItem = manager.getDownloadTaskItem(url);
+                if (taskItem != null && taskItem.isCompleted() && taskItem.getTaskState() == com.jeffmony.downloader.model.VideoTaskState.SUCCESS) {
+                    String filePath = taskItem.getFilePath();
+                    if (filePath != null) {
+                        java.io.File file = new java.io.File(filePath);
+                        if (file.exists() && file.length() > 0) {
+                            android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Task is SUCCESS, found valid file: " + filePath);
+                            return filePath;
+                        } else {
+                            android.util.Log.w("VideoDownloaderWrapper", "[LOCAL] Task marked SUCCESS but file missing/empty: " + filePath);
+                        }
+                    }
+                }
+            }
             
-            // 获取下载目录
+            // 如果管理器里没查到，或者还未初始化，作为兜底策略再扫描一遍文件系统
+            String folderHash = computeMD5(url);
             File downloadDir = getDownloadDirectory();
             if (downloadDir == null || !downloadDir.exists()) return null;
             
-            // 检查 MD5 文件夹
             File videoDir = new File(downloadDir, folderHash);
             if (!videoDir.exists() || !videoDir.isDirectory()) return null;
             
-            // 查找已完成的视频文件（只返回 .mp4，排除未完成的 .ts）
             File[] files = videoDir.listFiles();
             if (files != null) {
                 for (File file : files) {
                     String name = file.getName().toLowerCase();
-                    // 只返回 .mp4 文件（已合并完成）
-                    // 不返回 .ts 文件（可能是未完成的下载片段）
-                    if (name.endsWith(".mp4") && file.length() > 0) {
-                        // 额外检查：确保没有正在下载的 TS 文件
+                    if ((name.endsWith(".mp4") || name.endsWith(".video") || name.endsWith(".ts")) && file.length() > 0) {
                         boolean hasTsFiles = false;
                         for (File f : files) {
-                            if (f.getName().toLowerCase().endsWith(".ts")) {
+                            if (f.getName().toLowerCase().endsWith(".ts") && !f.getName().equals(file.getName())) {
                                 hasTsFiles = true;
                                 break;
                             }
                         }
-                        // 如果有 TS 文件，说明可能还在下载或合并中
                         if (hasTsFiles) {
-                            android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found TS files, video may be incomplete: " + file.getAbsolutePath());
                             return null;
                         }
-                        android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found completed video: " + file.getAbsolutePath());
                         return file.getAbsolutePath();
                     }
                 }

@@ -1016,7 +1016,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 java.io.File localFile = new java.io.File(localPath);
                 if (localFile.exists()) {
                     android.util.Log.d(TAG, "setUp: Found local downloaded video, playing local file: " + localPath);
-                    finalUrl = localPath;
+                    // 修复 IjkMediaPlayer Error (-10000,0) 的问题
+                    // 必须加上 file:// 协议，否则 IjkPlayer 会把它当成相对路径或者非法协议
+                    if (!localPath.startsWith("file://") && !localPath.startsWith("http")) {
+                        finalUrl = "file://" + localPath;
+                    } else {
+                        finalUrl = localPath;
+                    }
+                    
                     // 播放本地文件不需要缓存
                     cacheWithPlay = false;
                 }

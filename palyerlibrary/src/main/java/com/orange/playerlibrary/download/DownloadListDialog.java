@@ -191,8 +191,8 @@ public class DownloadListDialog extends Dialog {
                 @Override
                 public void onDownloadSuccess(VideoTaskItem item) {
                     updateItem(item);
-                    // 显示完成提示
-                    showToast("下载完成: " + item.getTitle());
+                    // 移除完成时的 Toast 提示
+                    // showToast("下载完成: " + item.getTitle());
                 }
             });
         } catch (Exception e) {

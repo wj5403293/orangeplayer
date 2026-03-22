@@ -69,8 +69,8 @@ public class MainActivity extends AppCompatActivity {
         // 开启 M3U8 去广告功能（必须在 setContentView 之前设置）
         com.orange.playerlibrary.M3U8AdManager.getInstance(this).setEnabled(true);
         
-        // 设置下载路径到隐私目录测试
-        java.io.File privateDir = new java.io.File(getExternalFilesDir(null), "MyCustomDownload");
+        // 恢复下载路径到外部隐私可见目录，方便测试和查看下载的文件是否完整
+        java.io.File privateDir = new java.io.File(getExternalFilesDir(null), "Download");
         com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(this).setDownloadPath(privateDir.getAbsolutePath());
         
         setContentView(R.layout.activity_main);

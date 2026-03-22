@@ -281,6 +281,18 @@ public class MultiSegVideoDownloadTask extends VideoDownloadTask {
             if (!mDownloadFinished) {
                 // 重命名临时文件为正确的扩展名
                 renameVideoFileToCorrectExtension();
+                
+                // 清理下载完成后的临时 range.info 文件
+                try {
+                    File rangeInfoFile = new File(mSaveDir, VideoDownloadUtils.INFO_FILE);
+                    if (rangeInfoFile.exists()) {
+                        boolean deleted = rangeInfoFile.delete();
+                        LogUtils.i(DownloadConstants.TAG, "Deleted range.info file: " + deleted);
+                    }
+                } catch (Exception e) {
+                    LogUtils.e(DownloadConstants.TAG, "Error deleting range.info file: " + e.getMessage());
+                }
+                
                 mDownloadTaskListener.onTaskFinished(mTotalLength);
                 mDownloadFinished = true;
             }
@@ -300,7 +312,8 @@ public class MultiSegVideoDownloadTask extends VideoDownloadTask {
                 return;
             }
             
-            // 根据mimeType确定正确的扩展名
+            // 获取正确扩展名，但如果是合并M3U8或者是完整视频直接下载的，这里如果强转MP4可能会导致文件损坏
+            // 我们保留原扩展名或者只是把.video去掉即可
             String extension = getCorrectExtension();
             String correctFileName = mSaveName + extension;
             File correctFile = new File(mSaveDir, correctFileName);
@@ -319,6 +332,10 @@ public class MultiSegVideoDownloadTask extends VideoDownloadTask {
                 mTaskItem.setFileName(correctFileName);
                 mTaskItem.setFilePath(correctFile.getAbsolutePath());
                 LogUtils.i(DownloadConstants.TAG, "[MP4_RENAME] File path updated: " + correctFile.getAbsolutePath());
+            } else {
+                // 如果重命名失败，回退保留 .video 后缀
+                mTaskItem.setFileName(tempFileName);
+                mTaskItem.setFilePath(tempFile.getAbsolutePath());
             }
         } catch (Exception e) {
             LogUtils.e(DownloadConstants.TAG, "[MP4_RENAME] Error renaming file: " + e.getMessage());

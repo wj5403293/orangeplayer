@@ -26,9 +26,13 @@ public class OrangeIjkPlayerManager extends IjkPlayerManager {
         IjkMediaPlayer ijkMediaPlayer = (IjkMediaPlayer) getMediaPlayer();
         
         if (ijkMediaPlayer != null) {
+            // 解决 IJK 播放器在 Android 10+ 播放 /data/user/0/... 内部存储文件报错 -10000 的问题
+            // 禁用 IJKPlayer 内部某些对 file 协议的安全校验或缓存机制
+            ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "safe", 0);
+            
             // 设置协议白名单，添加 file 协议支持本地文件播放
             ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "protocol_whitelist", 
-                "file,http,https,tls,rtp,tcp,udp,crypto,httpproxy,concat,subfile");
+                "file,http,https,tls,rtp,tcp,udp,crypto,httpproxy,concat,subfile,data");
         }
     }
 }

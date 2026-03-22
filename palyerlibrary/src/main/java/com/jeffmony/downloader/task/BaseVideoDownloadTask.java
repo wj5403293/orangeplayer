@@ -133,10 +133,67 @@ public class BaseVideoDownloadTask extends VideoDownloadTask {
     private void notifyDownloadFinish() {
         synchronized (mDownloadLock) {
             if (!mDownloadFinished) {
+                // 单线程下载也需要重命名扩展名
+                renameVideoFileToCorrectExtension();
                 mDownloadTaskListener.onTaskFinished(mTotalLength);
                 mDownloadFinished = true;
             }
         }
+    }
+
+    /**
+     * 将临时 .video 文件重命名为正确的扩展名
+     */
+    private void renameVideoFileToCorrectExtension() {
+        try {
+            String tempFileName = mSaveName + VideoDownloadUtils.VIDEO_SUFFIX;
+            File tempFile = new File(mSaveDir, tempFileName);
+            
+            if (!tempFile.exists()) {
+                LogUtils.w(DownloadConstants.TAG, "[MP4_RENAME] Temp file not found: " + tempFile.getAbsolutePath());
+                return;
+            }
+            
+            String extension = getCorrectExtension();
+            String correctFileName = mSaveName + extension;
+            File correctFile = new File(mSaveDir, correctFileName);
+            
+            if (correctFile.exists()) {
+                correctFile.delete();
+            }
+            
+            boolean renamed = tempFile.renameTo(correctFile);
+            if (renamed) {
+                mTaskItem.setFileName(correctFileName);
+                mTaskItem.setFilePath(correctFile.getAbsolutePath());
+            } else {
+                mTaskItem.setFileName(tempFileName);
+                mTaskItem.setFilePath(tempFile.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            LogUtils.e(DownloadConstants.TAG, "[MP4_RENAME] Error renaming file: " + e.getMessage());
+        }
+    }
+
+    private String getCorrectExtension() {
+        String mimeType = mTaskItem.getMimeType();
+        if (mimeType != null) {
+            if (mimeType.contains("mp4") || mimeType.contains("MP4")) return ".mp4";
+            else if (mimeType.contains("webm")) return ".webm";
+            else if (mimeType.contains("quicktime") || mimeType.contains("mov")) return ".mov";
+            else if (mimeType.contains("3gp")) return ".3gp";
+            else if (mimeType.contains("mkv")) return ".mkv";
+        }
+        String url = mTaskItem.getUrl();
+        if (url != null) {
+            String lowerUrl = url.toLowerCase();
+            if (lowerUrl.contains(".mp4")) return ".mp4";
+            if (lowerUrl.contains(".webm")) return ".webm";
+            if (lowerUrl.contains(".mov")) return ".mov";
+            if (lowerUrl.contains(".3gp")) return ".3gp";
+            if (lowerUrl.contains(".mkv")) return ".mkv";
+        }
+        return ".mp4";
     }
 
     private InputStream getResponseBody(String url, long start, long end) throws IOException {

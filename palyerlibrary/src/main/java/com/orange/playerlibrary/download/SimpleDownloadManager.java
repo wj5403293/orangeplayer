@@ -83,8 +83,8 @@ public class SimpleDownloadManager {
                 @Override
                 public void onSuccess(String filePath) {
                     android.util.Log.d("SimpleDownloadManager", "Download success: " + filePath);
-                    Toast.makeText(mContext, "视频下载完成\n保存位置: " + filePath, 
-                        Toast.LENGTH_LONG).show();
+                    // 移除原生的 Toast 提示，避免打扰用户
+                    // Toast.makeText(mContext, "视频下载完成\n保存位置: " + filePath, Toast.LENGTH_LONG).show();
                 }
                 
                 @Override

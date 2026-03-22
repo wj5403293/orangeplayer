@@ -19,6 +19,7 @@ import com.jeffmony.downloader.model.Video;
 import com.jeffmony.downloader.model.VideoTaskItem;
 import com.jeffmony.downloader.model.VideoTaskState;
 import com.jeffmony.downloader.listener.IM3U8MergeResultListener;
+import com.jeffmony.downloader.task.BaseVideoDownloadTask;
 import com.jeffmony.downloader.task.M3U8VideoDownloadTask;
 import com.jeffmony.downloader.task.MultiSegVideoDownloadTask;
 import com.jeffmony.downloader.task.VideoDownloadTask;
@@ -166,6 +167,28 @@ public class VideoDownloadManager {
 
     public VideoDownloadConfig downloadConfig() {
         return mConfig;
+    }
+
+    /**
+     * 根据 URL 获取下载任务信息
+     */
+    public VideoTaskItem getDownloadTaskItem(String url) {
+        if (!TextUtils.isEmpty(url) && mVideoItemTaskMap.containsKey(url)) {
+            return mVideoItemTaskMap.get(url);
+        }
+        // 如果内存中没有，尝试从数据库获取
+        if (mVideoDatabaseHelper != null && !TextUtils.isEmpty(url)) {
+            List<VideoTaskItem> items = mVideoDatabaseHelper.getDownloadInfos();
+            if (items != null) {
+                for (VideoTaskItem item : items) {
+                    if (url.equals(item.getUrl())) {
+                        mVideoItemTaskMap.put(url, item);
+                        return item;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     public void fetchDownloadItems(IDownloadInfosCallback callback) {
@@ -343,8 +366,10 @@ public class VideoDownloadManager {
         }
         VideoDownloadTask downloadTask = mVideoDownloadTaskMap.get(taskItem.getUrl());
         if (downloadTask == null) {
-//            downloadTask = new BaseVideoDownloadTask(taskItem, headers);
-            downloadTask = new MultiSegVideoDownloadTask(taskItem, headers);
+            // 回退到单线程下载 BaseVideoDownloadTask
+            // 多线程 MultiSegVideoDownloadTask 内部 RandomAccessFile 写入可能存在文件截断/覆盖导致的损坏问题
+            downloadTask = new BaseVideoDownloadTask(taskItem, headers);
+            // downloadTask = new MultiSegVideoDownloadTask(taskItem, headers);
             mVideoDownloadTaskMap.put(taskItem.getUrl(), downloadTask);
         }
         startDownloadTask(downloadTask, taskItem);
