@@ -361,6 +361,15 @@
                     android:text="切换下载功能状态"
                     android:textSize="11sp" />
 
+                <Button
+                    android:id="@+id/btn_switch_ad_removal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="4dp"
+                    android:text="去广告(开)"
+                    android:textSize="11sp" />
+
             </LinearLayout>
 
         </LinearLayout>

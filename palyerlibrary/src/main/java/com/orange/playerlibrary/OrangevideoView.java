@@ -314,10 +314,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     mHasRetriedOriginalUrl = true;
                     mIsPlayingAdRemovedM3U8 = false;
 
-                    // 清除失败的缓存
-                    if (mM3U8AdManager != null) {
-                        mM3U8AdManager.clearCacheForUrl(mOriginalM3U8Url);
+                    // 备份失败的本地m3u8文件，便于排查
+                    try {
+                        if (url != null && url.contains("m3u8_cache") && url.endsWith(".m3u8")) {
+                            java.io.File failedFile = new java.io.File(url);
+                            java.io.File cacheDir = failedFile.getParentFile();
+                            if (cacheDir != null) {
+                                java.io.File backupFile = new java.io.File(cacheDir, "failed_" + failedFile.getName());
+                                boolean renamed = failedFile.renameTo(backupFile);
+                                android.util.Log.w(TAG, "Backed up failed m3u8: " + backupFile.getAbsolutePath() + ", renamed=" + renamed);
+                            }
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e(TAG, "Backup failed m3u8 error", e);
                     }
+
+                    // 注意：此处不要立刻清除缓存，否则无法导出失败的m3u8/placeholder用于排查
 
                     // 重试原始URL（跳过去广告流程）
                     post(() -> {
@@ -1337,6 +1349,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData,
             String title) {
+        // 如果是HTTP m3u8且启用了去广告，拦截并走去广告流程
+        if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(url)) {
+            processM3U8WithAdRemoval(url, cacheWithPlay, title, mapHeadData);
+            return true;
+        }
+
         saveVideoUrl(url);
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {

@@ -72,11 +72,14 @@ public class VideoPlayerManager {
         this.mParentContainer = parent;
         com.orange.playerlibrary.M3U8AdManager.getInstance(activity).setEnabled(true);//开启M3U8去广告功能
         // 设置下载路径到内部私有目录测试 (不可见目录，如 /data/data/com.orange.player/files/MyCustomDownload)
-        java.io.File privateDir = new java.io.File(getFilesDir(), "MyCustomDownload");
-        com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(this).setDownloadPath(privateDir.getAbsolutePath());
+        java.io.File privateDir = new java.io.File(activity.getFilesDir(), "MyCustomDownload");
+        com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(activity).setDownloadPath(privateDir.getAbsolutePath());
         com.orange.playerlibrary.PlayerSettingsManager settingsManager = com.orange.playerlibrary.PlayerSettingsManager.getInstance(this);
         //boolean isEnabled = settingsManager.isDownloadEnabled();
         settingsManager.setDownloadEnabled(true);//开启下载功能
+        PlayerSettingsManager.getInstance(activity).setMemoryPlayEnabled(true);//开启记忆播放功能
+        // 2. 针对当前视频实例启用记忆播放状态
+        mVideoView.setKeepVideoPlaying(true);
         // 设置默认内核（使用实例方法）
         PlayerSettingsManager.getInstance(activity).setPlayerEngine(PlayerConstants.ENGINE_IJK);
         // 创建播放器视图

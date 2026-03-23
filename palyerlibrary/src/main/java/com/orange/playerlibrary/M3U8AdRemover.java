@@ -32,12 +32,17 @@ import java.util.concurrent.Executors;
 public class M3U8AdRemover {
     
     private static final String TAG = "M3U8AdRemover";
+    
+    // 广告检测超时时间（毫秒）
+    private static final long AD_REMOVAL_TIMEOUT_MS = 10000; // 10 秒
     private static final String CACHE_DIR = "m3u8_cache";
     private static final String CACHE_INDEX_FILE = "cache_index.txt";
     
     private final Context mContext;
     private final File mCacheDir;
     private final ExecutorService mExecutor;
+
+    private volatile String mPlaceholderTsUrl;
     
     // TS白名单（实例级别，重启失效）
     private Set<String> mTsWhitelist = new HashSet<>();
@@ -140,37 +145,70 @@ public class M3U8AdRemover {
     }
     
     /**
-     * 处理m3u8 URL，移除广告片段
+     * 处理 m3u8 URL，移除广告片段
      * 
-     * @param m3u8Url 原始m3u8 URL
+     * @param m3u8Url 原始 m3u8 URL
      * @param callback 结果回调
      */
     public void processM3U8(String m3u8Url, Callback callback) {
+        Log.d(TAG, "processM3U8 started: " + m3u8Url);
+        final long startTime = System.currentTimeMillis();
+            
         mExecutor.execute(() -> {
+            boolean callbackExecuted = false;
             try {
+                Log.d(TAG, "processM3U8 executing on thread: " + Thread.currentThread().getName());
                 processM3U8Internal(m3u8Url, callback);
+                callbackExecuted = true;
+                long elapsed = System.currentTimeMillis() - startTime;
+                Log.d(TAG, "processM3U8 completed successfully in " + elapsed + "ms");
             } catch (Exception e) {
-                Log.e(TAG, "processM3U8 error", e);
-                callback.onError(m3u8Url, e);
+                Log.e(TAG, "processM3U8 error after " + (System.currentTimeMillis() - startTime) + "ms", e);
+                try {
+                    callback.onError(m3u8Url, e);
+                    callbackExecuted = true;
+                } catch (Exception ex) {
+                    Log.e(TAG, "Failed to call onError callback", ex);
+                }
+            } finally {
+                if (!callbackExecuted) {
+                    Log.wtf(TAG, "CRITICAL: Callback was not executed! Forcing error callback.");
+                    try {
+                        callback.onError(m3u8Url, new Exception("Callback not executed due to unknown error"));
+                    } catch (Exception ex) {
+                        Log.e(TAG, "Failed to force error callback", ex);
+                    }
+                }
             }
         });
     }
     
     private void processM3U8Internal(String m3u8Url, Callback callback) throws Exception {
+        final long methodStartTime = System.currentTimeMillis();
+        Log.d(TAG, "processM3U8Internal started for: " + m3u8Url);
+        
         // 1. 检查缓存
         String cacheKey = getCacheKey(m3u8Url);
         File cachedFile = new File(mCacheDir, cacheKey + ".m3u8");
         
         if (cachedFile.exists()) {
+            Log.d(TAG, "Cache file exists: " + cachedFile.getAbsolutePath());
             // 检查缓存索引获取广告片段数
             int adCount = getAdCountFromCacheIndex(cacheKey);
-            Log.d(TAG, "Using cached m3u8, ad segments removed: " + adCount);
-            callback.onResult(cachedFile.getAbsolutePath(), true, adCount);
+            Log.d(TAG, "Using cached m3u8, ad segments removed: " + adCount + ", file=" + cachedFile.getAbsolutePath());
+            // 缓存文件也需要通过 HTTP URL 返回，确保 server 设置了文件
+            String httpPlayUrl = M3U8PlaceholderServer.getInstance(mContext).getCleanedM3u8Url(cachedFile);
+            Log.d(TAG, "Cache hit, returning URL in " + (System.currentTimeMillis() - methodStartTime) + "ms");
+            callback.onResult(httpPlayUrl, false, adCount);
             return;
         }
         
-        // 2. 请求m3u8内容
+        Log.d(TAG, "Cache miss, fetching m3u8 content...");
+        
+        // 2. 请求 m3u8 内容
         String m3u8Content = fetchM3U8Content(m3u8Url);
+        Log.d(TAG, "fetchM3U8Content completed in " + (System.currentTimeMillis() - methodStartTime) + "ms, content length: " + 
+              (m3u8Content != null ? m3u8Content.length() : 0));
         if (m3u8Content == null || m3u8Content.isEmpty()) {
             Log.w(TAG, "Failed to fetch m3u8 content, using original URL");
             callback.onError(m3u8Url, new Exception("Failed to fetch m3u8 content"));
@@ -182,6 +220,7 @@ public class M3U8AdRemover {
         if (subM3U8Url != null) {
             Log.d(TAG, "Detected Master Playlist, fetching sub playlist: " + subM3U8Url);
             m3u8Content = fetchM3U8Content(subM3U8Url);
+            Log.d(TAG, "fetchSubM3U8Content completed in " + (System.currentTimeMillis() - methodStartTime) + "ms");
             if (m3u8Content == null || m3u8Content.isEmpty()) {
                 Log.w(TAG, "Failed to fetch sub m3u8 content, using original URL");
                 callback.onError(m3u8Url, new Exception("Failed to fetch sub m3u8 content"));
@@ -191,8 +230,13 @@ public class M3U8AdRemover {
             m3u8Url = subM3U8Url;
         }
         
+        Log.d(TAG, "Starting parseAndRemoveAds at " + (System.currentTimeMillis() - methodStartTime) + "ms...");
+        
         // 3. 解析并移除广告片段
         M3U8ParseResult result = parseAndRemoveAds(m3u8Content, m3u8Url);
+        
+        Log.d(TAG, "parseAndRemoveAds completed in " + (System.currentTimeMillis() - methodStartTime) + 
+              "ms, ads removed: " + result.adSegmentsRemoved);
         
         if (result.adSegmentsRemoved == 0) {
             // 没有广告，直接使用原始URL
@@ -203,15 +247,20 @@ public class M3U8AdRemover {
         
         // 4. 保存处理后的m3u8文件
         String cleanedContent = result.cleanedContent;
+        Log.d(TAG, "Writing cleaned m3u8 to cache file: " + cachedFile.getAbsolutePath());
         FileOutputStream fos = new FileOutputStream(cachedFile);
         fos.write(cleanedContent.getBytes("UTF-8"));
         fos.close();
+        Log.d(TAG, "File write completed in " + (System.currentTimeMillis() - methodStartTime) + "ms");
         
         // 5. 更新缓存索引
         updateCacheIndex(cacheKey, result.adSegmentsRemoved);
         
         Log.d(TAG, "Saved cleaned m3u8 to cache, ad segments removed: " + result.adSegmentsRemoved);
-        callback.onResult(cachedFile.getAbsolutePath(), true, result.adSegmentsRemoved);
+        String httpPlayUrl = M3U8PlaceholderServer.getInstance(mContext).getCleanedM3u8Url(cachedFile);
+        Log.d(TAG, "Serving cleaned m3u8 via local http: " + httpPlayUrl);
+        Log.d(TAG, "processM3U8Internal completed successfully in " + (System.currentTimeMillis() - methodStartTime) + "ms");
+        callback.onResult(httpPlayUrl, false, result.adSegmentsRemoved);
         
         // 6. 清理旧缓存
         cleanOldCache();
@@ -243,7 +292,11 @@ public class M3U8AdRemover {
                 sb.append(line).append("\n");
             }
             reader.close();
-            return sb.toString();
+            
+            String rawContent = sb.toString();
+            // Log raw content for debugging
+            Log.d(TAG, "========== RAW M3U8 CONTENT START ==========\n" + rawContent + "\n========== RAW M3U8 CONTENT END ==========");
+            return rawContent;
             
         } catch (Exception e) {
             Log.e(TAG, "fetchM3U8Content error", e);
@@ -358,6 +411,8 @@ public class M3U8AdRemover {
         
         List<SegmentInfo> adSegments = detectAdSegments(segments, hasOpeningDiscontinuity);
         result.adSegmentsRemoved = adSegments.size();
+
+        Log.d(TAG, "detectAdSegments finished, adSegmentsRemoved=" + result.adSegmentsRemoved);
         
         // 构建清理后的m3u8
         // 添加header
@@ -377,7 +432,10 @@ public class M3U8AdRemover {
         // 添加所有片段，广告片段用极短占位片段替换（保持时间轴）
         boolean firstSegment = true;
         String lastEncryptionKey = null; // 跟踪上一个输出的加密密钥，避免重复输出
+
+        String placeholderUrl = null;
         
+        Log.d(TAG, "Starting to process " + segments.size() + " segments...");
         for (SegmentInfo segment : segments) {
             if (firstSegment) {
                 firstSegment = false;
@@ -399,10 +457,12 @@ public class M3U8AdRemover {
             
             if (segment.isAd) {
                 // 广告片段：保留原始时长，用本地占位TS文件替换
-                // 创建一个本地空白TS文件作为占位符
-                String placeholderPath = createPlaceholderTs();
+                if (placeholderUrl == null) {
+                    placeholderUrl = getOrCreatePlaceholderTsUrl();
+                    Log.d(TAG, "Using placeholder TS: " + placeholderUrl);
+                }
                 cleaned.append("#EXTINF:").append(String.format("%.6f", segment.duration)).append(",\n");
-                cleaned.append(placeholderPath).append("\n");
+                cleaned.append(placeholderUrl).append("\n");
             } else {
                 // 正常片段
                 cleaned.append("#EXTINF:").append(String.format("%.6f", segment.duration)).append(",\n");
@@ -410,9 +470,11 @@ public class M3U8AdRemover {
             }
         }
         
+        Log.d(TAG, "Finished processing segments, appending ENDLIST...");
         cleaned.append("#EXT-X-ENDLIST\n");
         
         result.cleanedContent = cleaned.toString();
+        Log.d(TAG, "parseAndRemoveAds completed, cleaned content length: " + result.cleanedContent.length());
         return result;
     }
     
@@ -506,8 +568,8 @@ public class M3U8AdRemover {
             }
         }
         
-        // 方法2: 检测DISCONTINUITY标记的广告片段组（开头广告）
-        // 即使方法1检测到了广告，也要检测开头广告
+        // 方法 2: 检测 DISCONTINUITY 标记的广告片段组（开头广告）
+        // 即使方法 1 检测到了广告，也要检测开头广告
         {
             // 找出所有DISCONTINUITY位置
             List<Integer> discontinuityPositions = new ArrayList<>();
@@ -546,9 +608,9 @@ public class M3U8AdRemover {
             }
         }
         
-        // 方法3: 检测中间广告（总是执行，确保DISCONTINUITY之间的广告被检测）
-        {
-            // 找出所有DISCONTINUITY位置
+        // 方法 3: 检测中间广告（仅在方法 1 和 2 未检测到广告时执行，避免误判）
+        if (adSegments.isEmpty()) {
+            // 找出所有 DISCONTINUITY 位置
             List<Integer> discontinuityPositions = new ArrayList<>();
             for (int i = 0; i < segments.size(); i++) {
                 if (segments.get(i).isDiscontinuity) {
@@ -558,7 +620,10 @@ public class M3U8AdRemover {
             
             Log.d(TAG, "Method 3: Found " + discontinuityPositions.size() + " DISCONTINUITY markers");
             
-            if (discontinuityPositions.size() >= 1) {
+            // 防止过度检测：如果 DISCONTINUITY 太多，说明这不是普通视频流，跳过中间广告检测
+            if (discontinuityPositions.size() > 50) {
+                Log.w(TAG, "Too many DISCONTINUITY markers (" + discontinuityPositions.size() + "), this appears to be a live stream or special format, skipping mid-roll ad detection");
+            } else if (discontinuityPositions.size() >= 1) {
                 // 检测中间广告（两个DISCONTINUITY之间的片段）
                 for (int d = 0; d < discontinuityPositions.size() - 1; d++) {
                     int startPos = discontinuityPositions.get(d) + 1;
@@ -569,13 +634,12 @@ public class M3U8AdRemover {
                         for (int j = startPos; j <= endPos; j++) {
                             totalDuration += segments.get(j).duration;
                         }
-                        Log.d(TAG, "Mid-roll check: startPos=" + startPos + ", endPos=" + endPos + ", duration=" + totalDuration + "s");
-                        // 如果中间片段组时长<60秒，可能是中间广告
+                        // 减少日志输出，只输出检测到广告时的汇总信息
                         if (totalDuration < 60 && totalDuration > 5) {
+                            int adCountInGroup = 0;
                             for (int j = startPos; j <= endPos; j++) {
                                 // 检查白名单
                                 if (isInWhitelist(segments.get(j).url)) {
-                                    Log.d(TAG, "Segment in whitelist, skipping mid-roll ad detection: " + segments.get(j).url);
                                     continue;
                                 }
                                 // 检查是否已经被标记为广告
@@ -584,7 +648,11 @@ public class M3U8AdRemover {
                                 }
                                 segments.get(j).isAd = true;
                                 adSegments.add(segments.get(j));
-                                Log.d(TAG, "Mid-roll ad detected at position " + j);
+                                adCountInGroup++;
+                            }
+                            // 只在检测到广告时输出日志
+                            if (adCountInGroup > 0) {
+                                Log.d(TAG, "Mid-roll ad detected: positions " + startPos + "-" + endPos + ", count=" + adCountInGroup + ", duration=" + totalDuration + "s");
                             }
                         }
                     }
@@ -616,6 +684,8 @@ public class M3U8AdRemover {
                     }
                 }
             }
+        } else {
+            Log.d(TAG, "Method 3: Skipping DISCONTINUITY-based ad detection since other methods already found " + adSegments.size() + " ad segments");
         }
         
         // 方法3: 检测文件名数字序列突变（广告片段的数字通常突变）
@@ -994,13 +1064,22 @@ public class M3U8AdRemover {
         java.util.Arrays.sort(files, (a, b) -> 
             Long.compare(a.lastModified(), b.lastModified()));
         
+        // 获取当前正在使用的 cleaned m3u8 文件路径（从 server 获取）
+        String currentCleanedPath = M3U8PlaceholderServer.getInstance(mContext).getCurrentCleanedM3u8Path();
+        
         int toDelete = files.length - 100;
-        for (int i = 0; i < toDelete; i++) {
-            if (!files[i].getName().equals(CACHE_INDEX_FILE)) {
+        int deleted = 0;
+        for (int i = 0; i < files.length && deleted < toDelete; i++) {
+            String name = files[i].getName();
+            // 保护：索引文件、placeholder.ts、当前正在播放的 cleaned m3u8
+            if (!name.equals(CACHE_INDEX_FILE) && 
+                !name.equals("placeholder.ts") &&
+                !(currentCleanedPath != null && files[i].getAbsolutePath().equals(currentCleanedPath))) {
                 files[i].delete();
+                deleted++;
             }
         }
-        Log.d(TAG, "Cleaned " + toDelete + " old cache files");
+        Log.d(TAG, "Cleaned " + deleted + " old cache files");
     }
     
     /**
@@ -1078,7 +1157,7 @@ public class M3U8AdRemover {
             
             // 如果已存在，直接返回
             if (placeholderFile.exists()) {
-                return "file://" + placeholderFile.getAbsolutePath();
+                return M3U8PlaceholderServer.getInstance(mContext).getPlaceholderUrl();
             }
             
             // 创建一个最小的空白TS文件
@@ -1090,12 +1169,24 @@ public class M3U8AdRemover {
             fos.close();
             
             Log.d(TAG, "Created placeholder TS file: " + placeholderFile.getAbsolutePath());
-            return "file://" + placeholderFile.getAbsolutePath();
+            return M3U8PlaceholderServer.getInstance(mContext).getPlaceholderUrl();
             
         } catch (Exception e) {
             Log.e(TAG, "Failed to create placeholder TS", e);
-            // 返回一个空字符串，播放器会跳过
-            return "";
+            throw new RuntimeException("Failed to create placeholder TS", e);
+        }
+    }
+
+    private String getOrCreatePlaceholderTsUrl() {
+        if (mPlaceholderTsUrl != null && !mPlaceholderTsUrl.isEmpty()) {
+            return mPlaceholderTsUrl;
+        }
+        synchronized (this) {
+            if (mPlaceholderTsUrl != null && !mPlaceholderTsUrl.isEmpty()) {
+                return mPlaceholderTsUrl;
+            }
+            mPlaceholderTsUrl = createPlaceholderTs();
+            return mPlaceholderTsUrl;
         }
     }
     
@@ -1143,8 +1234,13 @@ public class M3U8AdRemover {
     public static boolean isHttpM3U8(String url) {
         if (url == null) return false;
         String lower = url.toLowerCase();
-        return (lower.startsWith("http://") || lower.startsWith("https://")) 
-            && lower.contains(".m3u8");
+        
+        // 允许带参数的 m3u8 URL，例如 xxx.m3u8?token=xxx 或者虽然没有 .m3u8 后缀但可能是 M3U8 流的情况
+        boolean isHttp = lower.startsWith("http://") || lower.startsWith("https://");
+        boolean hasM3u8Keyword = lower.contains(".m3u8") || lower.contains("m3u8");
+        
+        Log.d(TAG, "isHttpM3U8 check for url: " + url + " -> " + (isHttp && hasM3u8Keyword));
+        return isHttp && hasM3u8Keyword;
     }
     
     /**

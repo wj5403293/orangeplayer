@@ -45,7 +45,8 @@ import java.util.List;
  */
 public class MainActivity extends AppCompatActivity {
 
-    private static final String DEFAULT_VIDEO_URL = "http://player.alicdn.com/video/aliyunmedia.mp4";
+    private static final String DEFAULT_VIDEO_URL = "http://player.alicdn.com/video/aliyunmedia.mp4"; // 默认MP4
+    // private static final String DEFAULT_VIDEO_URL = "https://your_test_m3u8_url_here.m3u8"; 
     private static final String DEFAULT_VIDEO_TITLE = "测试视频";
 
     private OrangevideoView mVideoView;
@@ -68,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
         
         // 开启 M3U8 去广告功能（必须在 setContentView 之前设置）
         com.orange.playerlibrary.M3U8AdManager.getInstance(this).setEnabled(true);
+        // 强制清除缓存，方便排查 5:01 广告为何未被去除
+        com.orange.playerlibrary.M3U8AdManager.getInstance(this).clearCache();
         
         // 默认在 Demo 中开启记忆播放功能
         com.orange.playerlibrary.PlayerSettingsManager.getInstance(this).setMemoryPlayEnabled(true);
@@ -162,11 +165,23 @@ public class MainActivity extends AppCompatActivity {
         Button btnSwitchPlayer = findViewById(R.id.btn_switch_player);
         Button btnSubtitleTest = findViewById(R.id.btn_subtitle_test);
         Button btnPipTest = findViewById(R.id.btn_pip_test);
+        Button btnSwitchAdRemoval = findViewById(R.id.btn_switch_ad_removal);
 
         btnSpeedTest.setOnClickListener(v -> showSpeedDialog());
         btnSwitchPlayer.setOnClickListener(v -> showPlayerSwitchDialog());
         btnSubtitleTest.setOnClickListener(v -> testSubtitle());
         btnPipTest.setOnClickListener(v -> enterPictureInPicture());
+        
+        btnSwitchAdRemoval.setOnClickListener(v -> {
+            com.orange.playerlibrary.M3U8AdManager adManager = com.orange.playerlibrary.M3U8AdManager.getInstance(this);
+            boolean enabled = !adManager.isEnabled();
+            adManager.setEnabled(enabled);
+            btnSwitchAdRemoval.setText(enabled ? "去广告(开)" : "去广告(关)");
+            log(enabled ? "✅ M3U8去广告已开启" : "❌ M3U8去广告已关闭");
+            if (enabled) {
+                adManager.clearCache(); // 开启时清除缓存确保生效
+            }
+        });
 
         // 选集和播放功能按钮
         Button btnAddEpisodes = findViewById(R.id.btn_add_episodes);
@@ -246,6 +261,9 @@ public class MainActivity extends AppCompatActivity {
         mCurrentUrl = url;
         mCurrentTitle = "自定义视频";
 
+        // 每次播放新链接前，清空旧缓存以确保走去广告检测逻辑
+        com.orange.playerlibrary.M3U8AdManager.getInstance(this).clearCache();
+
         if (useSniff) {
             log("🔍 开始嗅探: " + getShortUrl(url));
             
@@ -260,7 +278,9 @@ public class MainActivity extends AppCompatActivity {
             
             // 设置新视频（启用边看边存）
             android.util.Log.d("MainActivity", "calling setUp with url=" + url);
-            mVideoView.setUp(url, true, mCurrentTitle);
+            // 这里调用 setUrl 才能触发 OrangevideoView 重写的包含去广告逻辑的方法，不要直接调用 setUp
+            mVideoView.setUrl(url);
+            
             // 延迟一帧再开始播放，让播放器有时间完成重置
             mVideoView.post(new Runnable() {
                 @Override
