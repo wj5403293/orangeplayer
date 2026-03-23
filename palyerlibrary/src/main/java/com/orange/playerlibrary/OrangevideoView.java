@@ -64,8 +64,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     // M3U8去广告重试相关
     private String mOriginalM3U8Url = null; // 原始m3u8 URL
+    private Map<String, String> mOriginalM3U8Headers = null;
+    private String mOriginalM3U8Title = "";
+    private boolean mOriginalM3U8CacheWithPlay = true;
     private boolean mIsPlayingAdRemovedM3U8 = false; // 是否正在播放去广告后的m3u8
     private boolean mHasRetriedOriginalUrl = false; // 是否已重试过原始URL
+
 
     // ExoPlayer Surface 切换相关 (Android Q+)
     private SurfaceControl mExoSurfaceControl;
@@ -307,29 +311,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 super.onPlayError(url, objects);
                 android.util.Log.e(TAG, "onPlayError: url=" + url + ", objects=" + java.util.Arrays.toString(objects));
 
-                // 如果正在播放去广告后的m3u8且还没重试过，尝试播放原始URL
-                if (mIsPlayingAdRemovedM3U8 && !mHasRetriedOriginalUrl && mOriginalM3U8Url != null) {
+                boolean adRemovalEnabled = mM3U8AdManager != null && mM3U8AdManager.isEnabled();
+                boolean hasOriginalM3U8 = mOriginalM3U8Url != null && M3U8AdRemover.isHttpM3U8(mOriginalM3U8Url);
+                boolean currentIsProcessedM3U8 = url != null && (url.contains("127.0.0.1") || url.contains("cleaned.m3u8") || url.contains("m3u8_cache"));
+
+                // 去广告开启下，只要当前播放流疑似去广告处理结果且未重试过，就自动回退原始URL
+                if (adRemovalEnabled && hasOriginalM3U8 && !mHasRetriedOriginalUrl
+                        && (mIsPlayingAdRemovedM3U8 || currentIsProcessedM3U8)) {
                     android.util.Log.w(TAG,
-                            "Ad-removed m3u8 playback failed, retrying with original URL: " + mOriginalM3U8Url);
+                            "M3U8 playback failed after ad-removal pipeline, retrying with original URL: " + mOriginalM3U8Url);
                     mHasRetriedOriginalUrl = true;
                     mIsPlayingAdRemovedM3U8 = false;
-
-                    // 备份失败的本地m3u8文件，便于排查
-                    try {
-                        if (url != null && url.contains("m3u8_cache") && url.endsWith(".m3u8")) {
-                            java.io.File failedFile = new java.io.File(url);
-                            java.io.File cacheDir = failedFile.getParentFile();
-                            if (cacheDir != null) {
-                                java.io.File backupFile = new java.io.File(cacheDir, "failed_" + failedFile.getName());
-                                boolean renamed = failedFile.renameTo(backupFile);
-                                android.util.Log.w(TAG, "Backed up failed m3u8: " + backupFile.getAbsolutePath() + ", renamed=" + renamed);
-                            }
-                        }
-                    } catch (Exception e) {
-                        android.util.Log.e(TAG, "Backup failed m3u8 error", e);
-                    }
-
-                    // 注意：此处不要立刻清除缓存，否则无法导出失败的m3u8/placeholder用于排查
 
                     // 重试原始URL（跳过去广告流程）
                     post(() -> {
@@ -339,7 +331,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         if (mPrepareView != null) {
                             mPrepareView.setVisibility(View.VISIBLE);
                         }
-                        // 直接播放原始URL，不再走去广告流程
+
                         saveVideoUrl(mOriginalM3U8Url);
                         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
                             mOrangeController.getVideoEventManager().resetTemporarySettings(mOriginalM3U8Url);
@@ -349,7 +341,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                         autoSelectPlayerEngine(mOriginalM3U8Url);
                         getVideoFirstFrameAsync(mOriginalM3U8Url);
-                        OrangevideoView.super.setUp(mOriginalM3U8Url, true, "");
+
+                        if (mOriginalM3U8Headers != null) {
+                            OrangevideoView.super.setUp(mOriginalM3U8Url, mOriginalM3U8CacheWithPlay, null,
+                                    mOriginalM3U8Headers, mOriginalM3U8Title);
+                        } else {
+                            OrangevideoView.super.setUp(mOriginalM3U8Url, mOriginalM3U8CacheWithPlay, mOriginalM3U8Title);
+                        }
                         startPlayLogic();
                     });
                     return;
@@ -357,15 +355,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                 setOrangePlayState(PlayerConstants.STATE_ERROR);
 
-                // 如果播放的是本地缓存的m3u8文件，清除该缓存
-                if (url != null && url.contains("m3u8_cache") && mM3U8AdManager != null) {
-                    // 尝试从保存的原始URL清除缓存
-                    String originalUrl = mVideoUrl;
-                    if (originalUrl != null && M3U8AdRemover.isHttpM3U8(originalUrl)) {
-                        android.util.Log.d(TAG, "Clearing cache for failed m3u8: " + originalUrl);
-                        mM3U8AdManager.clearCacheForUrl(originalUrl);
-                    }
+                // 去广告链路播放失败时，清除原始URL对应缓存，避免下次命中坏缓存
+                if (adRemovalEnabled && hasOriginalM3U8 && mM3U8AdManager != null) {
+                    android.util.Log.d(TAG, "Clearing cache for failed m3u8 originalUrl=" + mOriginalM3U8Url);
+                    mM3U8AdManager.clearCacheForUrl(mOriginalM3U8Url);
                 }
+
             }
 
             @Override
@@ -1251,7 +1246,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         // 保存原始URL用于重试
         mOriginalM3U8Url = url;
+        mOriginalM3U8Headers = headers;
+        mOriginalM3U8Title = title != null ? title : "";
+        mOriginalM3U8CacheWithPlay = cacheWithPlay;
         mHasRetriedOriginalUrl = false;
+
 
         // 先清除视频URL，避免短暂播放之前的视频
         mVideoUrl = null;

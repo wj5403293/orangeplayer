@@ -199,8 +199,10 @@ public class M3U8AdRemover {
             // 缓存文件也需要通过 HTTP URL 返回，确保 server 设置了文件
             String httpPlayUrl = M3U8PlaceholderServer.getInstance(mContext).getCleanedM3u8Url(cachedFile);
             Log.d(TAG, "Cache hit, returning URL in " + (System.currentTimeMillis() - methodStartTime) + "ms");
-            callback.onResult(httpPlayUrl, false, adCount);
+            // 本地 cleaned m3u8，标记 isLocalFile=true 便于播放器回退
+            callback.onResult(httpPlayUrl, true, adCount);
             return;
+
         }
         
         Log.d(TAG, "Cache miss, fetching m3u8 content...");
@@ -260,10 +262,12 @@ public class M3U8AdRemover {
         String httpPlayUrl = M3U8PlaceholderServer.getInstance(mContext).getCleanedM3u8Url(cachedFile);
         Log.d(TAG, "Serving cleaned m3u8 via local http: " + httpPlayUrl);
         Log.d(TAG, "processM3U8Internal completed successfully in " + (System.currentTimeMillis() - methodStartTime) + "ms");
-        callback.onResult(httpPlayUrl, false, result.adSegmentsRemoved);
-        
+        // 本地 cleaned m3u8，标记 isLocalFile=true 便于播放器回退
+        callback.onResult(httpPlayUrl, true, result.adSegmentsRemoved);
+
         // 6. 清理旧缓存
         cleanOldCache();
+
     }
     
     /**
@@ -344,10 +348,12 @@ public class M3U8AdRemover {
                 
                 // 处理加密密钥标签
                 if (line.startsWith("#EXT-X-KEY:")) {
-                    // 提取密钥信息（去掉 #EXT-X-KEY: 前缀）
-                    currentEncryptionKey = line.substring("#EXT-X-KEY:".length());
+                    // 提取密钥信息（去掉 #EXT-X-KEY: 前缀）并将 URI 绝对化，避免本地清洗后取 key 失败
+                    String rawKeyAttrs = line.substring("#EXT-X-KEY:".length());
+                    currentEncryptionKey = rewriteKeyUri(rawKeyAttrs, baseUrlPath);
                     Log.d(TAG, "Found encryption key: " + currentEncryptionKey);
                 }
+
                 
                 if (line.equals("#EXT-X-DISCONTINUITY")) {
                     // 标记流切换点
@@ -457,6 +463,11 @@ public class M3U8AdRemover {
             
             if (segment.isAd) {
                 // 广告片段：保留原始时长，用本地占位TS文件替换
+                // 若当前处于加密态，先关闭加密，避免占位片段被误解密
+                if (lastEncryptionKey != null) {
+                    cleaned.append("#EXT-X-KEY:METHOD=NONE\n");
+                    lastEncryptionKey = null;
+                }
                 if (placeholderUrl == null) {
                     placeholderUrl = getOrCreatePlaceholderTsUrl();
                     Log.d(TAG, "Using placeholder TS: " + placeholderUrl);
@@ -468,6 +479,7 @@ public class M3U8AdRemover {
                 cleaned.append("#EXTINF:").append(String.format("%.6f", segment.duration)).append(",\n");
                 cleaned.append(absoluteUrl).append("\n");
             }
+
         }
         
         Log.d(TAG, "Finished processing segments, appending ENDLIST...");
@@ -997,9 +1009,35 @@ public class M3U8AdRemover {
     }
     
     /**
+     * 将 #EXT-X-KEY 行中的 URI 绝对化
+     */
+    private String rewriteKeyUri(String keyAttributes, String baseUrlPath) {
+        if (keyAttributes == null) return null;
+        try {
+            String marker = "URI=\"";
+            int idx = keyAttributes.indexOf(marker);
+            if (idx < 0) {
+                return keyAttributes;
+            }
+            int start = idx + marker.length();
+            int end = keyAttributes.indexOf('"', start);
+            if (end < 0) {
+                return keyAttributes;
+            }
+            String uri = keyAttributes.substring(start, end);
+            String absoluteUri = toAbsoluteUrl(uri, baseUrlPath);
+            return keyAttributes.substring(0, start) + absoluteUri + keyAttributes.substring(end);
+        } catch (Exception e) {
+            Log.e(TAG, "rewriteKeyUri error", e);
+            return keyAttributes;
+        }
+    }
+    
+    /**
      * 生成缓存key
      */
     private String getCacheKey(String url) {
+
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] digest = md.digest(url.getBytes("UTF-8"));
