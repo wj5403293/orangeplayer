@@ -1025,8 +1025,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // 检查本地是否已下载，如果已下载则使用本地路径
         String finalUrl = url;
         try {
+            android.util.Log.d(TAG, "setUp: checking local download for url=" + url);
             com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(getContext());
             String localPath = downloadManager.getLocalVideoPath(url);
+            android.util.Log.d(TAG, "setUp: local download lookup result=" + localPath + " for url=" + url);
             if (localPath != null && !localPath.isEmpty()) {
                 java.io.File localFile = new java.io.File(localPath);
                 if (localFile.exists()) {
@@ -1038,14 +1040,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     } else {
                         finalUrl = localPath;
                     }
-                    
+                    android.util.Log.d(TAG, "setUp: switching playback to local url=" + finalUrl);
+
                     // 播放本地文件不需要缓存
                     cacheWithPlay = false;
+                } else {
+                    android.util.Log.w(TAG, "setUp: local path returned but file missing=" + localPath);
                 }
+            } else {
+                android.util.Log.d(TAG, "setUp: no local download found, keep original url=" + url);
             }
         } catch (Exception e) {
             android.util.Log.e(TAG, "Error checking local downloaded video", e);
         }
+
 
         // 清除旧URL，防止播放旧视频
         mVideoUrl = null;
@@ -1462,9 +1470,20 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         return mOriginUrl != null ? mOriginUrl : mVideoUrl;
     }
 
+    public String getStableSourceUrl() {
+        String currentUrl = getUrl();
+        if (mOriginalM3U8Url != null && !mOriginalM3U8Url.isEmpty()
+                && currentUrl != null
+                && (currentUrl.contains("127.0.0.1") || currentUrl.contains("/cleaned/") || currentUrl.contains("m3u8_cache"))) {
+            return mOriginalM3U8Url;
+        }
+        return currentUrl;
+    }
+
     public String getVideoUrl() {
         return mOriginUrl != null ? mOriginUrl : mVideoUrl;
     }
+
 
     public Map<String, String> getVideoHeaders() {
         return mVideoHeaders;
