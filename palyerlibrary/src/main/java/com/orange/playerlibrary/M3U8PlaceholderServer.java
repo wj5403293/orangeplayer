@@ -13,9 +13,12 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 
 /**
  * Minimal local HTTP server to serve placeholder.ts for M3U8 ad removal.
@@ -26,7 +29,8 @@ public class M3U8PlaceholderServer {
 
     private static final String PATH_PLACEHOLDER = "placeholder.ts";
 
-    private static final String PATH_CLEANED = "cleaned.m3u8";
+    private static final String PATH_CLEANED_PREFIX = "cleaned/";
+
 
     private static final Charset HTTP_HEADER_CHARSET = StandardCharsets.ISO_8859_1;
 
@@ -35,8 +39,10 @@ public class M3U8PlaceholderServer {
     private final Context mContext;
     private final AtomicBoolean mRunning = new AtomicBoolean(false);
     private final ExecutorService mClientExecutor = Executors.newCachedThreadPool();
+    private final Set<String> mRegisteredCleanedFiles = ConcurrentHashMap.newKeySet();
 
-    private volatile File mCleanedM3u8File;
+    private volatile File mCurrentCleanedM3u8File;
+
 
     private ServerSocket mServerSocket;
     private Thread mAcceptThread;
@@ -97,12 +103,6 @@ public class M3U8PlaceholderServer {
         return mPort;
     }
 
-    public void setCleanedM3u8File(File cleanedM3u8File) {
-        mCleanedM3u8File = cleanedM3u8File;
-        Log.d(TAG, "setCleanedM3u8File: " + (cleanedM3u8File != null ? cleanedM3u8File.getAbsolutePath() : "null") + 
-                ", exists=" + (cleanedM3u8File != null && cleanedM3u8File.exists()));
-    }
-
     public String getPlaceholderUrl() {
         if (!mRunning.get()) {
             startIfNeeded();
@@ -114,15 +114,25 @@ public class M3U8PlaceholderServer {
         if (!mRunning.get()) {
             startIfNeeded();
         }
-        setCleanedM3u8File(cleanedM3u8File);
-        String url = "http://127.0.0.1:" + mPort + "/" + PATH_CLEANED;
-        Log.d(TAG, "getCleanedM3u8Url: " + url + " for file=" + cleanedM3u8File.getAbsolutePath());
+        if (cleanedM3u8File == null) {
+            Log.w(TAG, "getCleanedM3u8Url called with null file");
+            return null;
+        }
+
+        String fileName = cleanedM3u8File.getName();
+        mRegisteredCleanedFiles.add(fileName);
+        mCurrentCleanedM3u8File = cleanedM3u8File;
+
+        String url = "http://127.0.0.1:" + mPort + "/" + PATH_CLEANED_PREFIX + fileName;
+        Log.d(TAG, "getCleanedM3u8Url: " + url + " for file=" + cleanedM3u8File.getAbsolutePath()
+                + ", exists=" + cleanedM3u8File.exists());
         return url;
     }
 
     public String getCurrentCleanedM3u8Path() {
-        return mCleanedM3u8File != null ? mCleanedM3u8File.getAbsolutePath() : null;
+        return mCurrentCleanedM3u8File != null ? mCurrentCleanedM3u8File.getAbsolutePath() : null;
     }
+
 
     private void acceptLoop() {
         while (mRunning.get()) {
@@ -170,12 +180,14 @@ public class M3U8PlaceholderServer {
                 file = new File(mContext.getCacheDir(), "m3u8_cache/" + PATH_PLACEHOLDER);
                 contentType = "video/MP2T";
                 Log.d(TAG, "Placeholder file path: " + file.getAbsolutePath() + ", exists=" + file.exists());
-            } else if (PATH_CLEANED.equals(path)) {
-                file = mCleanedM3u8File;
+            } else if (path.startsWith(PATH_CLEANED_PREFIX)) {
+                file = getCleanedM3u8FileFromPath(path);
                 contentType = "application/x-mpegURL";
-                Log.d(TAG, "Cleaned m3u8 file: " + (file != null ? file.getAbsolutePath() : "null") + 
-                        ", exists=" + (file != null && file.exists()));
+                Log.d(TAG, "Resolved cleaned m3u8 path /" + path + " -> "
+                        + (file != null ? file.getAbsolutePath() : "null")
+                        + ", exists=" + (file != null && file.exists()));
             } else {
+
                 writeNotFound(output);
                 safeClose(client);
                 return;
@@ -265,6 +277,24 @@ public class M3U8PlaceholderServer {
         }
     }
 
+    private File getCleanedM3u8FileFromPath(String path) {
+        String fileName = path.substring(PATH_CLEANED_PREFIX.length());
+        if (fileName.isEmpty() || fileName.contains("/") || fileName.contains("\\") || fileName.contains("..")) {
+            Log.w(TAG, "Invalid cleaned m3u8 path: " + path);
+            return null;
+        }
+        if (!mRegisteredCleanedFiles.contains(fileName)) {
+            Log.w(TAG, "Unregistered cleaned m3u8 file requested: " + fileName);
+            return null;
+        }
+
+        File file = new File(mContext.getCacheDir(), "m3u8_cache/" + fileName);
+        if (file.exists()) {
+            mCurrentCleanedM3u8File = file;
+        }
+        return file;
+    }
+
     private String readRequest(InputStream input) throws IOException {
         StringBuilder sb = new StringBuilder();
         byte[] buffer = new byte[1024];
@@ -277,6 +307,7 @@ public class M3U8PlaceholderServer {
         }
         return sb.toString();
     }
+
 
     private void writeNotFound(OutputStream output) throws IOException {
         String resp = "HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n";
