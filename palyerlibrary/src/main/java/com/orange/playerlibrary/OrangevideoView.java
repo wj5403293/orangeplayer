@@ -4,8 +4,10 @@ import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.Surface;
+
 import android.view.SurfaceControl;
 import android.view.SurfaceView;
 import android.view.View;
@@ -24,8 +26,10 @@ import com.shuyu.gsyvideoplayer.player.SystemPlayerManager;
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 public class OrangevideoView extends GSYBaseVideoPlayer {
 
@@ -34,6 +38,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public static final int STATE_STARTSNIFFING = PlayerConstants.STATE_STARTSNIFFING;
     public static final int STATE_ENDSNIFFING = PlayerConstants.STATE_ENDSNIFFING;
+    public static final int STATE_M3U8_AD_REMOVAL = PlayerConstants.STATE_M3U8_AD_REMOVAL;
+    public static final int STATE_M3U8_AD_REMOVAL_END = PlayerConstants.STATE_M3U8_AD_REMOVAL_END;
 
     public static OrangeSharedSqlite sqlite;
 
@@ -69,6 +75,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private boolean mOriginalM3U8CacheWithPlay = true;
     private boolean mIsPlayingAdRemovedM3U8 = false; // 是否正在播放去广告后的m3u8
     private boolean mHasRetriedOriginalUrl = false; // 是否已重试过原始URL
+    private boolean mPendingM3U8AdRemoval = false;
+    private boolean mBypassM3U8AdRemovalOnce = false;
+    private int mM3U8AdRequestToken = 0;
 
 
     // ExoPlayer Surface 切换相关 (Android Q+)
@@ -108,15 +117,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private String mCustomLoadingText = null;
     // 播放器核心是否已初始化
     private boolean mPlayerFactoryInitialized = false;
-    private final Runnable mSpeedUpdateRunnable = new Runnable() {
-        @Override
-        public void run() {
-            updateLoadingSpeed();
-            if (mIsShowingLoading && mSpeedHandler != null) {
-                mSpeedHandler.postDelayed(this, 1000);
-            }
-        }
-    };
+    private final Runnable mSpeedUpdateRunnable=new Runnable(){@Override public void run(){updateLoadingSpeed();if(mIsShowingLoading&&mSpeedHandler!=null){mSpeedHandler.postDelayed(this,1000);}}};
 
     private DebugLogCallback mDebugLogCallback;
 
@@ -243,14 +244,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         hasRestoredProgress = restorePlaybackProgress();
                         android.util.Log.d(TAG, "Tried to restore playback progress: " + hasRestoredProgress);
                     }
-                    
+
                     if (mSkipManager != null) {
                         // 直接检查并执行跳过片头，不依赖 SkipManager.mVideoView
                         long skipTime = mSkipManager.getSkipIntroTime();
                         boolean enabled = mSkipManager.isSkipIntroEnabled();
                         android.util.Log.d(TAG, "Checking skip intro: enabled=" + enabled + ", skipTime=" + skipTime
-                                + ", skipped=" + mSkipManager.isIntroSkipped() + ", hasRestoredProgress=" + hasRestoredProgress);
-                        
+                                + ", skipped=" + mSkipManager.isIntroSkipped() + ", hasRestoredProgress="
+                                + hasRestoredProgress);
+
                         // 如果已经恢复了记忆播放，就不再执行跳过片头（因为记忆的位置肯定更靠后）
                         if (hasRestoredProgress) {
                             mSkipManager.setIntroSkipped(true);
@@ -313,13 +315,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                 boolean adRemovalEnabled = mM3U8AdManager != null && mM3U8AdManager.isEnabled();
                 boolean hasOriginalM3U8 = mOriginalM3U8Url != null && M3U8AdRemover.isHttpM3U8(mOriginalM3U8Url);
-                boolean currentIsProcessedM3U8 = url != null && (url.contains("127.0.0.1") || url.contains("cleaned.m3u8") || url.contains("m3u8_cache"));
+                boolean currentIsProcessedM3U8 = url != null
+                        && (url.contains("127.0.0.1") || url.contains("cleaned.m3u8") || url.contains("m3u8_cache"));
 
                 // 去广告开启下，只要当前播放流疑似去广告处理结果且未重试过，就自动回退原始URL
                 if (adRemovalEnabled && hasOriginalM3U8 && !mHasRetriedOriginalUrl
                         && (mIsPlayingAdRemovedM3U8 || currentIsProcessedM3U8)) {
                     android.util.Log.w(TAG,
-                            "M3U8 playback failed after ad-removal pipeline, retrying with original URL: " + mOriginalM3U8Url);
+                            "M3U8 playback failed after ad-removal pipeline, retrying with original URL: "
+                                    + mOriginalM3U8Url);
                     mHasRetriedOriginalUrl = true;
                     mIsPlayingAdRemovedM3U8 = false;
 
@@ -346,7 +350,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                             OrangevideoView.super.setUp(mOriginalM3U8Url, mOriginalM3U8CacheWithPlay, null,
                                     mOriginalM3U8Headers, mOriginalM3U8Title);
                         } else {
-                            OrangevideoView.super.setUp(mOriginalM3U8Url, mOriginalM3U8CacheWithPlay, mOriginalM3U8Title);
+                            OrangevideoView.super.setUp(mOriginalM3U8Url, mOriginalM3U8CacheWithPlay,
+                                    mOriginalM3U8Title);
                         }
                         startPlayLogic();
                     });
@@ -1021,14 +1026,16 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, String title) {
         android.util.Log.d(TAG, "setUp() called with url=" + url);
-        
+        mVideoHeaders = null;
+        clearM3U8AdRemovalState();
+
         // 检查本地是否已下载，如果已下载则使用本地路径
+
         String finalUrl = url;
         try {
-            android.util.Log.d(TAG, "setUp: checking local download for url=" + url);
-            com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = com.orange.playerlibrary.download.SimpleDownloadManager.getInstance(getContext());
+            com.orange.playerlibrary.download.SimpleDownloadManager downloadManager = com.orange.playerlibrary.download.SimpleDownloadManager
+                    .getInstance(getContext());
             String localPath = downloadManager.getLocalVideoPath(url);
-            android.util.Log.d(TAG, "setUp: local download lookup result=" + localPath + " for url=" + url);
             if (localPath != null && !localPath.isEmpty()) {
                 java.io.File localFile = new java.io.File(localPath);
                 if (localFile.exists()) {
@@ -1040,20 +1047,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     } else {
                         finalUrl = localPath;
                     }
-                    android.util.Log.d(TAG, "setUp: switching playback to local url=" + finalUrl);
 
                     // 播放本地文件不需要缓存
                     cacheWithPlay = false;
-                } else {
-                    android.util.Log.w(TAG, "setUp: local path returned but file missing=" + localPath);
                 }
-            } else {
-                android.util.Log.d(TAG, "setUp: no local download found, keep original url=" + url);
             }
         } catch (Exception e) {
             android.util.Log.e(TAG, "Error checking local downloaded video", e);
         }
-
 
         // 清除旧URL，防止播放旧视频
         mVideoUrl = null;
@@ -1089,12 +1090,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return true;
         }
 
-        // 如果是HTTP m3u8且启用了去广告，先处理URL
-        if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(finalUrl)) {
-            processM3U8WithAdRemoval(finalUrl, cacheWithPlay, title, null);
-            return true;
-        }
-
+    
         saveVideoUrl(finalUrl);
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
@@ -1118,7 +1114,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     public void playTorrent(java.io.File torrentFile, java.io.File saveDir,
             com.orange.playerlibrary.torrent.TorrentPlayerManager.TorrentCallback callback) {
-        android.util.Log.d(TAG, "playTorrent() called with torrentFile=" + torrentFile + ", exists=" + torrentFile.exists());
+        android.util.Log.d(TAG,
+                "playTorrent() called with torrentFile=" + torrentFile + ", exists=" + torrentFile.exists());
         com.orange.playerlibrary.torrent.TorrentPlayerManager manager = com.orange.playerlibrary.torrent.TorrentPlayerManager
                 .getInstance(getContext());
 
@@ -1223,15 +1220,15 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     callback.onError(error);
                 }
             }
-            
+
             @Override
             public void onMagnetResolving(int elapsedSeconds, int totalSeconds) {
                 // 显示磁力链接解析进度
                 int progress = (int) (elapsedSeconds * 100.0 / totalSeconds);
-                String progressText = String.format("解析磁力链接中 %d/%ds (%d%%)", 
+                String progressText = String.format("解析磁力链接中 %d/%ds (%d%%)",
                         elapsedSeconds, totalSeconds, progress);
                 setCustomLoadingText(progressText);
-                
+
                 if (callback != null) {
                     callback.onMagnetResolving(elapsedSeconds, totalSeconds);
                 }
@@ -1246,78 +1243,100 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     /**
-     * 处理M3U8去广告并播放
+     * 清理当前 M3U8 去广告链路状态
+     */
+    private void clearM3U8AdRemovalState() {
+        mM3U8AdRequestToken++;
+        mPendingM3U8AdRemoval = false;
+        mBypassM3U8AdRemovalOnce = false;
+        mOriginalM3U8Url = null;
+        mOriginalM3U8Headers = null;
+        mOriginalM3U8Title = "";
+        mOriginalM3U8CacheWithPlay = true;
+        mIsPlayingAdRemovedM3U8 = false;
+        mHasRetriedOriginalUrl = false;
+    }
+
+    private boolean shouldProcessM3U8WithAdRemoval(String url) {
+        return mM3U8AdManager != null
+                && mM3U8AdManager.isEnabled()
+                && !mBypassM3U8AdRemovalOnce
+                && url != null
+                && M3U8AdRemover.isHttpM3U8(url);
+    }
+
+    private void bindResolvedVideoSource(String url, boolean cacheWithPlay, String title,
+            Map<String, String> headers) {
+        Map<String, String> headerCopy = headers != null ? new HashMap<>(headers) : null;
+        mVideoHeaders = headerCopy;
+        saveVideoUrl(url);
+        if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
+            mOrangeController.getVideoEventManager().resetTemporarySettings(url);
+        }
+        autoSelectPlayerEngine(url);
+        getVideoFirstFrameAsync(url);
+        OrangevideoView.super.setUp(url, cacheWithPlay, mCachePath, headerCopy, title);
+        if (mSkipManager != null) {
+            mSkipManager.attachVideoView(this);
+        }
+        updateTitleView(title);
+    }
+
+    /**
+     * 在 `startPlayLogic()` 阶段处理 M3U8 去广告
      */
     private void processM3U8WithAdRemoval(String url, boolean cacheWithPlay, String title,
             Map<String, String> headers) {
-        android.util.Log.d(TAG, "Processing M3U8 for ad removal: " + url);
+        if (mM3U8AdManager == null) {
+            return;
+        }
 
-        // 保存原始URL用于重试
+        android.util.Log.d(TAG, "Processing M3U8 for ad removal in startPlayLogic: " + url);
+
+        final Map<String, String> requestHeaders = headers != null ? new HashMap<>(headers) : null;
+        final String requestTitle = title != null ? title : "";
+        final int requestToken = ++mM3U8AdRequestToken;
+
+        mPendingM3U8AdRemoval = true;
         mOriginalM3U8Url = url;
-        mOriginalM3U8Headers = headers;
-        mOriginalM3U8Title = title != null ? title : "";
+        mOriginalM3U8Headers = requestHeaders;
+        mOriginalM3U8Title = requestTitle;
         mOriginalM3U8CacheWithPlay = cacheWithPlay;
+        mIsPlayingAdRemovedM3U8 = false;
         mHasRetriedOriginalUrl = false;
 
-
-        // 先清除视频URL，避免短暂播放之前的视频
         mVideoUrl = null;
         mOriginUrl = null;
 
-        // 设置准备中状态，显示加载动画（覆盖之前的画面）
-        setOrangePlayState(PlayerConstants.STATE_PREPARING);
-        setStateAndUi(CURRENT_STATE_PREPAREING);
-
-        // 显示加载状态
+        // 设置 M3U8 去广告状态，触发加载动画显示（类似嗅探模式）
+        // 注意：不要调用 setStateAndUi() 和 release()，否则会覆盖我们的状态
+        setOrangePlayState(STATE_M3U8_AD_REMOVAL);
         if (mPrepareView != null) {
-            mPrepareView.setVisibility(View.VISIBLE);
+            mPrepareView.setVisibility(View.GONE);
         }
 
-        // 隐藏所有控件（包括视频画面），只显示加载动画
-        hideAllWidget();
+        mM3U8AdManager.processVideoUrl(url, new M3U8AdManager.Callback() {
+            @Override
+            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message) {
+                android.util.Log.d(TAG, "M3U8 ad removal result: isLocalFile=" + isLocalFile
+                        + ", adSegmentsRemoved=" + adSegmentsRemoved + ", message=" + message);
 
-        // 释放当前播放状态，然后延迟执行去广告处理
-        release();
+                post(() -> {
+                    if (requestToken != mM3U8AdRequestToken || !TextUtils.equals(mOriginalM3U8Url, url)) {
+                        android.util.Log.d(TAG, "Ignore stale M3U8 ad removal result: " + url);
+                        return;
+                    }
 
-        // 延迟执行，确保release和状态切换完成
-        postDelayed(() -> {
-            mM3U8AdManager.processVideoUrl(url, new M3U8AdManager.Callback() {
-                @Override
-                public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message) {
-                    android.util.Log.d(TAG, "M3U8 ad removal result: isLocalFile=" + isLocalFile +
-                            ", adSegmentsRemoved=" + adSegmentsRemoved + ", message=" + message);
-
-                    // 记录是否正在播放去广告后的m3u8（有广告被移除且是本地文件）
-                    mIsPlayingAdRemovedM3U8 = (adSegmentsRemoved > 0 && isLocalFile);
-
-                    // 在主线程中设置播放
-                    post(() -> {
-                        saveVideoUrl(playUrl);
-                        // 重置临时设置
-                        if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
-                            mOrangeController.getVideoEventManager().resetTemporarySettings(playUrl);
-                        }
-                        // 重新绑定 SkipManager
-                        if (mSkipManager != null) {
-                            mSkipManager.attachVideoView(OrangevideoView.this);
-                        }
-                        // 自动选择播放器内核
-                        autoSelectPlayerEngine(playUrl);
-                        // 获取首帧
-                        getVideoFirstFrameAsync(playUrl);
-                        // 设置播放 - 使用OrangevideoView.this调用外部类的方法
-                        if (headers != null) {
-                            OrangevideoView.this.setUpInternal(playUrl, cacheWithPlay, null, headers, title);
-                        } else {
-                            OrangevideoView.this.setUpInternal(playUrl, cacheWithPlay, title);
-                        }
-                        updateTitleView(title);
-                        // 开始播放
-                        startPlayLogic();
-                    });
-                }
-            });
-        }, 350); // 延迟350ms确保release和状态切换完成
+                    mPendingM3U8AdRemoval = false;
+                    mIsPlayingAdRemovedM3U8 = adSegmentsRemoved > 0 && isLocalFile;
+                    // 结束 M3U8 去广告状态
+                    setOrangePlayState(STATE_M3U8_AD_REMOVAL_END);
+                    bindResolvedVideoSource(playUrl, cacheWithPlay, requestTitle, requestHeaders);
+                    mBypassM3U8AdRemovalOnce = true;
+                    startPlayLogic();
+                });
+            }
+        });
     }
 
     /**
@@ -1335,9 +1354,13 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         return super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
     }
 
+
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, String title) {
+        mVideoHeaders = null;
+        clearM3U8AdRemovalState();
         saveVideoUrl(url);
+
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
             mOrangeController.getVideoEventManager().resetTemporarySettings(url);
@@ -1356,13 +1379,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     public boolean setUp(String url, boolean cacheWithPlay, java.io.File cachePath, Map<String, String> mapHeadData,
             String title) {
-        // 如果是HTTP m3u8且启用了去广告，拦截并走去广告流程
-        if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(url)) {
-            processM3U8WithAdRemoval(url, cacheWithPlay, title, mapHeadData);
-            return true;
-        }
-
+        mVideoHeaders = mapHeadData != null ? new HashMap<>(mapHeadData) : null;
+        clearM3U8AdRemovalState();
         saveVideoUrl(url);
+
         // 重置临时设置（跳过片头片尾、倍速、画面比例）
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
             mOrangeController.getVideoEventManager().resetTemporarySettings(url);
@@ -1451,15 +1471,10 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     public void setUrl(String url, Map<String, String> headers) {
-        this.mVideoHeaders = headers;
-
-        // 如果是HTTP m3u8且启用了去广告，走去广告流程
-        if (mM3U8AdManager != null && mM3U8AdManager.isEnabled() && M3U8AdRemover.isHttpM3U8(url)) {
-            processM3U8WithAdRemoval(url, true, "", headers);
-            return;
-        }
+        this.mVideoHeaders = headers != null ? new HashMap<>(headers) : null;
 
         if (headers != null) {
+
             setUp(url, true, null, headers, "");
         } else {
             setUp(url, true, "");
@@ -1470,20 +1485,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         return mOriginUrl != null ? mOriginUrl : mVideoUrl;
     }
 
-    public String getStableSourceUrl() {
-        String currentUrl = getUrl();
-        if (mOriginalM3U8Url != null && !mOriginalM3U8Url.isEmpty()
-                && currentUrl != null
-                && (currentUrl.contains("127.0.0.1") || currentUrl.contains("/cleaned/") || currentUrl.contains("m3u8_cache"))) {
-            return mOriginalM3U8Url;
-        }
-        return currentUrl;
-    }
-
     public String getVideoUrl() {
         return mOriginUrl != null ? mOriginUrl : mVideoUrl;
     }
-
 
     public Map<String, String> getVideoHeaders() {
         return mVideoHeaders;
@@ -2268,6 +2272,12 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 } else if (playState == STATE_ENDSNIFFING) {
                     // 嗅探结束 - 隐藏加载动画
                     changeUiToSniffingEnd();
+                } else if (playState == STATE_M3U8_AD_REMOVAL) {
+                    // M3U8去广告开始 - 显示加载动画
+                    changeUiToM3U8AdRemovalShow();
+                } else if (playState == STATE_M3U8_AD_REMOVAL_END) {
+                    // M3U8去广告结束 - 隐藏加载动画
+                    changeUiToM3U8AdRemovalEnd();
                 } else {
                     cancelAutoHideTimer();
                 }
@@ -3627,18 +3637,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         mInnerHandler.postDelayed(mOrangeCheckoutTask, 500);
     }
 
-    private Runnable mOrangeCheckoutTask = new Runnable() {
-        @Override
-        public void run() {
-            OrangevideoView fullPlayer = getOrangeFullWindowPlayer();
-            if (fullPlayer != null && fullPlayer.mCurrentState != mCurrentState) {
-                if (fullPlayer.mCurrentState == CURRENT_STATE_PLAYING_BUFFERING_START
-                        && mCurrentState != CURRENT_STATE_PREPAREING) {
-                    fullPlayer.setStateAndUi(mCurrentState);
-                }
-            }
-        }
-    };
+    private Runnable mOrangeCheckoutTask=new Runnable(){@Override public void run(){OrangevideoView fullPlayer=getOrangeFullWindowPlayer();if(fullPlayer!=null&&fullPlayer.mCurrentState!=mCurrentState){if(fullPlayer.mCurrentState==CURRENT_STATE_PLAYING_BUFFERING_START&&mCurrentState!=CURRENT_STATE_PREPAREING){fullPlayer.setStateAndUi(mCurrentState);}}}};
 
     @Override
     @SuppressWarnings({ "ResourceType", "unchecked" })
@@ -4107,6 +4106,24 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         stopSpeedUpdate();
     }
 
+    /**
+     * M3U8去广告开始 - 显示加载动画
+     */
+    protected void changeUiToM3U8AdRemovalShow() {
+        android.util.Log.d(TAG, "changeUiToM3U8AdRemovalShow: 显示M3U8去广告加载动画, state=" + mCurrentState);
+        setViewShowState(mLoadingProgressBar, VISIBLE);
+        startSpeedUpdate();
+    }
+
+    /**
+     * M3U8去广告结束 - 隐藏加载动画
+     */
+    protected void changeUiToM3U8AdRemovalEnd() {
+        android.util.Log.d(TAG, "changeUiToM3U8AdRemovalEnd: 隐藏M3U8去广告加载动画, state=" + mCurrentState);
+        setViewShowState(mLoadingProgressBar, INVISIBLE);
+        stopSpeedUpdate();
+    }
+
     @Override
     protected void hideAllWidget() {
         android.util.Log.d(TAG, "hideAllWidget: 隐藏所有组件包括加载动画, state=" + mCurrentState);
@@ -4179,7 +4196,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                 mLoadingSpeedText.setVisibility(VISIBLE);
                 return;
             }
-            
+
             long speed = getNetSpeed();
 
             // 限制最大显示速度为 100 MB/s，避免异常值
@@ -4198,7 +4215,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             }
         }
     }
-    
+
     /**
      * 设置自定义加载文本（用于磁力链接解析等场景）
      * 
@@ -4503,6 +4520,11 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     public void startPlayLogic() {
+        if (mPendingM3U8AdRemoval) {
+            android.util.Log.d(TAG, "startPlayLogic: skipped due to pending m3u8 ad removal");
+            return;
+        }
+
         // 如果正在异步加载种子，跳过（等待回调触发）
         if (mPendingTorrentLoad) {
             android.util.Log.d(TAG, "startPlayLogic: skipped due to pending torrent load");
@@ -4520,6 +4542,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             });
             return;
         }
+
+        String targetUrl = mOriginUrl != null ? mOriginUrl : mVideoUrl;
+        Map<String, String> headers = null;
+        if (mMapHeadData != null && !mMapHeadData.isEmpty()) {
+            headers = new HashMap<>(mMapHeadData);
+        } else if (mVideoHeaders != null && !mVideoHeaders.isEmpty()) {
+            headers = new HashMap<>(mVideoHeaders);
+        }
+
+        if (shouldProcessM3U8WithAdRemoval(targetUrl)) {
+            processM3U8WithAdRemoval(targetUrl, mCache, mTitle, headers);
+            return;
+        }
+
+        mBypassM3U8AdRemovalOnce = false;
+
         // 在这里设置 STATE_PREPARING，确保 PrepareView 已附加到窗口
         setOrangePlayState(PlayerConstants.STATE_PREPARING);
 
@@ -4538,6 +4576,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         prepareVideo();
     }
+
 
     @Override
     protected void prepareVideo() {

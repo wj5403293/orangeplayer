@@ -173,65 +173,23 @@ public class VideoDownloadManager {
      * 根据 URL 获取下载任务信息
      */
     public VideoTaskItem getDownloadTaskItem(String url) {
-        if (TextUtils.isEmpty(url)) {
-            return null;
-        }
-        if (mVideoItemTaskMap.containsKey(url)) {
+        if (!TextUtils.isEmpty(url) && mVideoItemTaskMap.containsKey(url)) {
             return mVideoItemTaskMap.get(url);
         }
-
-        List<VideoTaskItem> items = null;
-        if (mVideoDatabaseHelper != null) {
-            items = mVideoDatabaseHelper.getDownloadInfos();
-        }
-
-        VideoTaskItem matchedItem = findTaskItemByUrl(url, items);
-        if (matchedItem == null) {
-            matchedItem = findTaskItemByOriginalM3U8Url(url, items);
-        }
-        if (matchedItem != null) {
-            mVideoItemTaskMap.put(url, matchedItem);
-        }
-        return matchedItem;
-    }
-
-    private VideoTaskItem findTaskItemByUrl(String url, List<VideoTaskItem> items) {
-        if (TextUtils.isEmpty(url)) {
-            return null;
-        }
-        if (items != null) {
-            for (VideoTaskItem item : items) {
-                if (url.equals(item.getUrl())) {
-                    return item;
+        // 如果内存中没有，尝试从数据库获取
+        if (mVideoDatabaseHelper != null && !TextUtils.isEmpty(url)) {
+            List<VideoTaskItem> items = mVideoDatabaseHelper.getDownloadInfos();
+            if (items != null) {
+                for (VideoTaskItem item : items) {
+                    if (url.equals(item.getUrl())) {
+                        mVideoItemTaskMap.put(url, item);
+                        return item;
+                    }
                 }
             }
         }
         return null;
     }
-
-    private VideoTaskItem findTaskItemByOriginalM3U8Url(String url, List<VideoTaskItem> items) {
-        if (TextUtils.isEmpty(url) || !VideoDownloadUtils.isM3U8Mimetype(url)) {
-            return null;
-        }
-        String originalUrlMd5 = VideoDownloadUtils.computeMD5(url);
-        String cleanedUrlMarker = "/cleaned/" + originalUrlMd5 + ".m3u8";
-
-        for (VideoTaskItem item : mVideoItemTaskMap.values()) {
-            if (item != null && item.getUrl() != null && item.getUrl().contains(cleanedUrlMarker)) {
-                return item;
-            }
-        }
-
-        if (items != null) {
-            for (VideoTaskItem item : items) {
-                if (item != null && item.getUrl() != null && item.getUrl().contains(cleanedUrlMarker)) {
-                    return item;
-                }
-            }
-        }
-        return null;
-    }
-
 
     public void fetchDownloadItems(IDownloadInfosCallback callback) {
         mDownloadInfoCallbacks.add(callback);
@@ -823,17 +781,14 @@ public class VideoDownloadManager {
                     return;
                 }
                 
-                // 读取 local.m3u8 获取 TS 文件列表
-                File localM3U8 = getLocalM3U8File(dir, fileHash);
+                // 读取local.m3u8获取TS文件列表
+                File localM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8);
+                if (!localM3U8.exists()) {
+                    localM3U8 = new File(dir, fileHash + "_local.m3u8");
+                }
+                
                 if (!localM3U8.exists()) {
                     LogUtils.e(DownloadConstants.TAG, "[MERGE] Local m3u8 file not found");
-                    listener.onCallback(taskItem);
-                    return;
-                }
-
-                if (containsExtXKey(localM3U8)) {
-                    useLocalM3U8Result(taskItem, localM3U8);
-                    LogUtils.i(DownloadConstants.TAG, "[MERGE] Detected #EXT-X-KEY, skip merge and keep local HLS: " + localM3U8.getAbsolutePath());
                     listener.onCallback(taskItem);
                     return;
                 }
@@ -910,48 +865,6 @@ public class VideoDownloadManager {
         }).start();
     }
     
-    private File getLocalM3U8File(File dir, String fileHash) {
-        File localM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8);
-        if (!localM3U8.exists()) {
-            localM3U8 = new File(dir, fileHash + "_local.m3u8");
-        }
-        return localM3U8;
-    }
-
-    private boolean containsExtXKey(File m3u8File) {
-        if (m3u8File == null || !m3u8File.exists()) {
-            return false;
-        }
-        java.io.BufferedReader reader = null;
-        try {
-            reader = new java.io.BufferedReader(new java.io.FileReader(m3u8File));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().startsWith("#EXT-X-KEY")) {
-                    return true;
-                }
-            }
-        } catch (Exception e) {
-            LogUtils.w(DownloadConstants.TAG, "[MERGE] Failed to inspect m3u8 encryption tag: " + e.getMessage());
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception ignore) {
-                }
-            }
-        }
-        return false;
-    }
-
-    private void useLocalM3U8Result(VideoTaskItem taskItem, File localM3U8) {
-        if (taskItem == null || localM3U8 == null) {
-            return;
-        }
-        taskItem.setFilePath(localM3U8.getAbsolutePath());
-        taskItem.setFileName(localM3U8.getName());
-    }
-
     /**
      * 解析m3u8文件获取TS文件路径列表
      */
@@ -973,7 +886,6 @@ public class VideoDownloadManager {
         }
         return tsFiles;
     }
-
 
     private void markDownloadInfoAddEvent(VideoTaskItem taskItem) {
         WorkerThreadHandler.submitRunnableTask(() -> mVideoDatabaseHelper.markDownloadInfoAddEvent(taskItem));

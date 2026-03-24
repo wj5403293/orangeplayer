@@ -1,4 +1,37 @@
 # OrangePlayer 更新日志
+## [1.3.1] - 2026-03-24
+
+### 🐛 Bug 修复
+
+#### M3U8 去广告流程优化
+- **修复去广告时机错误导致切集时未立即显示加载动画的问题**
+  - **问题现象**：切集时屏幕短暂显示旧视频画面，等待数秒后黑屏，然后播放去广告后的视频
+  - **根本原因**：去广告拦截在 `setUp()` 阶段触发，但 `startPlayLogic()` 未被拦截，导致底层播放器使用旧的 URL 继续播放
+  - **解决方案**：将去广告拦截逻辑从 `setUp()` 迁移至 `startPlayLogic()`，在播放启动阶段统一拦截
+
+- **新增独立状态 `STATE_M3U8_AD_REMOVAL`**
+  - 参照嗅探模式（`STATE_STARTSNIFFING`）的实现方式，新增独立的 M3U8 去广告状态
+  - 去广告开始时立即显示加载动画，结束后隐藏
+  - 避免与 GSY 播放器内部状态冲突
+
+- **优化状态管理**
+  - 新增 `mPendingM3U8AdRemoval` 标志，防止去广告异步处理期间重复执行播放逻辑
+  - 新增 `mM3U8AdRequestToken` 请求令牌，避免旧的异步结果回流串到新播放链路
+  - 新增 `mBypassM3U8AdRemovalOnce` 一次性跳过标志，防止播放失败回退原始 URL 时再次进入去广告死循环
+
+### 📝 技术细节
+```java
+// 去广告状态触发加载动画（类似嗅探模式）
+setOrangePlayState(STATE_M3U8_AD_REMOVAL);  // 显示加载动画
+
+// 去广告完成后
+setOrangePlayState(STATE_M3U8_AD_REMOVAL_END);  // 隐藏加载动画
+bindResolvedVideoSource(playUrl, ...);
+startPlayLogic();  // 继续播放流程
+```
+
+---
+
 ## [1.3.0] - 2026-03-23
 
 ### ✨ 新特性

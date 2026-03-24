@@ -172,6 +172,15 @@ public class PrepareView extends FrameLayout implements IControlComponent {
                 // 嗅探结束 - 保持隐藏，等待其他状态决定是否显示
                 break;
                 
+            case PlayerConstants.STATE_M3U8_AD_REMOVAL:
+                // M3U8去广告开始 - 隐藏准备视图
+                hideAllViews();
+                break;
+                
+            case PlayerConstants.STATE_M3U8_AD_REMOVAL_END:
+                // M3U8去广告结束 - 保持隐藏，等待其他状态决定是否显示
+                break;
+                
             case 8: // 移动网络警告状态
                 showNetWarning();
                 break;

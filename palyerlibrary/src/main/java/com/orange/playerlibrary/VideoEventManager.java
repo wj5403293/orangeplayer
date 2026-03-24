@@ -1261,9 +1261,8 @@ public class VideoEventManager {
         }
         
         // 获取当前视频URL和标题
-        // 下载时优先使用稳定的原始地址，避免命中去广告后的本地临时 m3u8 URL
-        String url = mVideoView.getStableSourceUrl();
-
+        // getUrl() 会返回 mOriginUrl（当前播放的 URL）或 mVideoUrl
+        String url = mVideoView.getUrl();
         
         // 优先从 TitleView 获取标题（最新的显示标题）
         // 如果为空，再从 Controller 获取

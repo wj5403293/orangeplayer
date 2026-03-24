@@ -39,6 +39,10 @@ public class PlayerConstants {
     public static final int STATE_STARTSNIFFING = 13;
     /** 结束嗅探 */
     public static final int STATE_ENDSNIFFING = 14;
+    /** 开始 M3U8 去广告处理 */
+    public static final int STATE_M3U8_AD_REMOVAL = 15;
+    /** 结束 M3U8 去广告处理 */
+    public static final int STATE_M3U8_AD_REMOVAL_END = 16;
     
     // ===== 播放内核常量 =====
     /** 播放器引擎键名 */

@@ -367,11 +367,6 @@ public class VideoDownloaderWrapper {
                 android.util.Log.w("VideoDownloaderWrapper", "[RENAME] File not found: " + originalPath);
                 return null;
             }
-
-            if (originalPath.toLowerCase().endsWith(".m3u8")) {
-                android.util.Log.i("VideoDownloaderWrapper", "[RENAME] Skip renaming local HLS playlist: " + originalPath);
-                return originalPath;
-            }
             
             // 获取标题作为新文件名
             String title = item.getTitle();
@@ -443,20 +438,12 @@ public class VideoDownloaderWrapper {
      */
     public String getLocalVideoPath(String url) {
         if (url == null || url.isEmpty()) return null;
-
-        String folderHash = computeMD5(url);
-        android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Query local video, url=" + url + ", folderHash=" + folderHash);
+        
         try {
             // 通过底层下载管理器直接获取任务状态，这是最准确的做法
             VideoDownloadManager manager = VideoDownloadManager.getInstance();
             if (manager != null) {
                 com.jeffmony.downloader.model.VideoTaskItem taskItem = manager.getDownloadTaskItem(url);
-                if (taskItem != null) {
-                    android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Task lookup hit: state=" + taskItem.getTaskState()
-                            + ", completed=" + taskItem.isCompleted() + ", filePath=" + taskItem.getFilePath());
-                } else {
-                    android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Task lookup miss for url=" + url);
-                }
                 if (taskItem != null && taskItem.isCompleted() && taskItem.getTaskState() == com.jeffmony.downloader.model.VideoTaskState.SUCCESS) {
                     String filePath = taskItem.getFilePath();
                     if (filePath != null) {
@@ -467,37 +454,20 @@ public class VideoDownloaderWrapper {
                         } else {
                             android.util.Log.w("VideoDownloaderWrapper", "[LOCAL] Task marked SUCCESS but file missing/empty: " + filePath);
                         }
-                    } else {
-                        android.util.Log.w("VideoDownloaderWrapper", "[LOCAL] Task lookup hit but filePath is null");
                     }
                 }
-            } else {
-                android.util.Log.w("VideoDownloaderWrapper", "[LOCAL] VideoDownloadManager is null, fallback to filesystem scan");
             }
-
+            
             // 如果管理器里没查到，或者还未初始化，作为兜底策略再扫描一遍文件系统
+            String folderHash = computeMD5(url);
             File downloadDir = getDownloadDirectory();
-            if (downloadDir == null || !downloadDir.exists()) {
-                android.util.Log.w("VideoDownloaderWrapper", "[LOCAL] Download directory missing: " + downloadDir);
-                return null;
-            }
-
+            if (downloadDir == null || !downloadDir.exists()) return null;
+            
             File videoDir = new File(downloadDir, folderHash);
-            android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Fallback scan directory: " + videoDir.getAbsolutePath());
-            if (!videoDir.exists() || !videoDir.isDirectory()) {
-                android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Fallback scan miss, directory not found for hash=" + folderHash);
-                return null;
-            }
-
+            if (!videoDir.exists() || !videoDir.isDirectory()) return null;
+            
             File[] files = videoDir.listFiles();
             if (files != null) {
-                for (File file : files) {
-                    String name = file.getName().toLowerCase();
-                    if (name.endsWith("local.m3u8") && file.length() > 0) {
-                        android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found local HLS playlist: " + file.getAbsolutePath());
-                        return file.getAbsolutePath();
-                    }
-                }
                 for (File file : files) {
                     String name = file.getName().toLowerCase();
                     if ((name.endsWith(".mp4") || name.endsWith(".video") || name.endsWith(".ts")) && file.length() > 0) {
@@ -509,23 +479,18 @@ public class VideoDownloaderWrapper {
                             }
                         }
                         if (hasTsFiles) {
-                            android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found merged candidate but directory still contains ts shards, skip direct file return");
                             return null;
                         }
-                        android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] Found local merged media file: " + file.getAbsolutePath());
                         return file.getAbsolutePath();
                     }
                 }
             }
-            android.util.Log.d("VideoDownloaderWrapper", "[LOCAL] No local playable file found for url=" + url + ", hash=" + folderHash);
-
         } catch (Exception e) {
-            android.util.Log.e("VideoDownloaderWrapper", "[LOCAL] Error checking local video: " + e.getMessage(), e);
+            android.util.Log.e("VideoDownloaderWrapper", "[LOCAL] Error checking local video: " + e.getMessage());
         }
-
+        
         return null;
     }
-
     
     /**
      * 检查视频是否正在下载中

@@ -476,6 +476,16 @@ public class OrangeVideoController extends OrangeStandardVideoController {
                 // 注意：加载动画由 OrangevideoView 控制
                 debug("onPlayStateChanged: STATE_ENDSNIFFING");
                 break;
+            case PlayerConstants.STATE_M3U8_AD_REMOVAL:
+                // 开始 M3U8 去广告处理
+                // 注意：加载动画由 OrangevideoView 控制
+                debug("onPlayStateChanged: STATE_M3U8_AD_REMOVAL");
+                break;
+            case PlayerConstants.STATE_M3U8_AD_REMOVAL_END:
+                // 结束 M3U8 去广告处理
+                // 注意：加载动画由 OrangevideoView 控制
+                debug("onPlayStateChanged: STATE_M3U8_AD_REMOVAL_END");
+                break;
         }
         
         debug("onPlayStateChanged: " + playState);
