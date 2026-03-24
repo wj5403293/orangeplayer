@@ -4,10 +4,10 @@ import android.content.Context;
 import android.os.Environment;
 import android.widget.Toast;
 
-import com.jeffmony.downloader.VideoDownloadConfig;
-import com.jeffmony.downloader.VideoDownloadManager;
-import com.jeffmony.downloader.listener.DownloadListener;
-import com.jeffmony.downloader.model.VideoTaskItem;
+import com.orange.downloader.VideoDownloadConfig;
+import com.orange.downloader.VideoDownloadManager;
+import com.orange.downloader.listener.DownloadListener;
+import com.orange.downloader.model.VideoTaskItem;
 
 import java.io.File;
 import java.util.Map;
@@ -198,7 +198,7 @@ public class VideoDownloaderWrapper {
      */
     public boolean isAvailable() {
         try {
-            Class.forName("com.jeffmony.downloader.VideoDownloadManager");
+            Class.forName("com.orange.downloader.VideoDownloadManager");
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -443,8 +443,8 @@ public class VideoDownloaderWrapper {
             // 通过底层下载管理器直接获取任务状态，这是最准确的做法
             VideoDownloadManager manager = VideoDownloadManager.getInstance();
             if (manager != null) {
-                com.jeffmony.downloader.model.VideoTaskItem taskItem = manager.getDownloadTaskItem(url);
-                if (taskItem != null && taskItem.isCompleted() && taskItem.getTaskState() == com.jeffmony.downloader.model.VideoTaskState.SUCCESS) {
+                com.orange.downloader.model.VideoTaskItem taskItem = manager.getDownloadTaskItem(url);
+                if (taskItem != null && taskItem.isCompleted() && taskItem.getTaskState() == com.orange.downloader.model.VideoTaskState.SUCCESS) {
                     String filePath = taskItem.getFilePath();
                     if (filePath != null) {
                         java.io.File file = new java.io.File(filePath);

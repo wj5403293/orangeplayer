@@ -56,12 +56,7 @@
 				android:supportsPictureInPicture="true"
 				android:resizeableActivity="true" />
 		
-		<!-- 下载服务 -->
-		<service
-				android:name="com.orange.playerlibrary.download.DownloadService"
-				android:enabled="true"
-				android:exported="false"
-				android:foregroundServiceType="dataSync" />
+		<!-- 下载服务已在 orange-downloader 模块中声明 -->
 	</application>
 
 </manifest>

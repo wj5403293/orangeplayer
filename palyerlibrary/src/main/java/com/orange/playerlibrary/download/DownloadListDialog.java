@@ -12,11 +12,11 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.jeffmony.downloader.VideoDownloadManager;
-import com.jeffmony.downloader.listener.DownloadListener;
-import com.jeffmony.downloader.listener.IDownloadInfosCallback;
-import com.jeffmony.downloader.model.VideoTaskItem;
-import com.jeffmony.downloader.model.VideoTaskState;
+import com.orange.downloader.VideoDownloadManager;
+import com.orange.downloader.listener.DownloadListener;
+import com.orange.downloader.listener.IDownloadInfosCallback;
+import com.orange.downloader.model.VideoTaskItem;
+import com.orange.downloader.model.VideoTaskState;
 import com.orange.playerlibrary.R;
 
 import java.io.File;

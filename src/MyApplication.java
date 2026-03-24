@@ -2,10 +2,10 @@ package com.uaoanlao.m3u8down;
 import android.content.Context;
 import android.app.Application;
 
-import com.jeffmony.downloader.common.DownloadConstants;
-import com.jeffmony.downloader.VideoDownloadConfig;
-import com.jeffmony.downloader.VideoDownloadManager;
-import com.jeffmony.downloader.utils.VideoStorageUtils;
+import com.orange.downloader.common.DownloadConstants;
+import com.orange.downloader.VideoDownloadConfig;
+import com.orange.downloader.VideoDownloadManager;
+import com.orange.downloader.utils.VideoStorageUtils;
 
 import java.io.File;
 

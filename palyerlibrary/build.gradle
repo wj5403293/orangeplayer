@@ -78,9 +78,8 @@ dependencies {
     compileOnly "org.libtorrent4j:libtorrent4j-android-x86:${libtorrent_version}"
     compileOnly "org.libtorrent4j:libtorrent4j-android-x86_64:${libtorrent_version}"
     
-    // VideoDownloader 依赖
-    // 注意：VideoDownloader 源码已集成到项目中，这些是它的依赖
-    compileOnly 'com.google.code.gson:gson:2.10.1'
+    // VideoDownloader 依赖 - 已迁移到 orange-downloader 模块
+    api project(':orange-downloader')
     
     // Unit testing dependencies
     testImplementation 'junit:junit:4.13.2'

@@ -1,6 +1,222 @@
 # OrangePlayer 更新日志
 ## [1.3.1] - 2026-03-24
 
+### 📦 重大变更：下载库模块化迁移
+
+#### 迁移概述
+
+本次更新将视频下载功能从 `palyerlibrary` 核心模块中独立出来，形成全新的 `orange-downloader` 子模块。这是 OrangePlayer 架构优化的重要一步，旨在实现更灵活的功能组合与更清晰的代码边界。
+
+---
+
+#### 迁移原因
+
+1. **降低耦合度**
+   - 原下载库 `com.jeffmony.downloader` 嵌入在播放器核心模块内部，导致播放器与下载功能强绑定
+   - 用户即使不需要下载功能，也不得不引入全部下载相关代码和资源
+
+2. **支持按需引入**
+   - 新架构允许用户根据实际需求选择是否集成下载功能
+   - 未集成下载模块时，播放器会优雅降级并提示用户配置依赖
+
+3. **便于独立维护**
+   - 下载模块可独立迭代，不影响播放器核心功能
+   - 降低版本发布的耦合风险
+
+4. **提高复用性**
+   - `orange-downloader` 可作为独立组件被其他项目引用
+   - 不强制依赖播放器模块
+
+---
+
+#### 新库地址
+
+| 项目 | 旧值 | 新值 |
+|------|------|------|
+| 模块名 | 内嵌于 `palyerlibrary` | `orange-downloader` |
+| 包名 | `com.jeffmony.downloader` | `com.orange.downloader` |
+| Maven 坐标 | 无独立坐标 | `io.github.706412584:orange-downloader:1.3.2` |
+
+**目录结构对比：**
+
+```
+旧结构（1.3.1 及之前）：
+palyerlibrary/
+└── src/main/java/
+    └── com/
+        ├── orange/playerlibrary/      # 播放器核心
+        └── jeffmony/downloader/       # 下载库（内嵌）
+
+新结构（1.3.2 及之后）：
+├── palyerlibrary/                    # 播放器核心模块
+│   └── src/main/java/com/orange/playerlibrary/
+└── orange-downloader/                # 独立下载模块
+    └── src/main/java/com/orange/downloader/
+```
+
+---
+
+#### 兼容性说明
+
+##### API 兼容性
+
+| 兼容项 | 说明 |
+|--------|------|
+| 公开 API | **完全兼容**，所有公开接口签名保持不变 |
+| 类名/方法名 | **完全兼容**，仅包名发生变化 |
+| 资源文件 | 已重命名添加前缀 `orange_download_`，避免资源冲突 |
+| 数据库 | **完全兼容**，表结构与数据格式不变 |
+| 下载缓存 | **完全兼容**，已下载的任务可继续使用 |
+
+##### 自动依赖传递
+
+`palyerlibrary` 已通过 `api` 依赖 `orange-downloader`，因此：
+
+- **现有用户无需任何修改**，只需更新版本号即可
+- 下载功能会自动传递依赖，保持原有行为
+
+```gradle
+// palyerlibrary/build.gradle
+dependencies {
+    api project(':orange-downloader')  // 自动传递给使用者
+}
+```
+
+##### 优雅降级机制
+
+当下载模块未正确配置时，播放器会优雅降级而非崩溃：
+
+```java
+// VideoEventManager.java 中的降级处理
+private void showDownloadManagerDialog() {
+    try {
+        Class.forName("com.orange.downloader.ui.SimpleDownloadDialogView");
+        // 模块可用，正常显示下载对话框
+        if (mDownloadDialog == null) {
+            mDownloadDialog = new com.orange.downloader.ui.SimpleDownloadDialogView(mContext);
+        }
+        mDownloadDialog.show();
+    } catch (ClassNotFoundException e) {
+        // 模块不可用，显示友好提示
+        showToast("下载功能未配置\n请添加 orange-downloader 模块依赖");
+    }
+}
+```
+
+---
+
+#### 用户升级指南
+
+##### 场景一：使用 palyerlibrary 完整包（推荐）
+
+如果您通过 `palyerlibrary` 依赖播放器，**无需任何代码修改**：
+
+```gradle
+// build.gradle
+dependencies {
+    // 只需更新版本号，下载模块会自动传递
+    implementation 'io.github.706412584:orangeplayer:1.3.2'
+}
+```
+
+##### 场景二：仅使用播放器核心（不需要下载功能）
+
+如果您只需要播放功能，可以排除下载模块：
+
+```gradle
+// build.gradle
+dependencies {
+    implementation('io.github.706412584:orangeplayer:1.3.2') {
+        exclude group: 'io.github.706412584', module: 'orange-downloader'
+    }
+}
+```
+
+> ⚠️ 排除后，调用下载相关 API 时会收到友好提示，不会导致崩溃。
+
+##### 场景三：独立使用下载模块
+
+如果您只需要下载功能，可单独引入：
+
+```gradle
+// build.gradle
+dependencies {
+    implementation 'io.github.706412584:orange-downloader:1.3.2'
+}
+```
+
+---
+
+#### 代码迁移示例
+
+如果您之前直接引用了下载库内部类，需要更新 import 语句：
+
+```java
+// 旧代码（1.3.1 及之前）
+import com.jeffmony.downloader.VideoDownloadManager;
+import com.jeffmony.downloader.model.VideoTaskItem;
+import com.jeffmony.downloader.listener.DownloadListener;
+
+// 新代码（1.3.2 及之后）
+import com.orange.downloader.VideoDownloadManager;
+import com.orange.downloader.model.VideoTaskItem;
+import com.orange.downloader.listener.DownloadListener;
+```
+
+**大多数用户无需修改**，因为 `palyerlibrary` 已封装了常用 API：
+
+```java
+// 推荐用法（无需关心内部包名）
+SimpleDownloadManager manager = SimpleDownloadManager.getInstance(context);
+manager.startDownload(url, title);
+```
+
+---
+
+#### 资源文件变更
+
+为避免与其他库的资源冲突，下载模块的资源文件已统一添加 `orange_download_` 前缀：
+
+| 旧资源名 | 新资源名 |
+|----------|----------|
+| `ic_download` | `orange_download_ic_download` |
+| `ic_delete` | `orange_download_ic_delete` |
+| `ic_delete_all` | `orange_download_ic_delete_all` |
+| `dialog_download_list.xml` | `orange_download_dialog_list.xml` |
+| `item_download_task.xml` | `orange_download_item_task.xml` |
+
+如果您在自定义 UI 时引用了这些资源，请更新引用名称。
+
+---
+
+#### 常见问题
+
+##### Q1: 升级后下载记录会丢失吗？
+
+**不会。** 下载记录存储在应用私有目录的 SQLite 数据库中，模块迁移不影响数据持久化。已下载的视频可继续播放。
+
+##### Q2: 升级后编译报错 "找不到符号"？
+
+请检查是否有直接引用 `com.jeffmony.downloader` 包下类的代码，将其更新为 `com.orange.downloader`。
+
+##### Q3: 如何确认下载模块是否正确集成？
+
+```java
+// 在 Application 或首次使用前检查
+try {
+    Class.forName("com.orange.downloader.VideoDownloadManager");
+    Log.d("TAG", "下载模块已正确集成");
+} catch (ClassNotFoundException e) {
+    Log.w("TAG", "下载模块未集成，部分功能不可用");
+}
+```
+
+##### Q4: 可以同时使用新旧包名吗？
+
+**不建议。** 虽然技术上可行，但会导致类冲突和不可预期的行为。请确保项目中只引用新包名。
+
+---
+
 ### 🐛 Bug 修复
 
 #### M3U8 去广告流程优化

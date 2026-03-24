@@ -153,6 +153,7 @@ dependencies {
     
     // 磁力链接/种子播放支持（必需）
     implementation 'org.libtorrent4j:libtorrent4j:2.0.6-26'
+    //根据需要，选择一个架构即可
     implementation 'org.libtorrent4j:libtorrent4j-android-arm:2.0.6-26'
     implementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.0.6-26'
     implementation 'org.libtorrent4j:libtorrent4j-android-x86:2.0.6-26'

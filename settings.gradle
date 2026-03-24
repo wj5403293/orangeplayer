@@ -58,3 +58,4 @@ include ':app'
 include ':app-legacy'  // Android 4.4 compatible version
 include ':app-tv'      // Android TV version
 include ':palyerlibrary'
+include ':orange-downloader'  // Download module

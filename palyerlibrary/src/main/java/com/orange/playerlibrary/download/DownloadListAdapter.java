@@ -14,9 +14,9 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.jeffmony.downloader.VideoDownloadManager;
-import com.jeffmony.downloader.model.VideoTaskItem;
-import com.jeffmony.downloader.model.VideoTaskState;
+import com.orange.downloader.VideoDownloadManager;
+import com.orange.downloader.model.VideoTaskItem;
+import com.orange.downloader.model.VideoTaskState;
 import com.orange.playerlibrary.R;
 
 import java.io.File;
@@ -285,7 +285,7 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
         }
         
         // 3. m3u8类型，尝试从本地ts分片提取帧
-        if (videoType == com.jeffmony.downloader.model.Video.Type.HLS_TYPE && saveDir != null) {
+        if (videoType == com.orange.downloader.model.Video.Type.HLS_TYPE && saveDir != null) {
             File tsFile = findFirstTsFile(saveDir);
             if (tsFile != null && tsFile.exists()) {
                 loadLocalVideoFrame(holder, tsFile.getAbsolutePath());
