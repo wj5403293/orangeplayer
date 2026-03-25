@@ -35,7 +35,7 @@
 |------|------|------|
 | 模块名 | 内嵌于 `palyerlibrary` | `orange-downloader` |
 | 包名 | `com.jeffmony.downloader` | `com.orange.downloader` |
-| Maven 坐标 | 无独立坐标 | `io.github.706412584:orange-downloader:1.3.2` |
+| Maven 坐标 | 无独立坐标 | `io.github.706412584:orange-downloader:1.3.1` |
 
 **目录结构对比：**
 
@@ -47,7 +47,7 @@ palyerlibrary/
         ├── orange/playerlibrary/      # 播放器核心
         └── jeffmony/downloader/       # 下载库（内嵌）
 
-新结构（1.3.2 及之后）：
+新结构（1.3.1 及之后）：
 ├── palyerlibrary/                    # 播放器核心模块
 │   └── src/main/java/com/orange/playerlibrary/
 └── orange-downloader/                # 独立下载模块
@@ -115,7 +115,7 @@ private void showDownloadManagerDialog() {
 // build.gradle
 dependencies {
     // 只需更新版本号，下载模块会自动传递
-    implementation 'io.github.706412584:orangeplayer:1.3.2'
+    implementation 'io.github.706412584:orangeplayer:1.3.1'
 }
 ```
 
@@ -126,7 +126,7 @@ dependencies {
 ```gradle
 // build.gradle
 dependencies {
-    implementation('io.github.706412584:orangeplayer:1.3.2') {
+    implementation('io.github.706412584:orangeplayer:1.3.1') {
         exclude group: 'io.github.706412584', module: 'orange-downloader'
     }
 }
@@ -141,7 +141,7 @@ dependencies {
 ```gradle
 // build.gradle
 dependencies {
-    implementation 'io.github.706412584:orange-downloader:1.3.2'
+    implementation 'io.github.706412584:orange-downloader:1.3.1'
 }
 ```
 
@@ -157,7 +157,7 @@ import com.jeffmony.downloader.VideoDownloadManager;
 import com.jeffmony.downloader.model.VideoTaskItem;
 import com.jeffmony.downloader.listener.DownloadListener;
 
-// 新代码（1.3.2 及之后）
+// 新代码（1.3.1 及之后）
 import com.orange.downloader.VideoDownloadManager;
 import com.orange.downloader.model.VideoTaskItem;
 import com.orange.downloader.listener.DownloadListener;
