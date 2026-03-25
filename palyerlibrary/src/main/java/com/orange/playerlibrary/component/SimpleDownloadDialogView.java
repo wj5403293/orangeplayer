@@ -16,6 +16,7 @@ public class SimpleDownloadDialogView {
     private Context mContext;
     private SimpleDownloadManager mDownloadManager;
     private DownloadListDialog mDialog;
+    private DownloadListDialog.OnPlayLocalListener mPlayLocalListener;
     
     public SimpleDownloadDialogView(Context context) {
         mContext = context;
@@ -29,6 +30,9 @@ public class SimpleDownloadDialogView {
         try {
             if (mDialog == null) {
                 mDialog = new DownloadListDialog(mContext);
+            }
+            if (mPlayLocalListener != null) {
+                mDialog.setOnPlayLocalListener(mPlayLocalListener);
             }
             mDialog.show();
         } catch (Exception e) {
@@ -68,6 +72,13 @@ public class SimpleDownloadDialogView {
         if (mDialog != null) {
             mDialog.dismiss();
             mDialog = null;
+        }
+    }
+
+    public void setOnPlayLocalListener(DownloadListDialog.OnPlayLocalListener listener) {
+        mPlayLocalListener = listener;
+        if (mDialog != null) {
+            mDialog.setOnPlayLocalListener(listener);
         }
     }
 }

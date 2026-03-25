@@ -435,7 +435,19 @@ public class M3U8AdRemover {
         }
         Log.d(TAG, "Total ad duration: " + totalAdDuration + "s, segments: " + adSegments.size());
         
-        // 添加所有片段，广告片段用极短占位片段替换（保持时间轴）
+        int leadingAdCount = 0;
+        while (leadingAdCount < segments.size() && segments.get(leadingAdCount).isAd) {
+            leadingAdCount++;
+        }
+        int trailingAdStart = segments.size();
+        while (trailingAdStart > leadingAdCount && segments.get(trailingAdStart - 1).isAd) {
+            trailingAdStart--;
+        }
+
+        // 添加所有片段：
+        // - 开头广告：直接移除，避免播放器从占位片段启动导致解码失败
+        // - 结尾广告：直接移除，避免无意义尾部占位
+        // - 中间广告：仍用占位片段替换，尽量保持时间轴
         boolean firstSegment = true;
         String lastEncryptionKey = null; // 跟踪上一个输出的加密密钥，避免重复输出
 
@@ -443,6 +455,9 @@ public class M3U8AdRemover {
         
         Log.d(TAG, "Starting to process " + segments.size() + " segments...");
         for (SegmentInfo segment : segments) {
+            if (segment.index < leadingAdCount || segment.index >= trailingAdStart) {
+                continue;
+            }
             if (firstSegment) {
                 firstSegment = false;
             } else if (segment.needsDiscontinuity) {
@@ -503,94 +518,98 @@ public class M3U8AdRemover {
         
         Log.d(TAG, "detectAdSegments: segments=" + segments.size() + ", hasOpeningDiscontinuity=" + hasOpeningDiscontinuity);
         
-        // 统计所有路径模式的出现次数
-        java.util.Map<String, Integer> pathCounts = new java.util.HashMap<>();
-        for (SegmentInfo segment : segments) {
-            String pathPattern = extractPathPattern(segment.url);
-            pathCounts.put(pathPattern, pathCounts.getOrDefault(pathPattern, 0) + 1);
-        }
-        
-        // 找出出现次数最多的路径模式作为主路径（正片）
-        String mainPathPattern = null;
-        int mainPathCount = 0;
-        for (java.util.Map.Entry<String, Integer> entry : pathCounts.entrySet()) {
-            if (entry.getValue() > mainPathCount) {
-                mainPathPattern = entry.getKey();
-                mainPathCount = entry.getValue();
+        // 仅当检测到 DISCONTINUITY 时才执行路径模式检测，避免误判
+        List<Integer> discontinuityPositions = new ArrayList<>();
+        for (int i = 0; i < segments.size(); i++) {
+            if (segments.get(i).isDiscontinuity) {
+                discontinuityPositions.add(i);
             }
         }
-        
-        Log.d(TAG, "Path patterns: " + pathCounts.toString());
-        Log.d(TAG, "Main path pattern: " + mainPathPattern + " (count=" + mainPathCount + ")");
-        
-        // 方法1: 按前缀长度分组检测广告
-        // 统计各前缀长度的出现次数
-        java.util.Map<Integer, Integer> lengthCounts = new java.util.HashMap<>();
-        for (SegmentInfo segment : segments) {
-            String pathPattern = extractPathPattern(segment.url);
-            int len = pathPattern.length();
-            lengthCounts.put(len, lengthCounts.getOrDefault(len, 0) + 1);
-        }
-        
-        // 找出出现次数最多的前缀长度作为主长度
-        int mainLength = 0;
-        int mainLengthCount = 0;
-        for (java.util.Map.Entry<Integer, Integer> entry : lengthCounts.entrySet()) {
-            if (entry.getValue() > mainLengthCount) {
-                mainLength = entry.getKey();
-                mainLengthCount = entry.getValue();
-            }
-        }
-        
-        Log.d(TAG, "Prefix length counts: " + lengthCounts.toString());
-        Log.d(TAG, "Main prefix length: " + mainLength + " (count=" + mainLengthCount + ")");
-        
-        // 标记前缀长度不同于主长度的片段为广告
-        if (lengthCounts.size() > 1 && mainLengthCount > segments.size() * 0.3) {
+        boolean hasDiscontinuity = hasOpeningDiscontinuity || !discontinuityPositions.isEmpty();
+        if (hasDiscontinuity) {
+            // 统计所有路径模式的出现次数
+            java.util.Map<String, Integer> pathCounts = new java.util.HashMap<>();
             for (SegmentInfo segment : segments) {
                 String pathPattern = extractPathPattern(segment.url);
-                if (pathPattern.length() != mainLength) {
-                    // 检查白名单
-                    if (isInWhitelist(segment.url)) {
-                        Log.d(TAG, "Segment in whitelist, skipping ad detection: " + segment.url);
-                        continue;
-                    }
-                    segment.isAd = true;
-                    adSegments.add(segment);
-                    Log.d(TAG, "Ad detected by prefix length at position " + segment.index + 
-                          ": " + segment.url + ", length=" + pathPattern.length());
+                pathCounts.put(pathPattern, pathCounts.getOrDefault(pathPattern, 0) + 1);
+            }
+            
+            // 找出出现次数最多的路径模式作为主路径（正片）
+            String mainPathPattern = null;
+            int mainPathCount = 0;
+            for (java.util.Map.Entry<String, Integer> entry : pathCounts.entrySet()) {
+                if (entry.getValue() > mainPathCount) {
+                    mainPathPattern = entry.getKey();
+                    mainPathCount = entry.getValue();
                 }
             }
-        }
-        
-        // 方法2: 如果有多个路径模式，标记非主路径的片段为广告
-        if (adSegments.isEmpty() && pathCounts.size() > 1 && mainPathCount > segments.size() * 0.1) {
+            
+            Log.d(TAG, "Path patterns: " + pathCounts.toString());
+            Log.d(TAG, "Main path pattern: " + mainPathPattern + " (count=" + mainPathCount + ")");
+            
+            // 方法1: 按前缀长度分组检测广告
+            // 统计各前缀长度的出现次数
+            java.util.Map<Integer, Integer> lengthCounts = new java.util.HashMap<>();
             for (SegmentInfo segment : segments) {
                 String pathPattern = extractPathPattern(segment.url);
-                if (!pathPattern.equals(mainPathPattern)) {
-                    // 检查白名单
-                    if (isInWhitelist(segment.url)) {
-                        Log.d(TAG, "Segment in whitelist, skipping ad detection: " + segment.url);
-                        continue;
-                    }
-                    segment.isAd = true;
-                    adSegments.add(segment);
-                    Log.d(TAG, "Ad detected by path pattern at position " + segment.index + ": " + segment.url);
+                int len = pathPattern.length();
+                lengthCounts.put(len, lengthCounts.getOrDefault(len, 0) + 1);
+            }
+            
+            // 找出出现次数最多的前缀长度作为主长度
+            int mainLength = 0;
+            int mainLengthCount = 0;
+            for (java.util.Map.Entry<Integer, Integer> entry : lengthCounts.entrySet()) {
+                if (entry.getValue() > mainLengthCount) {
+                    mainLength = entry.getKey();
+                    mainLengthCount = entry.getValue();
                 }
             }
+            
+            Log.d(TAG, "Prefix length counts: " + lengthCounts.toString());
+            Log.d(TAG, "Main prefix length: " + mainLength + " (count=" + mainLengthCount + ")");
+            
+            // 标记前缀长度不同于主长度的片段为广告
+            if (lengthCounts.size() > 1 && mainLengthCount > segments.size() * 0.3) {
+                for (SegmentInfo segment : segments) {
+                    String pathPattern = extractPathPattern(segment.url);
+                    if (pathPattern.length() != mainLength) {
+                        // 检查白名单
+                        if (isInWhitelist(segment.url)) {
+                            Log.d(TAG, "Segment in whitelist, skipping ad detection: " + segment.url);
+                            continue;
+                        }
+                        segment.isAd = true;
+                        adSegments.add(segment);
+                        Log.d(TAG, "Ad detected by prefix length at position " + segment.index + 
+                              ": " + segment.url + ", length=" + pathPattern.length());
+                    }
+                }
+            }
+            
+            // 方法2: 如果有多个路径模式，标记非主路径的片段为广告
+            if (adSegments.isEmpty() && pathCounts.size() > 1 && mainPathCount > segments.size() * 0.1) {
+                for (SegmentInfo segment : segments) {
+                    String pathPattern = extractPathPattern(segment.url);
+                    if (!pathPattern.equals(mainPathPattern)) {
+                        // 检查白名单
+                        if (isInWhitelist(segment.url)) {
+                            Log.d(TAG, "Segment in whitelist, skipping ad detection: " + segment.url);
+                            continue;
+                        }
+                        segment.isAd = true;
+                        adSegments.add(segment);
+                        Log.d(TAG, "Ad detected by path pattern at position " + segment.index + ": " + segment.url);
+                    }
+                }
+            }
+        } else {
+            Log.d(TAG, "No DISCONTINUITY markers, skip path pattern detection");
         }
         
         // 方法 2: 检测 DISCONTINUITY 标记的广告片段组（开头广告）
         // 即使方法 1 检测到了广告，也要检测开头广告
         {
-            // 找出所有DISCONTINUITY位置
-            List<Integer> discontinuityPositions = new ArrayList<>();
-            for (int i = 0; i < segments.size(); i++) {
-                if (segments.get(i).isDiscontinuity) {
-                    discontinuityPositions.add(i);
-                }
-            }
-            
             // 如果开头有DISCONTINUITY，检测开头广告
             if (hasOpeningDiscontinuity && !segments.isEmpty()) {
                 // 开头广告：第一个片段到第一个DISCONTINUITY标记的片段
@@ -622,14 +641,6 @@ public class M3U8AdRemover {
         
         // 方法 3: 检测中间广告（仅在方法 1 和 2 未检测到广告时执行，避免误判）
         if (adSegments.isEmpty()) {
-            // 找出所有 DISCONTINUITY 位置
-            List<Integer> discontinuityPositions = new ArrayList<>();
-            for (int i = 0; i < segments.size(); i++) {
-                if (segments.get(i).isDiscontinuity) {
-                    discontinuityPositions.add(i);
-                }
-            }
-            
             Log.d(TAG, "Method 3: Found " + discontinuityPositions.size() + " DISCONTINUITY markers");
             
             // 防止过度检测：如果 DISCONTINUITY 太多，说明这不是普通视频流，跳过中间广告检测
@@ -818,6 +829,9 @@ public class M3U8AdRemover {
             if (!url.contains("/")) {
                 int dotPos = url.lastIndexOf('.');
                 String filename = dotPos > 0 ? url.substring(0, dotPos) : url;
+                if (filename.matches("\\d+")) {
+                    return "NUMERIC_SEGMENT";
+                }
                 
                 // 提取文件名的数字前缀部分（去掉末尾的数字序列）
                 // e57566bf8e4000073 -> e57566bf8e4000
@@ -1040,7 +1054,7 @@ public class M3U8AdRemover {
 
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(url.getBytes("UTF-8"));
+            byte[] digest = md.digest(("v2:" + url).getBytes("UTF-8"));
             StringBuilder sb = new StringBuilder();
             for (byte b : digest) {
                 sb.append(String.format("%02x", b));

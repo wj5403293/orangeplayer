@@ -39,6 +39,7 @@ public class DownloadListDialog extends Dialog {
     private TextView mBtnStartAll;
     private TextView mBtnPauseAll;
     private TextView mTvTaskCount;
+    private OnPlayLocalListener mPlayLocalListener;
     
     private long mLastProgressTimeStamp = 0;
     
@@ -97,15 +98,35 @@ public class DownloadListDialog extends Dialog {
         mAdapter.setOnItemClickListener(new DownloadListAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(VideoTaskItem item) {
-                // 已完成的任务，点击播放
-                if (item.isCompleted()) {
-                    String filePath = item.getFilePath();
-                    if (filePath != null && new File(filePath).exists()) {
-                        // 可以通过回调通知外部播放
-                        android.widget.Toast.makeText(mContext, 
-                            "视频已保存: " + filePath, 
+                if (item == null) {
+                    return;
+                }
+                String filePath = resolvePlayablePath(item);
+                if (filePath != null) {
+                    if (mPlayLocalListener != null) {
+                        mPlayLocalListener.onPlayLocal(filePath, item);
+                    } else {
+                        android.widget.Toast.makeText(mContext,
+                            "视频已保存: " + filePath,
                             android.widget.Toast.LENGTH_LONG).show();
                     }
+                    return;
+                }
+                if (item.getTaskState() == VideoTaskState.PREPARE && item.getPercent() >= 99.9f) {
+                    android.widget.Toast.makeText(mContext,
+                        "正在合并视频，请稍候",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                VideoDownloadManager manager = VideoDownloadManager.getInstance();
+                if (manager != null && manager.ensureMergedForCompletedTask(item)) {
+                    android.widget.Toast.makeText(mContext,
+                        "正在合并视频，请稍候",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                } else {
+                    android.widget.Toast.makeText(mContext,
+                        "文件已被删除或移动，无法播放",
+                        android.widget.Toast.LENGTH_LONG).show();
                 }
             }
             
@@ -132,6 +153,55 @@ public class DownloadListDialog extends Dialog {
         
         // 获取已有任务
         fetchDownloadItems();
+    }
+
+    public void setOnPlayLocalListener(OnPlayLocalListener listener) {
+        mPlayLocalListener = listener;
+    }
+
+    public interface OnPlayLocalListener {
+        void onPlayLocal(String filePath, VideoTaskItem item);
+    }
+
+    private String resolvePlayablePath(VideoTaskItem item) {
+        if (item == null) {
+            return null;
+        }
+        String filePath = item.getFilePath();
+        if (filePath != null && new File(filePath).exists() && !isLocalM3U8File(filePath)) {
+            return filePath;
+        }
+        String saveDir = item.getSaveDir();
+        if (saveDir == null || saveDir.isEmpty()) {
+            return null;
+        }
+        File dir = new File(saveDir);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return null;
+        }
+        String mp4Candidate = null;
+        for (File file : files) {
+            if (!file.isFile()) {
+                continue;
+            }
+            String name = file.getName().toLowerCase();
+            if (name.endsWith(".mp4") && file.length() > 0) {
+                mp4Candidate = file.getAbsolutePath();
+                break;
+            }
+        }
+        return mp4Candidate;
+    }
+
+    private boolean isLocalM3U8File(String filePath) {
+        String lower = filePath.toLowerCase();
+        return lower.endsWith("_local.m3u8")
+                || lower.endsWith("_local_key_url.m3u8")
+                || lower.endsWith(File.separator + "local.m3u8");
     }
     
     /**

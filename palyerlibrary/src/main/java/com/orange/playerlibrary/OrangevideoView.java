@@ -1258,11 +1258,17 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     private boolean shouldProcessM3U8WithAdRemoval(String url) {
-        return mM3U8AdManager != null
-                && mM3U8AdManager.isEnabled()
-                && !mBypassM3U8AdRemovalOnce
-                && url != null
-                && M3U8AdRemover.isHttpM3U8(url);
+        if (mM3U8AdManager == null || !mM3U8AdManager.isEnabled() || mBypassM3U8AdRemovalOnce) {
+            return false;
+        }
+        if (url == null || !M3U8AdRemover.isHttpM3U8(url)) {
+            return false;
+        }
+        String lower = url.toLowerCase();
+        if (lower.contains("127.0.0.1") || lower.contains("cleaned/") || lower.contains("m3u8_cache")) {
+            return false;
+        }
+        return true;
     }
 
     private void bindResolvedVideoSource(String url, boolean cacheWithPlay, String title,
@@ -1314,6 +1320,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mPrepareView != null) {
             mPrepareView.setVisibility(View.GONE);
         }
+        setStateAndUi(CURRENT_STATE_PREPAREING);
 
         mM3U8AdManager.processVideoUrl(url, new M3U8AdManager.Callback() {
             @Override
@@ -1332,6 +1339,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     // 结束 M3U8 去广告状态
                     setOrangePlayState(STATE_M3U8_AD_REMOVAL_END);
                     bindResolvedVideoSource(playUrl, cacheWithPlay, requestTitle, requestHeaders);
+                    setOrangePlayState(PlayerConstants.STATE_PREPARING);
+                    setStateAndUi(CURRENT_STATE_PREPAREING);
                     mBypassM3U8AdRemovalOnce = true;
                     startPlayLogic();
                 });
@@ -4009,7 +4018,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
     @Override
     protected void changeUiToNormal() {
-        android.util.Log.d(TAG, "changeUiToNormal: 隐藏加载动画, state=" + mCurrentState);
+        //android.util.Log.d(TAG, "changeUiToNormal: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         stopSpeedUpdate();
     }
@@ -4017,14 +4026,14 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     @Override
     protected void changeUiToPreparingShow() {
         // 视频加载时显示加载动画
-        android.util.Log.d(TAG, "changeUiToPreparingShow: 显示加载动画, state=" + mCurrentState + ", url=" + mOriginUrl);
+        //android.util.Log.d(TAG, "changeUiToPreparingShow: 显示加载动画, state=" + mCurrentState + ", url=" + mOriginUrl);
         setViewShowState(mLoadingProgressBar, VISIBLE);
         startSpeedUpdate();
     }
 
     @Override
     protected void changeUiToPlayingShow() {
-        android.util.Log.d(TAG, "changeUiToPlayingShow: 隐藏加载动画, state=" + mCurrentState);
+        //android.util.Log.d(TAG, "changeUiToPlayingShow: 隐藏加载动画, state=" + mCurrentState);
         setViewShowState(mLoadingProgressBar, INVISIBLE);
         // 不停止网速更新，让它持续运行，updateLoadingSpeed 会根据 loading 可见性决定是否显示
     }
@@ -4120,8 +4129,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
      */
     protected void changeUiToM3U8AdRemovalEnd() {
         android.util.Log.d(TAG, "changeUiToM3U8AdRemovalEnd: 隐藏M3U8去广告加载动画, state=" + mCurrentState);
-        setViewShowState(mLoadingProgressBar, INVISIBLE);
-        stopSpeedUpdate();
+        setViewShowState(mLoadingProgressBar, VISIBLE);
+        startSpeedUpdate();
     }
 
     @Override

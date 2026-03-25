@@ -153,9 +153,11 @@ public class PrepareView extends FrameLayout implements IControlComponent {
             case PlayerConstants.STATE_BUFFERING:
             case PlayerConstants.STATE_BUFFERED:
             case PlayerConstants.STATE_PREPARED:
-            case PlayerConstants.STATE_PREPARING:
                 // 隐藏准备视图（包括准备中状态）
                 hideAllViews();
+                break;
+            case PlayerConstants.STATE_PREPARING:
+                showPreparingView();
                 break;
                 
             case PlayerConstants.STATE_IDLE:
@@ -225,6 +227,24 @@ public class PrepareView extends FrameLayout implements IControlComponent {
         }
         setVisibility(VISIBLE);
         setClickable(true);
+        bringToFront();
+    }
+
+    private void showPreparingView() {
+        if (mLoadingProgress != null) {
+            mLoadingProgress.setVisibility(GONE);
+        }
+        if (mNetWarning != null) {
+            mNetWarning.setVisibility(GONE);
+        }
+        if (mStartPlay != null) {
+            mStartPlay.setVisibility(GONE);
+        }
+        if (mThumb != null) {
+            mThumb.setVisibility(GONE);
+        }
+        setVisibility(VISIBLE);
+        setClickable(false);
         bringToFront();
     }
     

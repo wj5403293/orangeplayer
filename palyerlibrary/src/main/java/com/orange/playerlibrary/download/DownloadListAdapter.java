@@ -22,6 +22,8 @@ import com.orange.playerlibrary.R;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -37,6 +39,7 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     private Context mContext;
     private List<VideoTaskItem> mItems = new ArrayList<>();
     private OnItemClickListener mItemClickListener;
+    private final Map<String, Bitmap> mThumbnailCache = new ConcurrentHashMap<>();
     
     public interface OnItemClickListener {
         void onItemClick(VideoTaskItem item);
@@ -139,6 +142,12 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     }
     
     private void handleActionClick(VideoTaskItem item) {
+        if (item.isCompleted() || item.getPercent() >= 99.9f) {
+            if (mItemClickListener != null) {
+                mItemClickListener.onItemClick(item);
+            }
+            return;
+        }
         if (item.isInitialTask()) {
             // 初始状态 → 开始下载
             VideoDownloadManager.getInstance().startDownload(item);
@@ -148,20 +157,23 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
         } else if (item.isInterruptTask()) {
             // 中断 → 恢复下载
             VideoDownloadManager.getInstance().resumeDownload(item.getUrl());
-        } else if (item.isCompleted()) {
-            // 已完成 → 回调播放
-            if (mItemClickListener != null) {
-                mItemClickListener.onItemClick(item);
-            }
         }
     }
     
     private void setStateText(TextView tvStatus, VideoTaskItem item) {
         switch (item.getTaskState()) {
             case VideoTaskState.PENDING:
-            case VideoTaskState.PREPARE:
                 tvStatus.setText("等待中");
                 tvStatus.setTextColor(0xFFAAAAAA);
+                break;
+            case VideoTaskState.PREPARE:
+                if (item.getPercent() >= 99.9f) {
+                    tvStatus.setText("合并中");
+                    tvStatus.setTextColor(0xFFFF9800);
+                } else {
+                    tvStatus.setText("等待中");
+                    tvStatus.setTextColor(0xFFAAAAAA);
+                }
                 break;
             case VideoTaskState.START:
             case VideoTaskState.DOWNLOADING:
@@ -190,6 +202,10 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     private void setProgressInfo(ViewHolder holder, VideoTaskItem item) {
         int progress = (int) item.getPercent();
         holder.progressBar.setProgress(progress);
+        if (item.getTaskState() == VideoTaskState.PREPARE && item.getPercent() >= 99.9f) {
+            holder.tvProgress.setText("分片已完成，正在合并 MP4...");
+            return;
+        }
         
         String sizeInfo = formatSize(item.getDownloadSize()) + " / " + formatSize(item.getTotalSize());
         String percentInfo = String.format("%.1f%%", item.getPercent());
@@ -266,6 +282,20 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
         String filePath = item.getFilePath();
         String saveDir = item.getSaveDir();
         int videoType = item.getVideoType();
+        String key = buildThumbnailKey(item);
+        if (key != null) {
+            Bitmap cached = mThumbnailCache.get(key);
+            if (cached != null) {
+                holder.ivThumbnail.setImageBitmap(cached);
+                holder.ivThumbnail.setTag(key);
+                return;
+            }
+            Object tag = holder.ivThumbnail.getTag();
+            if (tag != null && tag.equals(key)) {
+                return;
+            }
+            holder.ivThumbnail.setTag(key);
+        }
         
         // 1. 优先使用封面 URL
         if (coverUrl != null && !coverUrl.isEmpty()) {
@@ -280,7 +310,7 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
         
         // 2. 已完成的本地视频，提取第一帧
         if (item.isCompleted() && filePath != null && new File(filePath).exists()) {
-            loadLocalVideoFrame(holder, filePath);
+            loadLocalVideoFrame(holder, filePath, key);
             return;
         }
         
@@ -288,7 +318,7 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
         if (videoType == com.orange.downloader.model.Video.Type.HLS_TYPE && saveDir != null) {
             File tsFile = findFirstTsFile(saveDir);
             if (tsFile != null && tsFile.exists()) {
-                loadLocalVideoFrame(holder, tsFile.getAbsolutePath());
+                loadLocalVideoFrame(holder, tsFile.getAbsolutePath(), key);
                 return;
             }
         }
@@ -300,10 +330,17 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
     /**
      * 从本地视频文件提取第一帧
      */
-    private void loadLocalVideoFrame(ViewHolder holder, String filePath) {
+    private void loadLocalVideoFrame(ViewHolder holder, String filePath, String key) {
         // 检查线程池是否已终止
         if (mExecutor == null || mExecutor.isShutdown()) {
             return;
+        }
+        if (key != null) {
+            Bitmap cached = mThumbnailCache.get(key);
+            if (cached != null) {
+                holder.ivThumbnail.setImageBitmap(cached);
+                return;
+            }
         }
         try {
             mExecutor.execute(() -> {
@@ -317,6 +354,13 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
                         Bitmap finalBitmap = bitmap;
                         holder.ivThumbnail.post(() -> {
                             if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
+                                if (key != null) {
+                                    Object tag = holder.ivThumbnail.getTag();
+                                    if (tag != null && !tag.equals(key)) {
+                                        return;
+                                    }
+                                    mThumbnailCache.put(key, finalBitmap);
+                                }
                                 holder.ivThumbnail.setImageBitmap(finalBitmap);
                             }
                         });
@@ -342,6 +386,26 @@ public class DownloadListAdapter extends RecyclerView.Adapter<DownloadListAdapte
         
         if (files != null && files.length > 0) {
             return files[0];
+        }
+        return null;
+    }
+
+    private String buildThumbnailKey(VideoTaskItem item) {
+        String filePath = item.getFilePath();
+        if (filePath != null && !filePath.isEmpty()) {
+            return "file:" + filePath;
+        }
+        String saveDir = item.getSaveDir();
+        if (saveDir != null && !saveDir.isEmpty()) {
+            return "dir:" + saveDir;
+        }
+        String coverUrl = item.getCoverUrl();
+        if (coverUrl != null && !coverUrl.isEmpty()) {
+            return "cover:" + coverUrl;
+        }
+        String url = item.getUrl();
+        if (url != null && !url.isEmpty()) {
+            return "url:" + url;
         }
         return null;
     }

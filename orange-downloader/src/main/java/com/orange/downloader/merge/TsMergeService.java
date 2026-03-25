@@ -110,33 +110,11 @@ public class TsMergeService {
             outputFileName = buildTsOutputFileName(taskItem, fileHash);
             outputFile = new File(dir, outputFileName);
             mergeTsByJava(tsFiles, outputFile);
-            cleanupTs(tsFiles);
             mergedByJavaFallback = true;
         }
 
         if (!outputFile.exists() || outputFile.length() <= 0) {
             throw new MergeException(MERGE_ERROR_OUTPUT_EMPTY, "merged output missing or empty");
-        }
-
-        if (mergedByFfmpeg) {
-            try {
-                List<File> tsFiles = parseM3U8ForTsFiles(localM3U8);
-                if (!tsFiles.isEmpty()) {
-                    cleanupTs(tsFiles);
-                }
-            } catch (Exception e) {
-                LogUtils.w(DownloadConstants.TAG, "[MERGE] cleanup ts after ffmpeg failed: " + e.getMessage());
-            }
-        }
-
-        localM3U8.delete();
-        File remoteM3U8 = new File(dir, VideoDownloadUtils.REMOTE_M3U8);
-        if (remoteM3U8.exists()) {
-            remoteM3U8.delete();
-        }
-        File keyM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY);
-        if (keyM3U8.exists()) {
-            keyM3U8.delete();
         }
 
         taskItem.setFileName(outputFileName);
@@ -151,7 +129,9 @@ public class TsMergeService {
             candidates.add(new File(taskItem.getFilePath()));
         }
         candidates.add(new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8));
+        candidates.add(new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY));
         candidates.add(new File(dir, fileHash + "_local.m3u8"));
+        candidates.add(new File(dir, fileHash + "_local_key_url.m3u8"));
 
         for (File candidate : candidates) {
             if (candidate.exists() && candidate.isFile()) {
@@ -163,7 +143,8 @@ public class TsMergeService {
         }
 
         File[] localM3u8Files = dir.listFiles((currentDir, name) ->
-                name != null && name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8));
+                name != null && (name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8)
+                        || name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)));
         if (localM3u8Files != null && localM3u8Files.length > 0) {
             LogUtils.w(DownloadConstants.TAG, "[MERGE] local m3u8 hash mismatch, fallback use=" + localM3u8Files[0].getAbsolutePath());
             return localM3u8Files[0];
@@ -275,9 +256,12 @@ public class TsMergeService {
             outputFile.delete();
         }
         int executeRet = (int) ffmpegKitClass.getMethod("execute", String[].class).invoke(null, (Object) command);
-        boolean merged = executeRet == 0 && outputFile.exists() && outputFile.length() > 0;
+        boolean outputReady = outputFile.exists() && outputFile.length() > 0;
+        boolean merged = outputReady;
         if (!merged) {
             LogUtils.w(DownloadConstants.TAG, "[MERGE] FFmpeg execute failed, ret=" + executeRet + ", outputExists=" + outputFile.exists() + ", outputSize=" + (outputFile.exists() ? outputFile.length() : 0));
+        } else if (executeRet != 0) {
+            LogUtils.w(DownloadConstants.TAG, "[MERGE] FFmpeg returned non-zero but output is ready, ret=" + executeRet + ", outputSize=" + outputFile.length());
         }
         return merged;
     }
@@ -288,6 +272,10 @@ public class TsMergeService {
         cmdList.add("ALL");
         cmdList.add("-protocol_whitelist");
         cmdList.add("file,http,https,tcp,tls,crypto,data,udp,rtp,rtmp,rtsp");
+        cmdList.add("-fflags");
+        cmdList.add("+discardcorrupt");
+        cmdList.add("-err_detect");
+        cmdList.add("ignore_err");
 
         String headersStr = buildHeadersString(headers);
         if (!TextUtils.isEmpty(headersStr)) {

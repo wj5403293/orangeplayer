@@ -268,63 +268,50 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
     }
 
     public void downloadFile(M3U8Seg ts, File file, String videoUrl) throws Exception {
-        HttpURLConnection connection = null;
-        InputStream inputStream = null;
-        try {
-            connection = HttpUtils.getConnection(videoUrl, mHeaders, VideoDownloadUtils.getDownloadConfig().shouldIgnoreCertErrors());
-            int responseCode = connection.getResponseCode();
-            if (responseCode == HttpUtils.RESPONSE_200 || responseCode == HttpUtils.RESPONSE_206) {
-                ts.setRetryCount(0);
-                mContinuousSuccessTsCount++;
-                if (mContinuousSuccessTsCount > CONTINUOUS_SUCCESS_TS_THRESHOLD && mM3U8DownloadPoolCount < THREAD_COUNT) {
-                    mM3U8DownloadPoolCount += 1;
-                    mContinuousSuccessTsCount -= 1;
-                    setThreadPoolArgument(mM3U8DownloadPoolCount, mM3U8DownloadPoolCount);
-                }
-                inputStream = connection.getInputStream();
-                long contentLength = connection.getContentLength();
-                saveFile(inputStream, file, contentLength, ts, videoUrl);
-            } else {
-                mContinuousSuccessTsCount = 0;
-                if (responseCode == HttpUtils.RESPONSE_503) {
-                    if (mM3U8DownloadPoolCount > 1) {
-                        mM3U8DownloadPoolCount -= 1;
+        int retryCount = ts.getRetryCount();
+        while (true) {
+            HttpURLConnection connection = null;
+            InputStream inputStream = null;
+            try {
+                connection = HttpUtils.getConnection(videoUrl, mHeaders, VideoDownloadUtils.getDownloadConfig().shouldIgnoreCertErrors());
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpUtils.RESPONSE_200 || responseCode == HttpUtils.RESPONSE_206) {
+                    ts.setRetryCount(0);
+                    mContinuousSuccessTsCount++;
+                    if (mContinuousSuccessTsCount > CONTINUOUS_SUCCESS_TS_THRESHOLD && mM3U8DownloadPoolCount < THREAD_COUNT) {
+                        mM3U8DownloadPoolCount += 1;
+                        mContinuousSuccessTsCount -= 1;
                         setThreadPoolArgument(mM3U8DownloadPoolCount, mM3U8DownloadPoolCount);
-                        downloadFile(ts, file, videoUrl);
-                    } else {
-                        ts.setRetryCount(ts.getRetryCount() + 1);
-                        if (ts.getRetryCount() < HttpUtils.MAX_RETRY_COUNT) {
-                            downloadFile(ts, file, videoUrl);
-                        } else {
-                            throw new VideoDownloadException(DownloadExceptionUtils.RETRY_COUNT_EXCEED_WITH_THREAD_CONTROL_STRING);
-                        }
                     }
-                } else {
-                    throw new VideoDownloadException(DownloadExceptionUtils.VIDEO_REQUEST_FAILED);
+                    inputStream = connection.getInputStream();
+                    long contentLength = connection.getContentLength();
+                    saveFile(inputStream, file, contentLength, ts, videoUrl);
+                    return;
                 }
-            }
-        } catch (Exception e) {
-            mContinuousSuccessTsCount = 0;
-            if (e instanceof IOException && e.getMessage().contains(DownloadExceptionUtils.PROTOCOL_UNEXPECTED_END_OF_STREAM)) {
-                if (mM3U8DownloadPoolCount > 1) {
-                    mM3U8DownloadPoolCount -= 1;
-                    setThreadPoolArgument(mM3U8DownloadPoolCount, mM3U8DownloadPoolCount);
-                    downloadFile(ts, file, videoUrl);
-                } else {
-                    ts.setRetryCount(ts.getRetryCount() + 1);
-                    if (ts.getRetryCount() < HttpUtils.MAX_RETRY_COUNT) {
-                        downloadFile(ts, file, videoUrl);
-                    } else {
-                        throw e;
-                    }
+                mContinuousSuccessTsCount = 0;
+                if (shouldRetryForResponseCode(responseCode, retryCount)) {
+                    retryCount++;
+                    ts.setRetryCount(retryCount);
+                    reduceDownloadPoolForRetry();
+                    sleepBeforeRetry(retryCount);
+                    continue;
                 }
-            } else {
-                LogUtils.w(DownloadConstants.TAG, "downloadFile failed, exception="+e.getMessage());
+                throw new VideoDownloadException(DownloadExceptionUtils.VIDEO_REQUEST_FAILED);
+            } catch (Exception e) {
+                mContinuousSuccessTsCount = 0;
+                if (shouldRetryForException(e, retryCount)) {
+                    retryCount++;
+                    ts.setRetryCount(retryCount);
+                    reduceDownloadPoolForRetry();
+                    sleepBeforeRetry(retryCount);
+                    continue;
+                }
+                LogUtils.w(DownloadConstants.TAG, "downloadFile failed, exception=" + e.getMessage());
                 throw e;
+            } finally {
+                HttpUtils.closeConnection(connection);
+                VideoDownloadUtils.close(inputStream);
             }
-        } finally {
-            HttpUtils.closeConnection(connection);
-            VideoDownloadUtils.close(inputStream);
         }
     }
 
@@ -397,6 +384,7 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
                     if (file.length() == 0) {
                         ts.setRetryCount(ts.getRetryCount() + 1);
                         if (ts.getRetryCount() < HttpUtils.MAX_RETRY_COUNT) {
+                            sleepBeforeRetry(ts.getRetryCount());
                             downloadFile(ts, file, videoUrl);
                         } else {
                             LogUtils.w(DownloadConstants.TAG, file.getAbsolutePath() + ", length=" + file.length() + ", saveFile failed, exception=" + e);
@@ -547,5 +535,45 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
             return "";
         }
         return fileName.replace("\\", "/");
+    }
+
+    private void sleepBeforeRetry(int retryCount) {
+        if (retryCount <= 0) {
+            return;
+        }
+        long sleepMs = Math.min(8000, 500L * retryCount);
+        try {
+            Thread.sleep(sleepMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private boolean shouldRetryForResponseCode(int responseCode, int retryCount) {
+        if (retryCount >= HttpUtils.MAX_RETRY_COUNT) {
+            return false;
+        }
+        return responseCode == HttpUtils.RESPONSE_503
+                || responseCode == 408
+                || responseCode == 429
+                || (responseCode >= 500 && responseCode < 600);
+    }
+
+    private boolean shouldRetryForException(Exception e, int retryCount) {
+        if (retryCount >= HttpUtils.MAX_RETRY_COUNT) {
+            return false;
+        }
+        if (e instanceof ProtocolException && !TextUtils.isEmpty(e.getMessage())
+                && e.getMessage().contains(DownloadExceptionUtils.PROTOCOL_UNEXPECTED_END_OF_STREAM)) {
+            return true;
+        }
+        return e instanceof IOException;
+    }
+
+    private void reduceDownloadPoolForRetry() {
+        if (mM3U8DownloadPoolCount > 1) {
+            mM3U8DownloadPoolCount -= 1;
+            setThreadPoolArgument(mM3U8DownloadPoolCount, mM3U8DownloadPoolCount);
+        }
     }
 }

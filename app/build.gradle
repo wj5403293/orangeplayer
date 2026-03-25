@@ -46,7 +46,6 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-            // 暂时不使用签名配置
             signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {
@@ -56,6 +55,7 @@ android {
         debug {
             minifyEnabled false  // Debug 不启用代码压缩，方便调试
             shrinkResources false  // Debug 不启用资源压缩
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {
                 abiFilters(*appDebugAbis)

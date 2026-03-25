@@ -241,13 +241,13 @@ EOF
         --disable-avdevice \
         --disable-postproc \
         --enable-protocol=file,http,https,hls,concat,data,crypto,tls,rtmp,rtsp,udp,tcp \
-        --enable-demuxer=hls,mpegts,mpegtsraw,mov,mp4,concat,flv \
-        --enable-muxer=mp4,mov,mpegts \
-        --enable-decoder=h264,hevc,aac,mp3 \
-        --enable-encoder=aac \
+        --enable-demuxer=hls,mpegts,mpegtsraw,mov,mp4,concat,flv,image2 \
+        --enable-muxer=mp4,mov,mpegts,image2,mp3 \
+        --enable-decoder=h264,hevc,aac,mp3,png,mjpeg \
+        --enable-encoder=aac,png,mjpeg,mp3,mpeg4 \
         --enable-parser=h264,hevc,aac,aac_latm,mpegaudio \
         --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc \
-        --enable-filter=aresample,scale,transpose \
+        --enable-filter=aresample,scale,transpose,trim,atrim,setpts,asetpts,overlay,concat \
         --enable-openssl \
         --enable-nonfree \
         --pkg-config=pkg-config \

@@ -1363,6 +1363,20 @@ public class VideoEventManager {
     private void showDownloadManagerDialog() {
         if (mDownloadDialog == null) {
             mDownloadDialog = new com.orange.playerlibrary.component.SimpleDownloadDialogView(mContext);
+            mDownloadDialog.setOnPlayLocalListener((filePath, item) -> {
+                if (mVideoView == null) {
+                    return;
+                }
+                String playUrl = filePath;
+                if (!playUrl.startsWith("file://") && !playUrl.startsWith("http")) {
+                    playUrl = "file://" + playUrl;
+                }
+                String title = item != null && item.getTitle() != null && !item.getTitle().isEmpty()
+                        ? item.getTitle()
+                        : "已下载视频";
+                mVideoView.setUp(playUrl, false, title);
+                mVideoView.startPlayLogic();
+            });
         }
         mDownloadDialog.show();
     }

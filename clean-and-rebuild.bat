@@ -47,36 +47,44 @@ echo.
 echo [2/4] 重新发布所有模块到本地仓库...
 echo.
 
-echo   [1/8] palyerlibrary...
+echo   [1/10] palyerlibrary...
 call gradlew.bat :palyerlibrary:publishMavenPublicationToLocalRepository
 if errorlevel 1 goto ERROR
 
-echo   [2/8] gsyVideoPlayer-base...
+echo   [2/10] gsyVideoPlayer-base...
 call gradlew.bat :gsyVideoPlayer-base:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
-echo   [3/8] gsyVideoPlayer-proxy_cache...
+echo   [3/10] gsyVideoPlayer-proxy_cache...
 call gradlew.bat :gsyVideoPlayer-proxy_cache:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
-echo   [4/8] gsyVideoPlayer-java...
+echo   [4/10] gsyVideoPlayer-java...
 call gradlew.bat :gsyVideoPlayer-java:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
-echo   [5/8] gsyVideoPlayer-armv7a...
+echo   [5/10] gsyVideoPlayer-armv7a...
 call gradlew.bat :gsyVideoPlayer-armv7a:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
-echo   [6/8] gsyVideoPlayer-armv64...
+echo   [6/10] gsyVideoPlayer-armv64...
 call gradlew.bat :gsyVideoPlayer-armv64:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
-echo   [7/8] gsyVideoPlayer-x86...
+echo   [7/10] gsyVideoPlayer-x86...
 call gradlew.bat :gsyVideoPlayer-x86:publishReleasePublicationToLocalRepositoryRepository
 if errorlevel 1 goto ERROR
 
-echo   [8/8] gsyVideoPlayer-x86_64...
+echo   [8/10] gsyVideoPlayer-x86_64...
 call gradlew.bat :gsyVideoPlayer-x86_64:publishReleasePublicationToLocalRepositoryRepository
+if errorlevel 1 goto ERROR
+
+echo   [9/10] orange-downloader...
+call gradlew.bat :orange-downloader:publishReleasePublicationToLocalRepository
+if errorlevel 1 goto ERROR
+
+echo   [10/10] orange-ffmpeg...
+call gradlew.bat :orange-ffmpeg:publishReleasePublicationToLocalRepository
 if errorlevel 1 goto ERROR
 
 echo.
@@ -91,6 +99,21 @@ if exist "palyerlibrary\build\repo\io\github\706412584\orangeplayer\%VERSION%" (
     echo   ✓ orangeplayer %VERSION%
 ) else (
     echo   ✗ orangeplayer %VERSION% 未找到
+    goto ERROR
+)
+
+REM 检查 orange-downloader 与 orange-ffmpeg 版本
+if exist "orange-downloader\build\repo\io\github\706412584\orange-downloader\%VERSION%" (
+    echo   ✓ orange-downloader %VERSION%
+) else (
+    echo   ✗ orange-downloader %VERSION% 未找到
+    goto ERROR
+)
+
+if exist "orange-ffmpeg\build\repo\io\github\706412584\orange-ffmpeg\%VERSION%" (
+    echo   ✓ orange-ffmpeg %VERSION%
+) else (
+    echo   ✗ orange-ffmpeg %VERSION% 未找到
     goto ERROR
 )
 

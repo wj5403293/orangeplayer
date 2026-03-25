@@ -2,6 +2,12 @@ plugins {
     id 'com.android.library'
 }
 
+ext {
+    PUBLISH_GROUP_ID = rootProject.ext.pomGroupId
+    PUBLISH_VERSION = rootProject.ext.pomVersion
+    PUBLISH_ARTIFACT_ID = 'orange-downloader'
+}
+
 android {
     namespace 'com.orange.downloader'
     compileSdk 36
@@ -46,3 +52,5 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
 
 }
+
+apply from: "${rootDir}/scripts/publish-module.gradle"

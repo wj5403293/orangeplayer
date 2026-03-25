@@ -1116,6 +1116,21 @@ public class MainActivity extends AppCompatActivity {
     private void showDownloadManager() {
         com.orange.playerlibrary.component.SimpleDownloadDialogView downloadDialog = 
             new com.orange.playerlibrary.component.SimpleDownloadDialogView(this);
+        downloadDialog.setOnPlayLocalListener((filePath, item) -> {
+            if (filePath == null || filePath.isEmpty()) {
+                return;
+            }
+            String playUrl = filePath;
+            if (!playUrl.startsWith("file://") && !playUrl.startsWith("http")) {
+                playUrl = "file://" + playUrl;
+            }
+            String title = item != null && item.getTitle() != null && !item.getTitle().isEmpty()
+                    ? item.getTitle()
+                    : "已下载视频";
+            mVideoView.setUp(playUrl, false, title);
+            mVideoView.startPlayLogic();
+            log("▶ 播放本地视频: " + title);
+        });
         downloadDialog.show();
         log("📥 打开下载管理");
     }

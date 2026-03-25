@@ -22,6 +22,7 @@ import com.orange.downloader.listener.IM3U8MergeResultListener;
 import com.orange.downloader.merge.MergeFeatureToggle;
 import com.orange.downloader.merge.TsMergeService;
 import com.orange.downloader.task.BaseVideoDownloadTask;
+import com.orange.downloader.legacy.DownloadService;
 
 
 import com.orange.downloader.task.M3U8VideoDownloadTask;
@@ -38,8 +39,10 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -56,6 +59,7 @@ public class VideoDownloadManager {
     private Map<String, VideoDownloadTask> mVideoDownloadTaskMap = new ConcurrentHashMap<>();
     private Map<String, VideoTaskItem> mVideoItemTaskMap = new ConcurrentHashMap<>();
     private final TsMergeService mTsMergeService = new TsMergeService();
+    private final Set<String> mMergingTaskUrls = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
 
     public static class Build {
@@ -220,6 +224,32 @@ public class VideoDownloadManager {
             LogUtils.w(DownloadConstants.TAG, "[QUEUE] startDownload() rejected: taskItem or url is null");
             return;
         }
+        updateForegroundService();
+
+        if (mConfig != null && mConfig.shouldM3U8Merged() && taskItem.isHlsType()) {
+            if (hasValidMergedOutputForStart(taskItem)) {
+                taskItem.setTaskState(VideoTaskState.SUCCESS);
+                taskItem.setIsCompleted(true);
+                taskItem.setPercent(100f);
+                mGlobalDownloadListener.onDownloadSuccess(taskItem);
+                markDownloadFinishEvent(taskItem);
+                return;
+            }
+            if (isMergeReadyPercent(taskItem) && hasMergeSourceForStart(taskItem)) {
+                taskItem.setTaskState(VideoTaskState.PREPARE);
+                taskItem.setPaused(false);
+                mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PREPARE, (VideoTaskItem) taskItem.clone()).sendToTarget();
+                doMergeTs(taskItem, mergedTask -> {
+                    if (mergedTask != null && mergedTask.getErrorCode() != 0) {
+                        mGlobalDownloadListener.onDownloadError(mergedTask);
+                    } else {
+                        mGlobalDownloadListener.onDownloadSuccess(mergedTask);
+                    }
+                    markDownloadFinishEvent(mergedTask);
+                });
+                return;
+            }
+        }
 
         synchronized (mQueueLock) {
             if (mVideoDownloadQueue.contains(taskItem)) {
@@ -238,6 +268,81 @@ public class VideoDownloadManager {
         VideoTaskItem tempTaskItem = (VideoTaskItem) taskItem.clone();
         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PENDING, tempTaskItem).sendToTarget();
         startDownload(taskItem, null);
+    }
+
+    public boolean isMergedOutputReady(VideoTaskItem taskItem) {
+        return hasValidMergedOutputForStart(taskItem);
+    }
+
+    public boolean ensureMergedForCompletedTask(VideoTaskItem taskItem) {
+        if (taskItem == null || mConfig == null || !mConfig.shouldM3U8Merged()) {
+            return false;
+        }
+        if (!isM3U8TaskLikely(taskItem)) {
+            return false;
+        }
+        if (TextUtils.isEmpty(taskItem.getUrl())) {
+            return false;
+        }
+        if (mMergingTaskUrls.contains(taskItem.getUrl())) {
+            taskItem.setTaskState(VideoTaskState.PREPARE);
+            taskItem.setPaused(false);
+            mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PREPARE, (VideoTaskItem) taskItem.clone()).sendToTarget();
+            return true;
+        }
+        if (hasValidMergedOutputForStart(taskItem)) {
+            taskItem.setTaskState(VideoTaskState.SUCCESS);
+            taskItem.setIsCompleted(true);
+            taskItem.setPercent(100f);
+            mGlobalDownloadListener.onDownloadSuccess(taskItem);
+            markDownloadFinishEvent(taskItem);
+            return true;
+        }
+        if (!hasMergeSourceForStart(taskItem)) {
+            return false;
+        }
+        taskItem.setTaskState(VideoTaskState.PREPARE);
+        taskItem.setPaused(false);
+        mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PREPARE, (VideoTaskItem) taskItem.clone()).sendToTarget();
+        mMergingTaskUrls.add(taskItem.getUrl());
+        doMergeTs(taskItem, mergedTask -> {
+            try {
+                if (mergedTask != null && mergedTask.getErrorCode() != 0) {
+                    mGlobalDownloadListener.onDownloadError(mergedTask);
+                } else {
+                    mGlobalDownloadListener.onDownloadSuccess(mergedTask);
+                }
+                markDownloadFinishEvent(mergedTask);
+                updateForegroundService();
+            } finally {
+                mMergingTaskUrls.remove(taskItem.getUrl());
+            }
+        });
+        return true;
+    }
+
+    private boolean isM3U8TaskLikely(VideoTaskItem taskItem) {
+        if (taskItem == null) {
+            return false;
+        }
+        if (taskItem.isHlsType()) {
+            return true;
+        }
+        String url = taskItem.getUrl();
+        if (!TextUtils.isEmpty(url) && url.toLowerCase().contains(".m3u8")) {
+            return true;
+        }
+        if (TextUtils.isEmpty(taskItem.getSaveDir())) {
+            return false;
+        }
+        File saveDir = new File(taskItem.getSaveDir());
+        if (!saveDir.exists() || !saveDir.isDirectory()) {
+            return false;
+        }
+        File[] playlistFiles = saveDir.listFiles((dir, name) -> name != null
+                && (name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8)
+                || name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)));
+        return playlistFiles != null && playlistFiles.length > 0;
     }
 
     public void startDownload(VideoTaskItem taskItem, Map<String, String> headers) {
@@ -428,7 +533,7 @@ public class VideoDownloadManager {
 
                 @Override
                 public void onTaskProgress(float percent, long cachedSize, long totalSize, float speed) {
-                    if (!taskItem.isPaused() && (!taskItem.isErrorState() || !taskItem.isSuccessState())) {
+                    if (!taskItem.isPaused() && !taskItem.isErrorState() && !taskItem.isSuccessState()) {
                         taskItem.setTaskState(VideoTaskState.DOWNLOADING);
                         taskItem.setPercent(percent);
                         taskItem.setSpeed(speed);
@@ -440,7 +545,7 @@ public class VideoDownloadManager {
 
                 @Override
                 public void onTaskProgressForM3U8(float percent, long cachedSize, int curTs, int totalTs, float speed) {
-                    if (!taskItem.isPaused() && (!taskItem.isErrorState() || !taskItem.isSuccessState())) {
+                    if (!taskItem.isPaused() && !taskItem.isErrorState() && !taskItem.isSuccessState()) {
                         taskItem.setTaskState(VideoTaskState.DOWNLOADING);
                         taskItem.setPercent(percent);
                         taskItem.setSpeed(speed);
@@ -454,7 +559,7 @@ public class VideoDownloadManager {
                 @Override
                 public void onTaskPaused() {
                     LogUtils.i(DownloadConstants.TAG, "onTaskPaused");
-                    if (!taskItem.isErrorState() || !taskItem.isSuccessState()) {
+                    if (!taskItem.isErrorState() && !taskItem.isSuccessState()) {
                         taskItem.setTaskState(VideoTaskState.PAUSE);
                         taskItem.setPaused(true);
                         mVideoDownloadHandler.obtainMessage(DownloadConstants.MSG_DOWNLOAD_PAUSE, taskItem).sendToTarget();
@@ -671,16 +776,30 @@ public class VideoDownloadManager {
             WorkerThreadHandler.submitRunnableTask(() -> {
                 List<VideoTaskItem> taskItems = mVideoDatabaseHelper.getDownloadInfos();
                 for (VideoTaskItem taskItem : taskItems) {
-                    if (mConfig != null && mConfig.shouldM3U8Merged() && taskItem.isHlsType()) {
+                    if (isTransientCleanedM3U8Task(taskItem)) {
+                        LogUtils.w(DownloadConstants.TAG, "[MERGE] skip transient cleaned m3u8 task. url=" + taskItem.getUrl());
+                        mVideoDatabaseHelper.deleteDownloadItemByUrl(taskItem);
+                        continue;
+                    }
+                    if (shouldHandleMergeRecovery(taskItem)) {
                         if (hasValidMergedOutput(taskItem)) {
+                            taskItem.setTaskState(VideoTaskState.SUCCESS);
+                            taskItem.setIsCompleted(true);
+                            taskItem.setPercent(100f);
                             mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
                             continue;
                         }
                         if (!hasMergeSource(taskItem)) {
-                            taskItem.setErrorCode(TsMergeService.MERGE_ERROR_SOURCE_NOT_FOUND);
-                            taskItem.setTaskState(VideoTaskState.ERROR);
                             taskItem.setIsCompleted(false);
-                            LogUtils.w(DownloadConstants.TAG, "[MERGE] restore task without output, mark error. url=" + taskItem.getUrl() + ", filePath=" + taskItem.getFilePath());
+                            if (isMergeReadyPercent(taskItem)) {
+                                taskItem.setErrorCode(TsMergeService.MERGE_ERROR_SOURCE_NOT_FOUND);
+                                taskItem.setTaskState(VideoTaskState.ERROR);
+                            } else {
+                                taskItem.setTaskState(VideoTaskState.PAUSE);
+                                taskItem.setPaused(true);
+                                taskItem.setErrorCode(0);
+                            }
+                            LogUtils.w(DownloadConstants.TAG, "[MERGE] restore task without output. url=" + taskItem.getUrl() + ", filePath=" + taskItem.getFilePath() + ", percent=" + taskItem.getPercent());
                             mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
                             markDownloadFinishEvent(taskItem);
                             continue;
@@ -692,6 +811,7 @@ public class VideoDownloadManager {
                             markDownloadFinishEvent(taskItem1);
                         });
                     } else {
+                        normalizeRestoredTaskState(taskItem);
                         mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
                     }
                 }
@@ -700,6 +820,52 @@ public class VideoDownloadManager {
                     callback.onDownloadInfos(taskItems);
                 }
             });
+        }
+
+        private boolean isTransientCleanedM3U8Task(VideoTaskItem taskItem) {
+            if (taskItem == null || TextUtils.isEmpty(taskItem.getUrl())) {
+                return false;
+            }
+            String lower = taskItem.getUrl().toLowerCase();
+            if (!lower.startsWith("http://127.0.0.1:") || !lower.contains("/cleaned/") || !lower.contains(".m3u8")) {
+                return false;
+            }
+            if (!TextUtils.isEmpty(taskItem.getSaveDir())) {
+                File saveDir = new File(taskItem.getSaveDir());
+                if (saveDir.exists() && saveDir.isDirectory()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean shouldHandleMergeRecovery(VideoTaskItem taskItem) {
+            if (taskItem == null || mConfig == null || !mConfig.shouldM3U8Merged() || !taskItem.isHlsType()) {
+                return false;
+            }
+            return taskItem.isCompleted()
+                    || taskItem.isSuccessState()
+                    || isMergeReadyPercent(taskItem);
+        }
+
+        private void normalizeRestoredTaskState(VideoTaskItem taskItem) {
+            if (taskItem == null) {
+                return;
+            }
+            if (taskItem.isSuccessState() || taskItem.isCompleted()) {
+                return;
+            }
+            int state = taskItem.getTaskState();
+            if (state == VideoTaskState.DOWNLOADING || state == VideoTaskState.START || state == VideoTaskState.PREPARE) {
+                taskItem.setTaskState(VideoTaskState.PAUSE);
+                taskItem.setPaused(true);
+                return;
+            }
+            if (state == VideoTaskState.ERROR && !isMergeReadyPercent(taskItem)) {
+                taskItem.setTaskState(VideoTaskState.PAUSE);
+                taskItem.setPaused(true);
+                taskItem.setErrorCode(0);
+            }
         }
 
         private boolean hasValidMergedOutput(VideoTaskItem taskItem) {
@@ -793,10 +959,12 @@ public class VideoDownloadManager {
     private void handleOnDownloadPrepare(VideoTaskItem taskItem) {
         mGlobalDownloadListener.onDownloadPrepare(taskItem);
         markDownloadInfoAddEvent(taskItem);
+        updateForegroundService();
     }
 
     private void handleOnDownloadStart(VideoTaskItem taskItem) {
         mGlobalDownloadListener.onDownloadStart(taskItem);
+        updateForegroundService();
     }
 
     private void handleOnDownloadProcessing(VideoTaskItem taskItem) {
@@ -807,11 +975,13 @@ public class VideoDownloadManager {
     private void handleOnDownloadPause(VideoTaskItem taskItem) {
         mGlobalDownloadListener.onDownloadPause(taskItem);
         removeDownloadQueue(taskItem);
+        updateForegroundService();
     }
 
     private void handleOnDownloadError(VideoTaskItem taskItem) {
         mGlobalDownloadListener.onDownloadError(taskItem);
         removeDownloadQueue(taskItem);
+        updateForegroundService();
     }
 
     private void handleOnDownloadSuccess(VideoTaskItem taskItem) {
@@ -828,10 +998,12 @@ public class VideoDownloadManager {
                 }
                 mGlobalDownloadListener.onDownloadSuccess(taskItem1);
                 markDownloadFinishEvent(taskItem1);
+                updateForegroundService();
             });
         } else {
             mGlobalDownloadListener.onDownloadSuccess(taskItem);
             markDownloadFinishEvent(taskItem);
+            updateForegroundService();
         }
     }
 
@@ -855,6 +1027,91 @@ public class VideoDownloadManager {
 
     private void markDownloadFinishEvent(VideoTaskItem taskItem) {
         WorkerThreadHandler.submitRunnableTask(() -> mVideoDatabaseHelper.markDownloadProgressInfoUpdateEvent(taskItem));
+    }
+
+    private void updateForegroundService() {
+        Context context = ContextUtils.getApplicationContext();
+        if (context == null) {
+            return;
+        }
+        if (hasActiveTasks()) {
+            DownloadService.start(context);
+        } else {
+            DownloadService.stop(context);
+        }
+    }
+
+    private boolean hasActiveTasks() {
+        synchronized (mQueueLock) {
+            if (mVideoDownloadQueue.getDownloadingCount() > 0 || mVideoDownloadQueue.getPendingCount() > 0) {
+                return true;
+            }
+        }
+        if (!mMergingTaskUrls.isEmpty()) {
+            return true;
+        }
+        for (VideoTaskItem item : mVideoItemTaskMap.values()) {
+            if (item == null) {
+                continue;
+            }
+            int state = item.getTaskState();
+            if (state != VideoTaskState.SUCCESS && state != VideoTaskState.ERROR && state != VideoTaskState.PAUSE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasValidMergedOutputForStart(VideoTaskItem taskItem) {
+        if (taskItem == null || TextUtils.isEmpty(taskItem.getFilePath())) {
+            return false;
+        }
+        String filePath = taskItem.getFilePath();
+        if (filePath.endsWith(File.separator + VideoDownloadUtils.LOCAL_M3U8)
+                || filePath.endsWith(File.separator + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)
+                || filePath.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8)
+                || filePath.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)) {
+            return false;
+        }
+        File outputFile = new File(filePath);
+        return outputFile.exists() && outputFile.isFile() && outputFile.length() > 0;
+    }
+
+    private boolean hasMergeSourceForStart(VideoTaskItem taskItem) {
+        if (taskItem == null || TextUtils.isEmpty(taskItem.getSaveDir())) {
+            return false;
+        }
+        File saveDir = new File(taskItem.getSaveDir());
+        if (!saveDir.exists() || !saveDir.isDirectory()) {
+            return false;
+        }
+        String fileHash = taskItem.getFileHash();
+        if (TextUtils.isEmpty(fileHash) && !TextUtils.isEmpty(taskItem.getUrl())) {
+            fileHash = VideoDownloadUtils.computeMD5(taskItem.getUrl());
+            taskItem.setFileHash(fileHash);
+        }
+        if (!TextUtils.isEmpty(fileHash)) {
+            File localM3u8 = new File(saveDir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8);
+            if (localM3u8.exists() && localM3u8.isFile()) {
+                return true;
+            }
+            File keyLocalM3u8 = new File(saveDir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY);
+            if (keyLocalM3u8.exists() && keyLocalM3u8.isFile()) {
+                return true;
+            }
+        }
+        File[] playlistFiles = saveDir.listFiles((dir, name) -> name != null
+                && (name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8)
+                || name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)));
+        return playlistFiles != null && playlistFiles.length > 0;
+    }
+
+    private boolean isMergeReadyPercent(VideoTaskItem taskItem) {
+        if (taskItem == null) {
+            return false;
+        }
+        float percent = taskItem.getPercent();
+        return !Float.isNaN(percent) && !Float.isInfinite(percent) && percent >= 99.9f;
     }
 
     /**

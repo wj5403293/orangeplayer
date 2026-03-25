@@ -70,6 +70,10 @@ dependencies {
     implementation 'com.google.mlkit:translate:17.0.2'  // ML Kit 翻译
     implementation 'com.alphacephei:vosk-android:0.3.47'  // 语音识别
     implementation 'androidx.media3:media3-decoder-ffmpeg:1.5.0'  // FFmpeg 解码器(可选)
+
+    // 下载与合并（按需启用）
+    implementation 'io.github.706412584:orange-downloader:+'//视频下载库
+    implementation 'io.github.706412584:orange-ffmpeg:+'//m3u8合并mp4（可选）
 }
 ```
 
@@ -84,6 +88,8 @@ dependencies {
 > - `gsyVideoPlayer-x86` - x86 架构 so 库
 > - `gsyVideoPlayer-x86_64` - x86_64 架构 so 库
 > - `gsyVideoPlayer-ex_so` - IJK 加密支持 so 库（全架构，支持 HLS AES-128 等加密视频）
+> - `orange-downloader` - 下载管理与 M3U8 合并
+> - `orange-ffmpeg` - 精简 FFmpeg 合并能力（配合下载使用）
 >
 > ⚠️ **重要提示**：
 > - `gsyVideoPlayer-ex_so` 和标准 so 库（armv7a/armv64/x86/x86_64）**不能同时使用**，会导致 SO 库冲突

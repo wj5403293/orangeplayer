@@ -2,6 +2,9 @@ package com.orange.ffmpeg;
 
 import android.util.Log;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class FFmpegKit {
@@ -116,6 +119,101 @@ public final class FFmpegKit {
         return sStubMode.get();
     }
 
+    public static int trim(String inputPath, String outputPath, String start, String end) {
+        if (isEmpty(inputPath) || isEmpty(outputPath)) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        if (isEmpty(start) && isEmpty(end)) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        List<String> args = new ArrayList<>();
+        if (!isEmpty(start)) {
+            args.add("-ss");
+            args.add(start);
+        }
+        if (!isEmpty(end)) {
+            args.add("-to");
+            args.add(end);
+        }
+        args.add("-i");
+        args.add(inputPath);
+        args.add("-c");
+        args.add("copy");
+        args.add(outputPath);
+        return execute(args.toArray(new String[0]));
+    }
+
+    public static int concat(String concatListPath, String outputPath) {
+        if (isEmpty(concatListPath) || isEmpty(outputPath)) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        File listFile = new File(concatListPath);
+        if (!listFile.exists()) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        String[] args = new String[]{
+                "-f", "concat",
+                "-safe", "0",
+                "-i", concatListPath,
+                "-c", "copy",
+                outputPath
+        };
+        return execute(args);
+    }
+
+    public static int watermark(String inputPath, String watermarkPath, String outputPath, int x, int y) {
+        if (isEmpty(inputPath) || isEmpty(watermarkPath) || isEmpty(outputPath)) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        String[] args = new String[]{
+                "-i", inputPath,
+                "-i", watermarkPath,
+                "-filter_complex", "overlay=" + x + ":" + y,
+                "-c:v", "mpeg4",
+                "-c:a", "copy",
+                outputPath
+        };
+        return execute(args);
+    }
+
+    public static int thumbnail(String inputPath, String outputPath, String timestamp) {
+        if (isEmpty(inputPath) || isEmpty(outputPath)) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        List<String> args = new ArrayList<>();
+        if (!isEmpty(timestamp)) {
+            args.add("-ss");
+            args.add(timestamp);
+        }
+        args.add("-i");
+        args.add(inputPath);
+        args.add("-frames:v");
+        args.add("1");
+        args.add("-q:v");
+        args.add("2");
+        args.add(outputPath);
+        return execute(args.toArray(new String[0]));
+    }
+
+    public static int extractAudio(String inputPath, String outputPath, boolean toMp3) {
+        if (isEmpty(inputPath) || isEmpty(outputPath)) {
+            return RESULT_EXECUTE_FAILED;
+        }
+        List<String> args = new ArrayList<>();
+        args.add("-i");
+        args.add(inputPath);
+        args.add("-vn");
+        if (toMp3) {
+            args.add("-c:a");
+            args.add("mp3");
+        } else {
+            args.add("-c:a");
+            args.add("copy");
+        }
+        args.add(outputPath);
+        return execute(args.toArray(new String[0]));
+    }
+
     private static int executeInStubMode(String[] args) {
         if (args == null || args.length == 0) {
             return RESULT_EXECUTE_FAILED;
@@ -150,4 +248,8 @@ public final class FFmpegKit {
     private static native void nativeCancel();
 
     private static native String nativeGetVersion();
+
+    private static boolean isEmpty(String value) {
+        return value == null || value.trim().isEmpty();
+    }
 }
