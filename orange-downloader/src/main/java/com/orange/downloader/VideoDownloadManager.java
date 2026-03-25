@@ -989,16 +989,33 @@ public class VideoDownloadManager {
 
         LogUtils.i(DownloadConstants.TAG, "handleOnDownloadSuccess shouldM3U8Merged="+mConfig.shouldM3U8Merged() + ", isHlsType="+taskItem.isHlsType());
         if (mConfig.shouldM3U8Merged() && taskItem.isHlsType()) {
+            if (taskItem.getPercent() < 99.9f) {
+                taskItem.setPercent(99.9f);
+            }
+            taskItem.setTaskState(VideoTaskState.PREPARE);
+            taskItem.setPaused(false);
+            mGlobalDownloadListener.onDownloadPrepare(taskItem);
+            markDownloadProgressInfoUpdateEvent(taskItem);
+            if (!TextUtils.isEmpty(taskItem.getUrl())) {
+                mMergingTaskUrls.add(taskItem.getUrl());
+            }
+            updateForegroundService();
             doMergeTs(taskItem, taskItem1 -> {
-                if (taskItem1 != null && taskItem1.getErrorCode() != 0) {
-                    LogUtils.e(DownloadConstants.TAG, "m3u8 merge failed, errorCode=" + taskItem1.getErrorCode());
-                    mGlobalDownloadListener.onDownloadError(taskItem1);
+                try {
+                    if (taskItem1 != null && taskItem1.getErrorCode() != 0) {
+                        LogUtils.e(DownloadConstants.TAG, "m3u8 merge failed, errorCode=" + taskItem1.getErrorCode());
+                        mGlobalDownloadListener.onDownloadError(taskItem1);
+                        markDownloadFinishEvent(taskItem1);
+                        return;
+                    }
+                    mGlobalDownloadListener.onDownloadSuccess(taskItem1);
                     markDownloadFinishEvent(taskItem1);
-                    return;
+                } finally {
+                    if (!TextUtils.isEmpty(taskItem.getUrl())) {
+                        mMergingTaskUrls.remove(taskItem.getUrl());
+                    }
+                    updateForegroundService();
                 }
-                mGlobalDownloadListener.onDownloadSuccess(taskItem1);
-                markDownloadFinishEvent(taskItem1);
-                updateForegroundService();
             });
         } else {
             mGlobalDownloadListener.onDownloadSuccess(taskItem);

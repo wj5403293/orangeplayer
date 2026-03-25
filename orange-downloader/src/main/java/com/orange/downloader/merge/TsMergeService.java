@@ -121,6 +121,7 @@ public class TsMergeService {
         taskItem.setFilePath(outputFile.getAbsolutePath());
         taskItem.setMimeType(mergedByJavaFallback ? "video/mp2t" : "video/mp4");
         taskItem.setVideoType(Video.Type.HLS_TYPE);
+        cleanupIntermediateArtifactsIfNeeded(dir, localM3U8, fileHash, outputFile, mergedByJavaFallback);
     }
 
     private File resolveLocalM3U8File(VideoTaskItem taskItem, File dir, String fileHash) {
@@ -264,6 +265,44 @@ public class TsMergeService {
             LogUtils.w(DownloadConstants.TAG, "[MERGE] FFmpeg returned non-zero but output is ready, ret=" + executeRet + ", outputSize=" + outputFile.length());
         }
         return merged;
+    }
+
+    private void cleanupIntermediateArtifactsIfNeeded(File dir, File localM3U8, String fileHash, File outputFile, boolean mergedByJavaFallback) {
+        if (mergedByJavaFallback) {
+            return;
+        }
+        if (outputFile == null || !outputFile.exists() || outputFile.length() <= 0) {
+            return;
+        }
+        if (!outputFile.getName().toLowerCase().endsWith(".mp4")) {
+            return;
+        }
+        try {
+            List<File> tsFiles = parseM3U8ForTsFiles(localM3U8);
+            for (File tsFile : tsFiles) {
+                if (tsFile != null && tsFile.exists() && tsFile.isFile()) {
+                    tsFile.delete();
+                }
+            }
+        } catch (Exception e) {
+            LogUtils.w(DownloadConstants.TAG, "[MERGE] cleanup ts failed: " + e.getMessage());
+        }
+        deleteIfExists(localM3U8);
+        deleteIfExists(new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8));
+        deleteIfExists(new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY));
+        deleteIfExists(new File(dir, VideoDownloadUtils.REMOTE_M3U8));
+        File[] keyFiles = dir.listFiles((d, name) -> name != null && name.toLowerCase().endsWith(".key"));
+        if (keyFiles != null) {
+            for (File keyFile : keyFiles) {
+                deleteIfExists(keyFile);
+            }
+        }
+    }
+
+    private void deleteIfExists(File file) {
+        if (file != null && file.exists()) {
+            file.delete();
+        }
     }
 
     private String[] buildFfmpegCommand(Map<String, String> headers, File inputM3u8, File outputFile) {
