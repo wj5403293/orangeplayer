@@ -439,7 +439,7 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
             for (M3U8Seg m3u8Ts : mTsList) {
                 if (m3u8Ts.hasInitSegment()) {
                     String initSegmentInfo;
-                    String initSegmentFilePath = mSaveDir.getAbsolutePath() + File.separator + m3u8Ts.getInitSegmentName();
+                    String initSegmentFilePath = buildLocalPlaylistPath(m3u8Ts.getInitSegmentName());
                     if (m3u8Ts.getSegmentByteRange() != null) {
                         initSegmentInfo = "URI=\"" + initSegmentFilePath + "\"" + ",BYTERANGE=\"" + m3u8Ts.getSegmentByteRange() + "\"";
                     } else {
@@ -451,8 +451,7 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
                     if (m3u8Ts.getMethod() != null) {
                         String key = "METHOD=" + m3u8Ts.getMethod();
                         if (m3u8Ts.getKeyUri() != null) {
-                            File keyFile = new File(mSaveDir, m3u8Ts.getLocalKeyUri());
-                            key += ",URI=\"" + keyFile.getAbsolutePath() + "\"";
+                            key += ",URI=\"" + buildLocalPlaylistPath(m3u8Ts.getLocalKeyUri()) + "\"";
                         }
                         if (m3u8Ts.getKeyIV() != null) {
                             key += ",IV=" + m3u8Ts.getKeyIV();
@@ -468,7 +467,7 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
                 if (!TextUtils.isEmpty(byteRange)) {
                     bfw.write(M3U8Constants.TAG_BYTERANGE + ":" + byteRange + "\n");
                 }
-                bfw.write(mSaveDir.getAbsolutePath() + File.separator + m3u8Ts.getIndexName());
+                bfw.write(buildLocalPlaylistPath(m3u8Ts.getIndexName()));
                 bfw.newLine();
             }
             bfw.write(M3U8Constants.TAG_ENDLIST);
@@ -500,7 +499,7 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
             for (M3U8Seg m3u8Ts : mTsList) {
                 if (m3u8Ts.hasInitSegment()) {
                     String initSegmentInfo;
-                    String initSegmentFilePath = mSaveDir.getAbsolutePath() + File.separator + m3u8Ts.getInitSegmentName();
+                    String initSegmentFilePath = buildLocalPlaylistPath(m3u8Ts.getInitSegmentName());
                     if (m3u8Ts.getSegmentByteRange() != null) {
                         initSegmentInfo = "URI=\"" + initSegmentFilePath + "\"" + ",BYTERANGE=\"" + m3u8Ts.getSegmentByteRange() + "\"";
                     } else {
@@ -528,7 +527,7 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
                 if (!TextUtils.isEmpty(byteRange)) {
                     bfw.write(M3U8Constants.TAG_BYTERANGE + ":" + byteRange + "\n");
                 }
-                bfw.write(mSaveDir.getAbsolutePath() + File.separator + m3u8Ts.getIndexName());
+                bfw.write(buildLocalPlaylistPath(m3u8Ts.getIndexName()));
                 bfw.newLine();
             }
             bfw.write(M3U8Constants.TAG_ENDLIST);
@@ -541,5 +540,12 @@ public class M3U8VideoDownloadTask extends VideoDownloadTask {
             }
             tempM3U8File.renameTo(localM3U8File);
         }
+    }
+
+    private String buildLocalPlaylistPath(String fileName) {
+        if (TextUtils.isEmpty(fileName)) {
+            return "";
+        }
+        return fileName.replace("\\", "/");
     }
 }

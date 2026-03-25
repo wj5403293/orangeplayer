@@ -40,5 +40,9 @@ dependencies {
     // Gson for JSON parsing
     api 'com.google.code.gson:gson:2.10.1'
 
+    // 可选：FFmpeg 精简库（按需启用 ts 合并能力）
+    compileOnly project(':orange-ffmpeg')
+
     testImplementation 'junit:junit:4.13.2'
+
 }

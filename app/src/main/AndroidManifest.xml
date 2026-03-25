@@ -56,7 +56,15 @@
 				android:supportsPictureInPicture="true"
 				android:resizeableActivity="true" />
 		
+		<meta-data
+				android:name="orange.downloader.ffmpeg.merge.enabled"
+				android:value="true" />
+		<meta-data
+				android:name="orange.downloader.ffmpeg.merge.java_fallback.enabled"
+				android:value="true" />
+
 		<!-- 下载服务已在 orange-downloader 模块中声明 -->
 	</application>
+
 
 </manifest>

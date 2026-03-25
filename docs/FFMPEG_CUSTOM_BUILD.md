@@ -12,7 +12,16 @@
 
 ---
 
+## 模块归属与依赖（新增）
+
+- **产物归属**：FFmpeg 编译产物统一归属 `orange-ffmpeg` 模块，路径为 `orange-ffmpeg/src/main/jniLibs/arm64-v8a`。
+- **依赖方式**：`orange-downloader` 对 `orange-ffmpeg` 为可选依赖，需要 ts 合并时在业务层添加 `implementation project(':orange-ffmpeg')`。
+- **职责边界**：`palyerlibrary` 不再承载 FFmpeg 产物与 JNI 封装，避免与下载库职责混淆。
+
+---
+
 ## 一、WSL 环境准备
+
 
 ```bash
 # 更新系统
@@ -537,8 +546,9 @@ $NDK_ROOT/ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk
 在 Android 项目中创建：
 
 ```java
-// palyerlibrary/src/main/java/com/orange/playerlibrary/ffmpeg/FFmpegKit.java
-package com.orange.playerlibrary.ffmpeg;
+// orange-ffmpeg/src/main/java/com/orange/ffmpeg/FFmpegKit.java
+package com.orange.ffmpeg;
+
 
 public class FFmpegKit {
     

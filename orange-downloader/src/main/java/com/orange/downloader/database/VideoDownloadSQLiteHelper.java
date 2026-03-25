@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "video_download_info.db";
-    private static final int DATABASE_VERSION = 5;  // 升级版本以添加SAVE_DIR列
+    private static final int DATABASE_VERSION = 6;  // 升级版本以添加REQUEST_HEADERS列
 
     public static final String TABLE_VIDEO_DOWNLOAD_INFO = "video_download_info";
 
@@ -31,6 +31,7 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
         public static final String COVER_PATH = "cover_path";
         public static final String VIDEO_TITLE = "video_title";
         public static final String GROUP_NAME = "group_name";
+        public static final String REQUEST_HEADERS = "request_headers";  // JSON格式存储请求头
     }
 
     public VideoDownloadSQLiteHelper(Context context) {
@@ -55,6 +56,9 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
         }
         if (oldVersion <= 4) {
             upgradeDatabaseToVersion5(db);
+        }
+        if (oldVersion <= 5) {
+            upgradeDatabaseToVersion6(db);
         }
     }
 
@@ -83,7 +87,8 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
                 + Columns.COVER_URL + " TEXT, "
                 + Columns.COVER_PATH + " TEXT,"
                 + Columns.VIDEO_TITLE + " TEXT,"
-                + Columns.GROUP_NAME + " TEXT);");
+                + Columns.GROUP_NAME + " TEXT,"
+                + Columns.REQUEST_HEADERS + " TEXT);");
     }
 
     private void upgradeDatabaseToVersion2(SQLiteDatabase db) {
@@ -101,5 +106,9 @@ public class VideoDownloadSQLiteHelper extends SQLiteOpenHelper {
 
     private void upgradeDatabaseToVersion5(SQLiteDatabase db) {
         db.execSQL("ALTER TABLE " + TABLE_VIDEO_DOWNLOAD_INFO + " ADD COLUMN " + Columns.SAVE_DIR + " TEXT");
+    }
+
+    private void upgradeDatabaseToVersion6(SQLiteDatabase db) {
+        db.execSQL("ALTER TABLE " + TABLE_VIDEO_DOWNLOAD_INFO + " ADD COLUMN " + Columns.REQUEST_HEADERS + " TEXT");
     }
 }

@@ -32,6 +32,7 @@ public class VideoTaskItem implements Cloneable {
     private String mFileName;            //文件名
     private String mFilePath;            //文件完整路径(包括文件名)
     private boolean mPaused;
+    private String mRequestHeaders;      //请求头，JSON格式存储
 
     public VideoTaskItem(String url) {
         this(url, "", "", "");
@@ -244,6 +245,14 @@ public class VideoTaskItem implements Cloneable {
         return mPaused;
     }
 
+    public void setRequestHeaders(String headers) {
+        mRequestHeaders = headers;
+    }
+
+    public String getRequestHeaders() {
+        return mRequestHeaders;
+    }
+
     public boolean isRunningTask() {
         return mTaskState == VideoTaskState.DOWNLOADING;
     }
@@ -290,6 +299,7 @@ public class VideoTaskItem implements Cloneable {
         mCoverPath = "";
         mTitle = "";
         mGroupName = "";
+        mRequestHeaders = null;
     }
 
     @Override
@@ -311,6 +321,7 @@ public class VideoTaskItem implements Cloneable {
         taskItem.setCoverPath(mCoverPath);
         taskItem.setTitle(mTitle);
         taskItem.setGroupName(mGroupName);
+        taskItem.setRequestHeaders(mRequestHeaders);
         return taskItem;
     }
 

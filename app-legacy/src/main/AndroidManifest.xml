@@ -37,8 +37,16 @@
 				android:name="androidx.startup.InitializationProvider"
 				android:authorities="com.orange.player.legacy.androidx-startup"
 				tools:node="remove" />
+		<meta-data
+				android:name="orange.downloader.ffmpeg.merge.enabled"
+				android:value="true" />
+		<meta-data
+				android:name="orange.downloader.ffmpeg.merge.java_fallback.enabled"
+				android:value="true" />
+
 		<activity
 				android:name=".MainActivity"
+
 				android:exported="true"
 				android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
 				android:screenOrientation="portrait"

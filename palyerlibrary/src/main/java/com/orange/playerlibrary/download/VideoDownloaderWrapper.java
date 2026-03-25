@@ -7,7 +7,9 @@ import android.widget.Toast;
 import com.orange.downloader.VideoDownloadConfig;
 import com.orange.downloader.VideoDownloadManager;
 import com.orange.downloader.listener.DownloadListener;
+import com.orange.downloader.merge.MergeFeatureToggle;
 import com.orange.downloader.model.VideoTaskItem;
+
 
 import java.io.File;
 import java.util.Map;
@@ -76,13 +78,17 @@ public class VideoDownloaderWrapper {
         android.util.Log.d("VideoDownloaderWrapper", "Cache dir canRead: " + cacheDir.canRead());
         
         try {
+            MergeFeatureToggle.initialize(mContext);
+            boolean mergeEnabled = MergeFeatureToggle.isFfmpegMergeEnabled() || MergeFeatureToggle.isJavaFallbackEnabled();
+
             VideoDownloadConfig config = new VideoDownloadManager.Build(mContext)
                 .setCacheRoot(cacheDir.getAbsolutePath())                    // 缓存目录：/storage/emulated/0/Download/orangeplayer
                 .setTimeOut(30 * 1000, 30 * 1000)                           // 超时设置
                 .setConcurrentCount(3)                                       // 并发下载数
                 .setIgnoreCertErrors(true)                                   // 忽略证书错误
-                .setShouldM3U8Merged(true)                                   // M3U8 自动合并为 MP4
+                .setShouldM3U8Merged(mergeEnabled)                           // 合并能力由开关控制
                 .buildConfig();
+
                 
             android.util.Log.d("VideoDownloaderWrapper", "VideoDownloadConfig created");
             
@@ -549,6 +555,35 @@ public class VideoDownloaderWrapper {
         File dir = getDownloadDirectory();
         return dir != null ? dir.getAbsolutePath() : null;
     }
+
+    public boolean isFfmpegMergeEnabled() {
+        return MergeFeatureToggle.isFfmpegMergeEnabled();
+    }
+
+    public boolean isJavaMergeFallbackEnabled() {
+        return MergeFeatureToggle.isJavaFallbackEnabled();
+    }
+
+    public void setFfmpegMergeEnabled(boolean enabled) {
+        MergeFeatureToggle.setFfmpegMergeEnabled(mContext, enabled);
+        if (mInitialized) {
+            VideoDownloadManager manager = VideoDownloadManager.getInstance();
+            if (manager != null && manager.downloadConfig() != null) {
+                manager.setShouldM3U8Merged(enabled || MergeFeatureToggle.isJavaFallbackEnabled());
+            }
+        }
+    }
+
+    public void setJavaMergeFallbackEnabled(boolean enabled) {
+        MergeFeatureToggle.setJavaFallbackEnabled(mContext, enabled);
+        if (mInitialized) {
+            VideoDownloadManager manager = VideoDownloadManager.getInstance();
+            if (manager != null && manager.downloadConfig() != null) {
+                manager.setShouldM3U8Merged(enabled || MergeFeatureToggle.isFfmpegMergeEnabled());
+            }
+        }
+    }
+
     
     /**
      * 计算 MD5 哈希

@@ -2,6 +2,22 @@ plugins {
     id 'com.android.application'
 }
 
+def supportedAppAbis = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
+def appDebugAbis = ((project.findProperty("orangeAppDebugAbis") ?: "armeabi-v7a,arm64-v8a,x86,x86_64").toString())
+        .split(",")
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
+def appReleaseAbis = ((project.findProperty("orangeAppReleaseAbis") ?: "arm64-v8a").toString())
+        .split(",")
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
+
+def invalidDebugAbis = appDebugAbis.findAll { !supportedAppAbis.contains(it) }
+def invalidReleaseAbis = appReleaseAbis.findAll { !supportedAppAbis.contains(it) }
+if (!invalidDebugAbis.isEmpty() || !invalidReleaseAbis.isEmpty()) {
+    throw new GradleException("[app] invalid ABI config, debug=${invalidDebugAbis}, release=${invalidReleaseAbis}, allowed=${supportedAppAbis}")
+}
+
 android {
     namespace 'com.orange.player'
     compileSdk 36
@@ -14,12 +30,8 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
-        // 编译全架构（支持所有设备）
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
-        }
     }
+
     signingConfigs {
         release {
             // 如果有签名文件，取消注释以下配置
@@ -37,13 +49,20 @@ android {
             // 暂时不使用签名配置
             signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                abiFilters(*appReleaseAbis)
+            }
         }
         debug {
             minifyEnabled false  // Debug 不启用代码压缩，方便调试
             shrinkResources false  // Debug 不启用资源压缩
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                abiFilters(*appDebugAbis)
+            }
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
@@ -55,7 +74,9 @@ android {
             returnDefaultValues = true
         }
     }
+
 }
+
 
 dependencies {
 
@@ -112,6 +133,10 @@ dependencies {
     // VideoDownloader 依赖（M3U8 下载功能需要）
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation 'com.google.code.gson:gson:2.10.1'
+
+    // 可选 FFmpeg merge 运行时（orange-downloader 为 compileOnly，App 侧按需显式引入）
+    implementation project(':orange-ffmpeg')
+
     
     // DialogX 弹窗库（下载管理界面需要）
     // 注意：DialogX 包含 DialogXInterface，需排除传递依赖避免重复类

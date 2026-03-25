@@ -108,3 +108,6 @@ logcat.txt
 
 # 排除 GSYVideoPlayer 子模块的修改
 /GSYVideoPlayer-source/
+
+# 排除 FFmpeg 第三方构建产物
+/orange-ffmpeg/src/main/cpp/third_party/ffmpeg/

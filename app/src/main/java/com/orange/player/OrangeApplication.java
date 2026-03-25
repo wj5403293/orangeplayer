@@ -40,11 +40,15 @@ public class OrangeApplication extends Application {
         
         // 初始化 VideoDownloader（用于 M3U8、MP4 等视频下载）
         try {
-            VideoDownloaderWrapper.getInstance(this).init();
+            VideoDownloaderWrapper downloaderWrapper = VideoDownloaderWrapper.getInstance(this);
+            downloaderWrapper.init();
             Log.d(TAG, "VideoDownloader initialized successfully");
+            Log.d(TAG, "FFmpeg merge enabled=" + downloaderWrapper.isFfmpegMergeEnabled()
+                    + ", java fallback enabled=" + downloaderWrapper.isJavaMergeFallbackEnabled());
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize VideoDownloader", e);
         }
+
         
         // 注意：播放器核心的初始化不在这里进行
         // 因为 GSYVideoManager 需要 Activity Context

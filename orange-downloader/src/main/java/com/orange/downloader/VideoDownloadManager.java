@@ -19,7 +19,11 @@ import com.orange.downloader.model.Video;
 import com.orange.downloader.model.VideoTaskItem;
 import com.orange.downloader.model.VideoTaskState;
 import com.orange.downloader.listener.IM3U8MergeResultListener;
+import com.orange.downloader.merge.MergeFeatureToggle;
+import com.orange.downloader.merge.TsMergeService;
 import com.orange.downloader.task.BaseVideoDownloadTask;
+
+
 import com.orange.downloader.task.M3U8VideoDownloadTask;
 import com.orange.downloader.task.MultiSegVideoDownloadTask;
 import com.orange.downloader.task.VideoDownloadTask;
@@ -29,6 +33,8 @@ import com.orange.downloader.utils.LogUtils;
 import com.orange.downloader.utils.VideoDownloadUtils;
 import com.orange.downloader.utils.VideoStorageUtils;
 import com.orange.downloader.utils.WorkerThreadHandler;
+
+import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -49,6 +55,8 @@ public class VideoDownloadManager {
     private List<IDownloadInfosCallback> mDownloadInfoCallbacks = new CopyOnWriteArrayList<>();
     private Map<String, VideoDownloadTask> mVideoDownloadTaskMap = new ConcurrentHashMap<>();
     private Map<String, VideoTaskItem> mVideoItemTaskMap = new ConcurrentHashMap<>();
+    private final TsMergeService mTsMergeService = new TsMergeService();
+
 
     public static class Build {
         private String mCacheRoot;
@@ -159,11 +167,13 @@ public class VideoDownloadManager {
         //如果为null, 会crash
         mConfig = config;
         VideoDownloadUtils.setDownloadConfig(config);
+        MergeFeatureToggle.initialize(ContextUtils.getApplicationContext());
         mVideoDatabaseHelper = new VideoDownloadDatabaseHelper(ContextUtils.getApplicationContext());
         HandlerThread stateThread = new HandlerThread("Video_download_state_thread");
         stateThread.start();
         mVideoDownloadHandler = new VideoDownloadHandler(stateThread.getLooper());
     }
+
 
     public VideoDownloadConfig downloadConfig() {
         return mConfig;
@@ -240,6 +250,8 @@ public class VideoDownloadManager {
         String videoUrl = taskItem.getUrl();
         String saveName = VideoDownloadUtils.computeMD5(videoUrl);
         taskItem.setFileHash(saveName);
+        // 保存headers到taskItem
+        taskItem.setRequestHeaders(headersToJson(headers));
         boolean taskExisted = taskItem.getDownloadCreateTime() != 0;
         if (taskExisted) {
             parseExistVideoDownloadInfo(taskItem, headers);
@@ -660,6 +672,21 @@ public class VideoDownloadManager {
                 List<VideoTaskItem> taskItems = mVideoDatabaseHelper.getDownloadInfos();
                 for (VideoTaskItem taskItem : taskItems) {
                     if (mConfig != null && mConfig.shouldM3U8Merged() && taskItem.isHlsType()) {
+                        if (hasValidMergedOutput(taskItem)) {
+                            mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
+                            continue;
+                        }
+                        if (!hasMergeSource(taskItem)) {
+                            taskItem.setErrorCode(TsMergeService.MERGE_ERROR_SOURCE_NOT_FOUND);
+                            taskItem.setTaskState(VideoTaskState.ERROR);
+                            taskItem.setIsCompleted(false);
+                            LogUtils.w(DownloadConstants.TAG, "[MERGE] restore task without output, mark error. url=" + taskItem.getUrl() + ", filePath=" + taskItem.getFilePath());
+                            mVideoItemTaskMap.put(taskItem.getUrl(), taskItem);
+                            markDownloadFinishEvent(taskItem);
+                            continue;
+                        }
+                        taskItem.setIsCompleted(false);
+                        LogUtils.i(DownloadConstants.TAG, "[MERGE] restore task needs merge retry. url=" + taskItem.getUrl() + ", saveDir=" + taskItem.getSaveDir());
                         doMergeTs(taskItem, taskItem1 -> {
                             mVideoItemTaskMap.put(taskItem1.getUrl(), taskItem1);
                             markDownloadFinishEvent(taskItem1);
@@ -673,6 +700,56 @@ public class VideoDownloadManager {
                     callback.onDownloadInfos(taskItems);
                 }
             });
+        }
+
+        private boolean hasValidMergedOutput(VideoTaskItem taskItem) {
+            if (taskItem == null || TextUtils.isEmpty(taskItem.getFilePath())) {
+                return false;
+            }
+            String filePath = taskItem.getFilePath();
+            if (filePath.endsWith(File.separator + VideoDownloadUtils.LOCAL_M3U8)
+                    || filePath.endsWith(File.separator + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)
+                    || filePath.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8)
+                    || filePath.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)) {
+                return false;
+            }
+            File outputFile = new File(filePath);
+            return outputFile.exists() && outputFile.isFile() && outputFile.length() > 0;
+        }
+
+        private boolean hasMergeSource(VideoTaskItem taskItem) {
+            if (taskItem == null || TextUtils.isEmpty(taskItem.getSaveDir())) {
+                return false;
+            }
+            File saveDir = new File(taskItem.getSaveDir());
+            if (!saveDir.exists() || !saveDir.isDirectory()) {
+                return false;
+            }
+            if (!TextUtils.isEmpty(taskItem.getFilePath())) {
+                File currentFile = new File(taskItem.getFilePath());
+                if (currentFile.exists() && currentFile.isFile()) {
+                    return true;
+                }
+            }
+            String fileHash = taskItem.getFileHash();
+            if (TextUtils.isEmpty(fileHash) && !TextUtils.isEmpty(taskItem.getUrl())) {
+                fileHash = VideoDownloadUtils.computeMD5(taskItem.getUrl());
+                taskItem.setFileHash(fileHash);
+            }
+            if (!TextUtils.isEmpty(fileHash)) {
+                File localM3u8 = new File(saveDir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8);
+                if (localM3u8.exists() && localM3u8.isFile()) {
+                    return true;
+                }
+                File keyLocalM3u8 = new File(saveDir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY);
+                if (keyLocalM3u8.exists() && keyLocalM3u8.isFile()) {
+                    return true;
+                }
+            }
+            File[] playlistFiles = saveDir.listFiles((dir, name) -> name != null
+                    && (name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8)
+                    || name.endsWith("_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY)));
+            return playlistFiles != null && playlistFiles.length > 0;
         }
 
         private void dispatchDownloadMessage(int msg, VideoTaskItem taskItem) {
@@ -743,6 +820,12 @@ public class VideoDownloadManager {
         LogUtils.i(DownloadConstants.TAG, "handleOnDownloadSuccess shouldM3U8Merged="+mConfig.shouldM3U8Merged() + ", isHlsType="+taskItem.isHlsType());
         if (mConfig.shouldM3U8Merged() && taskItem.isHlsType()) {
             doMergeTs(taskItem, taskItem1 -> {
+                if (taskItem1 != null && taskItem1.getErrorCode() != 0) {
+                    LogUtils.e(DownloadConstants.TAG, "m3u8 merge failed, errorCode=" + taskItem1.getErrorCode());
+                    mGlobalDownloadListener.onDownloadError(taskItem1);
+                    markDownloadFinishEvent(taskItem1);
+                    return;
+                }
                 mGlobalDownloadListener.onDownloadSuccess(taskItem1);
                 markDownloadFinishEvent(taskItem1);
             });
@@ -752,140 +835,11 @@ public class VideoDownloadManager {
         }
     }
 
+
     private void doMergeTs(VideoTaskItem taskItem, IM3U8MergeResultListener listener) {
-        LogUtils.i(DownloadConstants.TAG, "[MERGE] doMergeTs called");
-        if (taskItem == null) {
-            LogUtils.e(DownloadConstants.TAG, "[MERGE] taskItem is null, skip merge");
-            listener.onCallback(taskItem);
-            return;
-        }
-        if (TextUtils.isEmpty(taskItem.getSaveDir())) {
-            LogUtils.e(DownloadConstants.TAG, "[MERGE] saveDir is null, skip merge");
-            listener.onCallback(taskItem);
-            return;
-        }
-        
-        String saveDir = taskItem.getSaveDir();
-        if (TextUtils.isEmpty(taskItem.getFileHash())) {
-            taskItem.setFileHash(VideoDownloadUtils.computeMD5(taskItem.getUrl()));
-        }
-        String fileHash = taskItem.getFileHash();
-        
-        // 使用纯Java合并TS文件，不依赖FFmpeg
-        new Thread(() -> {
-            try {
-                File dir = new File(saveDir);
-                if (!dir.exists() || !dir.isDirectory()) {
-                    LogUtils.e(DownloadConstants.TAG, "[MERGE] Save directory not found: " + saveDir);
-                    listener.onCallback(taskItem);
-                    return;
-                }
-                
-                // 读取local.m3u8获取TS文件列表
-                File localM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8);
-                if (!localM3U8.exists()) {
-                    localM3U8 = new File(dir, fileHash + "_local.m3u8");
-                }
-                
-                if (!localM3U8.exists()) {
-                    LogUtils.e(DownloadConstants.TAG, "[MERGE] Local m3u8 file not found");
-                    listener.onCallback(taskItem);
-                    return;
-                }
-                
-                // 解析m3u8获取TS文件列表
-                List<String> tsFiles = parseM3U8ForTsFiles(localM3U8);
-                if (tsFiles.isEmpty()) {
-                    LogUtils.e(DownloadConstants.TAG, "[MERGE] No TS files found in m3u8");
-                    listener.onCallback(taskItem);
-                    return;
-                }
-                
-                LogUtils.i(DownloadConstants.TAG, "[MERGE] Found " + tsFiles.size() + " TS files to merge");
-                
-                // 合并输出文件路径 - 优先使用 title 作为文件名
-                String outputFileName;
-                String title = taskItem.getTitle();
-                if (title != null && !title.isEmpty()) {
-                    // 移除非法字符
-                    String safeName = title.replaceAll("[\\\\/:*?\"<>|]", "_");
-                    outputFileName = safeName + ".mp4";
-                    LogUtils.i(DownloadConstants.TAG, "[MERGE] Using title as filename: " + outputFileName);
-                } else {
-                    outputFileName = fileHash + ".mp4";
-                    LogUtils.i(DownloadConstants.TAG, "[MERGE] Using fileHash as filename: " + outputFileName);
-                }
-                File outputFile = new File(dir, outputFileName);
-                
-                // 合并TS文件
-                long totalSize = 0;
-                java.io.FileOutputStream fos = new java.io.FileOutputStream(outputFile);
-                byte[] buffer = new byte[8192];
-                
-                for (String tsPath : tsFiles) {
-                    File tsFile = new File(tsPath);
-                    if (tsFile.exists()) {
-                        java.io.FileInputStream fis = new java.io.FileInputStream(tsFile);
-                        int len;
-                        while ((len = fis.read(buffer)) > 0) {
-                            fos.write(buffer, 0, len);
-                            totalSize += len;
-                        }
-                        fis.close();
-                    }
-                }
-                fos.flush();
-                fos.close();
-                
-                LogUtils.i(DownloadConstants.TAG, "[MERGE] Merged " + tsFiles.size() + " files, total size: " + totalSize);
-                
-                // 更新任务信息
-                taskItem.setFileName(outputFileName);
-                taskItem.setFilePath(outputFile.getAbsolutePath());
-                taskItem.setMimeType("video/mp2t");
-                taskItem.setVideoType(Video.Type.TS_TYPE);
-                
-                // 删除原始TS文件和m3u8文件
-                for (String tsPath : tsFiles) {
-                    new File(tsPath).delete();
-                }
-                localM3U8.delete();
-                File remoteM3U8 = new File(dir, VideoDownloadUtils.REMOTE_M3U8);
-                if (remoteM3U8.exists()) remoteM3U8.delete();
-                File keyM3U8 = new File(dir, fileHash + "_" + VideoDownloadUtils.LOCAL_M3U8_WITH_KEY);
-                if (keyM3U8.exists()) keyM3U8.delete();
-                
-                LogUtils.i(DownloadConstants.TAG, "[MERGE] Cleanup completed, output: " + outputFile.getAbsolutePath());
-                listener.onCallback(taskItem);
-                
-            } catch (Exception e) {
-                LogUtils.e(DownloadConstants.TAG, "[MERGE] Merge failed: " + e.getMessage());
-                listener.onCallback(taskItem);
-            }
-        }).start();
+        mTsMergeService.merge(taskItem, listener::onCallback);
     }
-    
-    /**
-     * 解析m3u8文件获取TS文件路径列表
-     */
-    private List<String> parseM3U8ForTsFiles(File m3u8File) {
-        List<String> tsFiles = new java.util.ArrayList<>();
-        try {
-            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(m3u8File));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (!line.startsWith("#") && line.endsWith(".ts")) {
-                    // TS文件路径
-                    tsFiles.add(line);
-                }
-            }
-            reader.close();
-        } catch (Exception e) {
-            LogUtils.e(DownloadConstants.TAG, "[MERGE] Failed to parse m3u8: " + e.getMessage());
-        }
-        return tsFiles;
-    }
+
 
     private void markDownloadInfoAddEvent(VideoTaskItem taskItem) {
         WorkerThreadHandler.submitRunnableTask(() -> mVideoDatabaseHelper.markDownloadInfoAddEvent(taskItem));
@@ -901,5 +855,24 @@ public class VideoDownloadManager {
 
     private void markDownloadFinishEvent(VideoTaskItem taskItem) {
         WorkerThreadHandler.submitRunnableTask(() -> mVideoDatabaseHelper.markDownloadProgressInfoUpdateEvent(taskItem));
+    }
+
+    /**
+     * 将 headers Map 序列化为 JSON 字符串
+     */
+    private static String headersToJson(Map<String, String> headers) {
+        if (headers == null || headers.isEmpty()) {
+            return null;
+        }
+        try {
+            JSONObject json = new JSONObject();
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                json.put(entry.getKey(), entry.getValue());
+            }
+            return json.toString();
+        } catch (Exception e) {
+            LogUtils.w(DownloadConstants.TAG, "headersToJson failed: " + e.getMessage());
+            return null;
+        }
     }
 }
