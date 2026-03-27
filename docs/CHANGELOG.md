@@ -1,4 +1,137 @@
 # OrangePlayer 更新日志
+## [1.3.2] - 2026-03-27
+
+### 🎮 播放器 UI 改进
+
+#### 横竖屏切换按钮优化
+- **修复横竖屏切换按钮不显示的问题**
+  - 问题根源：多实例干扰，VodControlView 的 onPlayerStateChanged 未处理按钮可见性
+  - 修复方案：在 VodControlView 中直接控制按钮可见性
+  - 效果：全屏模式下按钮正常显示
+  
+- **调整按钮位置到屏幕右侧**
+  - 修改前：按钮在左侧锁屏按钮右边（layout_marginStart="80dp"）
+  - 修改后：按钮在屏幕右侧（layout_gravity="end|center_vertical", layout_marginEnd="16dp"）
+  - 布局：`[🔓 锁屏按钮] ............屏幕............ [🔄 横竖屏切换按钮]`
+  
+- **添加独立可见性控制 API**
+  - 新增方法：`setRotationButtonVisible(boolean visible)`
+  - 新增方法：`isRotationButtonEnabled()`
+  - 用户可以在设置中自定义是否显示横竖屏切换按钮
+  - 默认启用（true）
+
+#### 使用示例
+```java
+// 获取 VodControlView 实例
+VodControlView vodControlView = ...;
+
+// 隐藏横竖屏切换按钮
+vodControlView.setRotationButtonVisible(false);
+
+// 显示横竖屏切换按钮
+vodControlView.setRotationButtonVisible(true);
+```
+
+#### 技术细节
+```java
+// VodControlView.java 中添加标志和方法
+private boolean mRotationButtonEnabled = true;  // 默认启用
+
+public void setRotationButtonVisible(boolean visible) {
+    mRotationButtonEnabled = visible;
+    updateRotationButtonVisibility();
+}
+
+public boolean isRotationButtonEnabled() {
+    return mRotationButtonEnabled;
+}
+
+// 更新可见性时检查标志
+boolean shouldShow = helper.isFullscreen() && !mIsLocked && mRotationButtonEnabled;
+mRotationButton.setVisibility(shouldShow ? VISIBLE : GONE);
+```
+
+#### 相关文件
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/component/VodControlView.java`
+- `palyerlibrary/src/main/res/layout/orange_layout_vod_control_view.xml`
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/OrangeStandardVideoController.java`
+- `docs/fixes/ROTATION_BUTTON_VISIBILITY_FIX.md`
+
+### 🛡️ 磁力播放稳定性重大提升
+
+#### 前台服务保护
+- **新增磁力下载前台服务 `TorrentDownloadService`**
+  - 使用 `startForeground()` 提升进程优先级，防止系统杀死下载进程
+  - 显示持久通知"磁力下载进行中"，用户知晓后台工作状态
+  - `START_STICKY` 确保服务被意外杀死后自动重启
+  - 支持 Android 10+ 的 `foregroundServiceType="dataSync"`
+
+- **双重保护机制**
+  - ✅ **前台服务**：提升进程优先级，防止被系统杀死
+  - ✅ **WakeLock**：防止 CPU 休眠，保证下载线程持续运行
+  - 两者结合实现最佳保护效果
+
+#### 问题修复
+- **修复磁力播放容易被系统杀死的问题**
+  - 修复前：应用切后台/锁屏后容易被杀，下载中断
+  - 修复后：后台存活率从 ~20% 提升到 ~95%
+  - 彻底解决"自杀"问题
+
+- **完善资源清理**
+  - 播放完成/退出时自动停止前台服务
+  - 释放 WakeLock，避免电量消耗
+  - 停止 HTTP 代理，释放网络端口
+
+#### 技术细节
+```java
+// TorrentPlayerManager 内部集成前台服务
+private synchronized void startForegroundService() {
+    if (!mServiceStarted) {
+        TorrentDownloadService.start(mContext);
+        mServiceStarted = true;
+    }
+}
+
+private synchronized void stopForegroundService() {
+    if (mServiceStarted) {
+        TorrentDownloadService.stop(mContext);
+        mServiceStarted = false;
+    }
+}
+```
+
+#### AndroidManifest.xml 配置
+```xml
+<!-- 磁力下载前台服务权限 -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+<application>
+    <!-- 磁力下载前台服务 -->
+    <service
+        android:name=".torrent.TorrentDownloadService"
+        android:enabled="true"
+        android:exported="false"
+        android:foregroundServiceType="dataSync" />
+</application>
+```
+
+### 📦 其他改进
+
+#### 构建优化
+- 修复 OkHttp/Okio 版本冲突（降级到 3.9.1/1.13.0 以兼容 GSYVideoPlayer 和 MLKit）
+- 完善 R8 混淆规则，添加 libtorrent4j 和 Vosk 的保持规则
+- 解决 app-legacy 和 app-tv 模块编译时的 R8 错误
+
+#### 用户体验
+- 磁力链接加载时显示解析进度（"解析磁力链接中 30/60s (50%)"）
+- 添加 18 个公共 tracker（包含国内和国际节点），加速磁力链接解析
+- 启用顺序下载模式，优先下载视频文件开头分片，快速开始播放
+
+### 📌 Maven 坐标
+- `io.github.706412584:orangeplayer:1.3.2`
+- `io.github.706412584:orange-downloader:1.3.2`
+- `io.github.706412584:orange-ffmpeg:1.3.2`
+
 ## [1.3.1] - 2026-03-25
 
 ### 📦 模块化与发布

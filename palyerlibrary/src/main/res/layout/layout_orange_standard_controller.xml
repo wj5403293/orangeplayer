@@ -24,6 +24,19 @@
         android:visibility="gone"
         tools:visibility="visible" />
 
+    <!-- 横竖屏切换按钮 -->
+    <ImageView
+        android:id="@+id/rotation_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_vertical|start"
+        android:layout_marginStart="80dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_rotation"
+        android:visibility="gone" />
+
     <!-- 加载动画和网速显示容器 -->
     <LinearLayout
         android:id="@+id/loading_container"

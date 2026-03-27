@@ -34,6 +34,7 @@ public class TorrentPlayerManager implements AlertListener {
     private PowerManager.WakeLock mWakeLock;
 
     private boolean mInited;
+    private boolean mServiceStarted = false;  // 标记前台服务是否已启动
 
     private TorrentCallback mCallback;
 
@@ -343,6 +344,9 @@ public class TorrentPlayerManager implements AlertListener {
         }
 
         new Thread(() -> {
+            // 启动前台服务防止进程被杀死
+            startForegroundService();
+            
             // 获取 WakeLock 防止系统杀死进程
             acquireWakeLock();
             
@@ -458,6 +462,12 @@ public class TorrentPlayerManager implements AlertListener {
         }
         mCurrentTorrent = null;
         mReadyNotified = false;
+        
+        // 释放 WakeLock
+        releaseWakeLock();
+        
+        // 停止前台服务
+        stopForegroundService();
     }
 
     private void startHttpProxy(String fileName) {
@@ -670,6 +680,28 @@ public class TorrentPlayerManager implements AlertListener {
         if (mWakeLock != null && !mWakeLock.isHeld()) {
             mWakeLock.acquire(150000); // 150 秒超时，比 fetchMagnet 的 120 秒多一点
             Log.d(TAG, "acquireWakeLock: WakeLock acquired");
+        }
+    }
+
+    /**
+     * 启动前台服务防止进程被杀死
+     */
+    private synchronized void startForegroundService() {
+        if (!mServiceStarted) {
+            TorrentDownloadService.start(mContext);
+            mServiceStarted = true;
+            Log.d(TAG, "startForegroundService: started");
+        }
+    }
+
+    /**
+     * 停止前台服务
+     */
+    private synchronized void stopForegroundService() {
+        if (mServiceStarted) {
+            TorrentDownloadService.stop(mContext);
+            mServiceStarted = false;
+            Log.d(TAG, "stopForegroundService: stopped");
         }
     }
 

@@ -156,6 +156,19 @@
         android:src="@drawable/dkplayer_selector_lock_button"
         android:visibility="gone" />
 
+    <!-- 横竖屏切换按钮 -->
+    <ImageView
+        android:id="@+id/rotation_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="72dp"
+        android:padding="8dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_rotation"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:visibility="gone" />
+
     <!-- 返回按钮 -->
     <ImageView
         android:id="@+id/back"

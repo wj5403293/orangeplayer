@@ -2800,6 +2800,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         if (controller != null) {
             controller.setVideoView(this);
+            
+            // 设置 ControlWrapper，让控制器可以访问播放器
+            controller.setControlWrapper(controller);
 
             if (mTitleView != null) {
                 mTitleView.setController(controller);

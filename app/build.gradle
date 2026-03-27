@@ -3,7 +3,7 @@ plugins {
 }
 
 def supportedAppAbis = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
-def appDebugAbis = ((project.findProperty("orangeAppDebugAbis") ?: "armeabi-v7a,arm64-v8a,x86,x86_64").toString())
+def appDebugAbis = ((project.findProperty("orangeAppDebugAbis") ?: "arm64-v8a").toString())
         .split(",")
         .collect { it.trim() }
         .findAll { !it.isEmpty() }

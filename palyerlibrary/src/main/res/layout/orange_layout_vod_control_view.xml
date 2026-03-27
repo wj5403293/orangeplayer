@@ -16,6 +16,19 @@
         android:contentDescription="@string/orange_lock_desc"
         android:visibility="gone" />
 
+    <!-- 横竖屏切换按钮 (全屏时显示在屏幕右侧) -->
+    <ImageView
+        android:id="@+id/rotation_button"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="16dp"
+        android:padding="12dp"
+        android:src="@drawable/ic_rotation"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/orange_rotation_desc"
+        android:visibility="gone" />
+
     <!-- 视频预览容器 -->
     <LinearLayout
         android:id="@+id/preview_container"

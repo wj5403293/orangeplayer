@@ -32,6 +32,9 @@ public class OrangeStandardVideoController extends FrameLayout {
     // 锁屏按钮
     protected ImageView mLockButton;
     
+    // 横竖屏切换按钮
+    protected ImageView mRotationButton;
+    
     // 控制组件列表
     protected final ArrayList<IControlComponent> mControlComponents = new ArrayList<>();
     
@@ -105,7 +108,17 @@ public class OrangeStandardVideoController extends FrameLayout {
      */
     protected void initViews() {
         mControlContainer = findViewById(R.id.control_container);
-        mLockButton = findViewById(R.id.iv_lock);
+        
+        // 支持两种布局的锁屏按钮 ID
+        mLockButton = findViewById(R.id.lock_screen);
+        if (mLockButton == null) {
+            mLockButton = findViewById(R.id.iv_lock);
+        }
+        
+        // 初始化横竖屏切换按钮
+        mRotationButton = findViewById(R.id.rotation_button);
+        
+        android.util.Log.d(TAG, "initViews: mLockButton=" + mLockButton + ", mRotationButton=" + mRotationButton);
     }
 
     /**
@@ -124,6 +137,10 @@ public class OrangeStandardVideoController extends FrameLayout {
     protected void setupClickListeners() {
         if (mLockButton != null) {
             mLockButton.setOnClickListener(v -> toggleLockState());
+        }
+        
+        if (mRotationButton != null) {
+            mRotationButton.setOnClickListener(v -> onRotationButtonClick());
         }
     }
 
@@ -178,6 +195,9 @@ public class OrangeStandardVideoController extends FrameLayout {
         } else {
             showAllControlComponents();
         }
+        
+        // 更新横竖屏切换按钮可见性
+        updateRotationButtonVisibility();
     }
 
     /**
@@ -189,6 +209,87 @@ public class OrangeStandardVideoController extends FrameLayout {
                 ? R.drawable.dkplayer_ic_action_lock_close 
                 : R.drawable.dkplayer_ic_action_lock_open);
         }
+    }
+
+    // ==================== 横竖屏切换功能 ====================
+
+    /**
+     * 横竖屏切换按钮点击处理
+     * Requirements: 3.2, 3.3, 3.6, 3.7
+     */
+    protected void onRotationButtonClick() {
+        // 空指针保护
+        if (mControlWrapper == null) {
+            android.util.Log.w(TAG, "onRotationButtonClick: mControlWrapper is null");
+            return;
+        }
+        
+        // 获取 CustomFullscreenHelper
+        CustomFullscreenHelper helper = getFullscreenHelper();
+        if (helper == null) {
+            android.util.Log.w(TAG, "onRotationButtonClick: CustomFullscreenHelper is null");
+            return;
+        }
+        
+        // 状态检查：确保处于竖屏全屏模式
+        if (!helper.isPortraitFullscreen()) {
+            android.util.Log.w(TAG, "onRotationButtonClick: Not in portrait fullscreen mode");
+            return;
+        }
+        
+        android.util.Log.d(TAG, "onRotationButtonClick: Switching from portrait to landscape fullscreen");
+        
+        // 从竖屏全屏切换到横屏全屏
+        // 先退出竖屏全屏
+        helper.stopPortraitFullScreen();
+        
+        // 延迟 100ms 后进入横屏全屏，等待退出动画完成
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                CustomFullscreenHelper h = getFullscreenHelper();
+                if (h != null) {
+                    h.startFullScreen();
+                }
+            }
+        }, 100);
+    }
+
+    /**
+     * 获取全屏辅助类实例
+     * Requirements: 3.6
+     * 
+     * @return CustomFullscreenHelper 实例，如果无法获取则返回 null
+     */
+    protected CustomFullscreenHelper getFullscreenHelper() {
+        android.util.Log.d(TAG, "getFullscreenHelper: mControlWrapper=" + mControlWrapper);
+        
+        if (mControlWrapper == null) {
+            android.util.Log.w(TAG, "getFullscreenHelper: mControlWrapper is null");
+            return null;
+        }
+        
+        // 方法1: 如果 mControlWrapper 是 OrangevideoView 实例
+        if (mControlWrapper instanceof OrangevideoView) {
+            OrangevideoView videoView = (OrangevideoView) mControlWrapper;
+            CustomFullscreenHelper helper = videoView.getFullscreenHelper();
+            android.util.Log.d(TAG, "getFullscreenHelper: got helper from OrangevideoView: " + helper);
+            return helper;
+        }
+        
+        // 方法2: 如果 mControlWrapper 是 OrangeVideoController 实例
+        if (mControlWrapper instanceof OrangeVideoController) {
+            OrangeVideoController controller = (OrangeVideoController) mControlWrapper;
+            OrangevideoView videoView = controller.getVideoView();
+            if (videoView != null) {
+                CustomFullscreenHelper helper = videoView.getFullscreenHelper();
+                android.util.Log.d(TAG, "getFullscreenHelper: got helper from OrangeVideoController: " + helper);
+                return helper;
+            }
+        }
+        
+        android.util.Log.w(TAG, "getFullscreenHelper: mControlWrapper type not supported: " + mControlWrapper.getClass().getName());
+        return null;
     }
 
     // ==================== UI 显示控制 ====================
@@ -340,6 +441,9 @@ public class OrangeStandardVideoController extends FrameLayout {
         
         // 更新锁屏按钮可见性
         updateLockButtonVisibility(isVisible);
+        
+        // 更新横竖屏切换按钮可见性
+        updateRotationButtonVisibility();
     }
 
 
@@ -387,6 +491,54 @@ public class OrangeStandardVideoController extends FrameLayout {
             } else {
                 mLockButton.setVisibility(GONE);
             }
+        }
+    }
+
+    /**
+     * 更新横竖屏切换按钮可见性
+     * Requirements: 6.2, 6.3, 6.4
+     */
+    protected void updateRotationButtonVisibility() {
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: mRotationButton=" + mRotationButton);
+        
+        if (mRotationButton == null) {
+            android.util.Log.w(TAG, "updateRotationButtonVisibility: mRotationButton is null!");
+            return;
+        }
+        
+        // 添加详细的按钮状态日志
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: button parent=" + mRotationButton.getParent());
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: button visibility=" + mRotationButton.getVisibility());
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: button width=" + mRotationButton.getWidth() + ", height=" + mRotationButton.getHeight());
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: button layoutParams=" + mRotationButton.getLayoutParams());
+        
+        // 获取 CustomFullscreenHelper 实例
+        CustomFullscreenHelper helper = getFullscreenHelper();
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: helper=" + helper);
+        
+        if (helper == null) {
+            android.util.Log.w(TAG, "updateRotationButtonVisibility: helper is null, hiding button");
+            mRotationButton.setVisibility(GONE);
+            return;
+        }
+        
+        // 在全屏模式下显示按钮（横屏全屏或竖屏全屏），且未锁屏且控制器显示
+        boolean shouldShow = helper.isFullscreen() 
+                          && !mIsLocked 
+                          && mIsShowing;
+        
+        mRotationButton.setVisibility(shouldShow ? VISIBLE : GONE);
+        
+        android.util.Log.d(TAG, "updateRotationButtonVisibility: shouldShow=" + shouldShow 
+            + ", isFullscreen=" + helper.isFullscreen()
+            + ", isPortraitFullscreen=" + helper.isPortraitFullscreen()
+            + ", isLocked=" + mIsLocked
+            + ", isShowing=" + mIsShowing);
+        
+        // 强制请求布局
+        if (shouldShow) {
+            mRotationButton.requestLayout();
+            android.util.Log.d(TAG, "updateRotationButtonVisibility: requested layout");
         }
     }
 
@@ -508,6 +660,9 @@ public class OrangeStandardVideoController extends FrameLayout {
     public void onPlayerStateChanged(int playerState) {
         // 更新锁屏按钮可见性
         updateLockButtonVisibility(mIsShowing);
+        
+        // 更新横竖屏切换按钮可见性
+        updateRotationButtonVisibility();
         
         // 通知所有控制组件
         for (IControlComponent component : mControlComponents) {

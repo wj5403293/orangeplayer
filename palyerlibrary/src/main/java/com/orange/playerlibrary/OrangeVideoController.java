@@ -18,10 +18,11 @@ import java.util.HashMap;
 /**
  * 橘子播放器完整控制器
  * 继承 OrangeStandardVideoController，管理 UI 组件和手势交互
+ * 实现 ControlWrapper 接口，提供播放器控制方法
  * 
  * Requirements: 2.1, 2.2, 2.6, 2.8, 2.9
  */
-public class OrangeVideoController extends OrangeStandardVideoController {
+public class OrangeVideoController extends OrangeStandardVideoController implements ControlWrapper {
 
     private static final String TAG = "OrangeVideoController";
     
@@ -1130,4 +1131,179 @@ public class OrangeVideoController extends OrangeStandardVideoController {
             }
         }
     }
+    
+    // ==================== ControlWrapper 接口实现 ====================
+    
+    @Override
+    public void start() {
+        if (mVideoView != null) {
+            mVideoView.startPlayLogic();
+        }
+    }
+    
+    @Override
+    public void pause() {
+        if (mVideoView != null) {
+            mVideoView.onVideoPause();
+        }
+    }
+    
+    @Override
+    public void seekTo(long position) {
+        if (mVideoView != null) {
+            mVideoView.seekTo(position);
+        }
+    }
+    
+    @Override
+    public long getDuration() {
+        return mVideoView != null ? mVideoView.getDuration() : 0;
+    }
+    
+    @Override
+    public long getCurrentPosition() {
+        return mVideoView != null ? mVideoView.getCurrentPositionWhenPlaying() : 0;
+    }
+    
+    @Override
+    public boolean isPlaying() {
+        return mVideoView != null && mVideoView.isPlaying();
+    }
+    
+    @Override
+    public void togglePlay() {
+        if (mVideoView != null) {
+            if (mVideoView.isPlaying()) {
+                mVideoView.onVideoPause();
+            } else {
+                mVideoView.startPlayLogic();
+            }
+        }
+    }
+    
+    @Override
+    public boolean isFullScreen() {
+        return mVideoView != null && (mVideoView.isFullScreen() || mIsPortraitFullScreen);
+    }
+    
+    @Override
+    public void setSpeed(float speed) {
+        if (mVideoView != null) {
+            mVideoView.setSpeed(speed);
+        }
+    }
+    
+    @Override
+    public float getSpeed() {
+        return mVideoView != null ? mVideoView.getSpeed() : 1.0f;
+    }
+    
+    @Override
+    public int getBufferedPercentage() {
+        return mVideoView != null ? mVideoView.getBufferedPercentage() : 0;
+    }
+    
+    @Override
+    public void setMute(boolean isMute) {
+        if (mVideoView != null) {
+            mVideoView.setMute(isMute);
+        }
+    }
+    
+    @Override
+    public boolean isMute() {
+        return mVideoView != null && mVideoView.isMute();
+    }
+    
+    @Override
+    public void setVolume(float volume) {
+        // OrangevideoView doesn't have setVolume method, use setMute instead
+        if (mVideoView != null) {
+            if (volume == 0) {
+                mVideoView.setMute(true);
+            } else {
+                mVideoView.setMute(false);
+            }
+        }
+    }
+    
+    @Override
+    public void replay(boolean resetPosition) {
+        if (mVideoView != null) {
+            mVideoView.onVideoReset();
+            if (resetPosition) {
+                mVideoView.seekTo(0);
+            }
+            mVideoView.startPlayLogic();
+        }
+    }
+    
+    @Override
+    public void hide() {
+        super.hide();
+    }
+    
+    @Override
+    public void show() {
+        super.show();
+    }
+    
+    @Override
+    public boolean isShowing() {
+        return super.isShowing();
+    }
+    
+    @Override
+    public void stopProgress() {
+        super.stopProgress();
+    }
+    
+    @Override
+    public void startProgress() {
+        super.startProgress();
+    }
+    
+    @Override
+    public void stopFadeOut() {
+        super.stopFadeOut();
+    }
+    
+    @Override
+    public void startFadeOut() {
+        super.startFadeOut();
+    }
+    
+    @Override
+    public boolean hasCutout() {
+        // OrangevideoView doesn't have hasCutout method, return false
+        return false;
+    }
+    
+    @Override
+    public int getCutoutHeight() {
+        // OrangevideoView doesn't have getCutoutHeight method, return 0
+        return 0;
+    }
+    
+    @Override
+    public int getVideoWidth() {
+        return mVideoView != null ? mVideoView.getCurrentVideoWidth() : 0;
+    }
+    
+    @Override
+    public int getVideoHeight() {
+        return mVideoView != null ? mVideoView.getCurrentVideoHeight() : 0;
+    }
+    
+    @Override
+    public String getVideoUrl() {
+        return mVideoView != null ? mVideoView.getUrl() : "";
+    }
+    
+    @Override
+    public void onLockStateChanged(boolean locked) {
+        // 立即更新锁定状态（用于 VodControlView 的锁定按钮）
+        setLockedInternal(locked);
+    }
 }
+

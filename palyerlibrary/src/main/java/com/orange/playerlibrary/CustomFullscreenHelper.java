@@ -224,6 +224,7 @@ public class CustomFullscreenHelper {
         pauseOcrIfRunning();
         
         mIsFullscreen = true;
+        mIsPortraitFullscreen = false;  // 横屏全屏模式，清除竖屏全屏标志
         mFullscreenTransitioning = true;
         mOriginalSystemUiVisibility = decorView.getSystemUiVisibility();
         
