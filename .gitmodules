@@ -1,0 +1,4 @@
+[submodule "GSYVideoPlayer-source"]
+	path = GSYVideoPlayer-source
+	url = https://github.com/CarGuo/GSYVideoPlayer.git
+	branch = master
