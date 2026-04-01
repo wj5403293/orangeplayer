@@ -3,7 +3,98 @@
 
 ### 🎮 播放器 UI 改进
 
-#### 横竖屏切换按钮优化
+#### 横竖屏切换按钮显示策略增强（新增）
+- **新增横竖屏切换按钮显示模式枚举**
+  - `RotationButtonDisplayMode.ALWAYS` - 全屏模式下始终显示
+  - `RotationButtonDisplayMode.PORTRAIT_ONLY` - 仅竖屏全屏时显示（默认）
+  - `RotationButtonDisplayMode.LANDSCAPE_ONLY` - 仅横屏全屏时显示
+  - `RotationButtonDisplayMode.NEVER` - 始终隐藏
+  
+- **新增 API 方法**
+  - `setRotationButtonDisplayMode(RotationButtonDisplayMode mode)` - 设置显示模式
+  - `getRotationButtonDisplayMode()` - 获取当前显示模式
+  - `@Deprecated setRotationButtonVisible(boolean visible)` - 旧 API，已标记为过时
+  - `@Deprecated isRotationButtonEnabled()` - 旧 API，已标记为过时
+  
+- **默认行为优化**
+  - 默认模式：`PORTRAIT_ONLY`（仅竖屏全屏时显示）
+  - 横屏全屏时自动隐藏横竖屏切换按钮
+  - 竖屏全屏时自动显示横竖屏切换按钮
+  - 锁屏状态下隐藏按钮
+  
+- **智能判断逻辑**
+  - 根据 `isFullscreen()`、`isPortraitFullscreen()`、显示模式、锁屏状态综合判断
+  - 修复了 `onPlayerStateChanged()` 中直接设置可见性覆盖新模式逻辑的问题
+  - 增强了诊断日志，方便调试
+
+#### 使用示例
+```java
+// 获取 VodControlView 实例
+VodControlView vodControlView = ...;
+
+// 默认就是 PORTRAIT_ONLY，无需设置
+// 进入竖屏全屏时会自动显示按钮，横屏全屏时自动隐藏
+
+// 如果想改为其他模式：
+
+// 1. 始终显示（全屏模式下）
+vodControlView.setRotationButtonDisplayMode(
+    VodControlView.RotationButtonDisplayMode.ALWAYS
+);
+
+// 2. 仅横屏全屏时显示
+vodControlView.setRotationButtonDisplayMode(
+    VodControlView.RotationButtonDisplayMode.LANDSCAPE_ONLY
+);
+
+// 3. 始终隐藏
+vodControlView.setRotationButtonDisplayMode(
+    VodControlView.RotationButtonDisplayMode.NEVER
+);
+
+// 4. 恢复默认（仅竖屏全屏显示）
+vodControlView.setRotationButtonDisplayMode(
+    VodControlView.RotationButtonDisplayMode.PORTRAIT_ONLY
+);
+```
+
+#### 技术细节
+```java
+// VodControlView.java 中添加枚举和方法
+public enum RotationButtonDisplayMode {
+    ALWAYS,        // 始终显示（全屏模式下）
+    PORTRAIT_ONLY, // 仅竖屏全屏时显示（默认）
+    LANDSCAPE_ONLY,// 仅横屏全屏时显示
+    NEVER          // 始终隐藏
+}
+
+private RotationButtonDisplayMode mDisplayMode = RotationButtonDisplayMode.PORTRAIT_ONLY;
+
+public void setRotationButtonDisplayMode(RotationButtonDisplayMode mode) {
+    mDisplayMode = mode;
+    updateRotationButtonVisibility();
+}
+
+// 智能判断逻辑
+switch (mDisplayMode) {
+    case PORTRAIT_ONLY:
+        shouldShow = isFullscreen && isPortraitFullscreen && !mIsLocked && mRotationButtonEnabled;
+        break;
+    case LANDSCAPE_ONLY:
+        shouldShow = isFullscreen && !isPortraitFullscreen && !mIsLocked && mRotationButtonEnabled;
+        break;
+    // ...
+}
+```
+
+#### 相关文件
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/component/VodControlView.java`
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/CustomFullscreenHelper.java`
+- `palyerlibrary/src/main/res/layout/orange_layout_vod_control_view.xml`
+
+---
+
+#### 横竖屏切换按钮优化（原有）
 - **修复横竖屏切换按钮不显示的问题**
   - 问题根源：多实例干扰，VodControlView 的 onPlayerStateChanged 未处理按钮可见性
   - 修复方案：在 VodControlView 中直接控制按钮可见性

@@ -1225,14 +1225,37 @@ public class VideoEventManager {
      * 进度条开关功能
      */
     private void onProgressBarClick(android.widget.ImageView progressBarIcon) {
+        android.util.Log.d("VideoEventManager", "onProgressBarClick() called");
+        
         boolean currentState = mSettingsManager.isBottomProgressEnabled();
         boolean newState = !currentState;
+        
+        android.util.Log.d("VideoEventManager", "  currentState=" + currentState + ", newState=" + newState);
         
         // 保存设置
         mSettingsManager.setBottomProgressEnabled(newState);
         
-        // 更新 VodControlView 的进度条显示
+        // 更新 VodControlView 的进度条显示（静态设置）
         VodControlView.setBottomProgress(newState);
+        
+        // 立即更新当前 VodControlView 实例的进度条显示
+        VodControlView vodControlView = getActualVodControlView();
+        android.util.Log.d("VideoEventManager", "  vodControlView=" + vodControlView);
+        
+        if (vodControlView != null) {
+            vodControlView.showBottomProgress(newState);
+        } else {
+            android.util.Log.w("VideoEventManager", "  vodControlView is null!");
+        }
+        
+        // 同时更新所有可能存在的 VodControlView 实例
+        if (mVideoView != null) {
+            VodControlView mainVodControlView = mVideoView.getVodControlView();
+            if (mainVodControlView != null && mainVodControlView != vodControlView) {
+                android.util.Log.d("VideoEventManager", "  Also updating mainVodControlView=" + mainVodControlView);
+                mainVodControlView.showBottomProgress(newState);
+            }
+        }
         
         // 更新图标
         if (progressBarIcon != null) {

@@ -129,6 +129,22 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     // 横竖屏切换按钮
     private ImageView mRotationButton;
     private boolean mRotationButtonEnabled = true;  // 默认启用横竖屏切换按钮
+    
+    /**
+     * 横竖屏切换按钮显示模式
+     */
+    public enum RotationButtonDisplayMode {
+        /** 始终显示（全屏模式下） */
+        ALWAYS,
+        /** 仅竖屏全屏时显示 */
+        PORTRAIT_ONLY,
+        /** 仅横屏全屏时显示 */
+        LANDSCAPE_ONLY,
+        /** 始终隐藏 */
+        NEVER
+    }
+    
+    private RotationButtonDisplayMode mDisplayMode = RotationButtonDisplayMode.PORTRAIT_ONLY;  // 默认仅竖屏全屏显示
 
     // 状态
     private boolean mIsDragging = false;
@@ -708,17 +724,42 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     /**
      * 设置横竖屏切换按钮是否可见
      * @param visible true 显示，false 隐藏
+     * @deprecated 请使用 setRotationButtonDisplayMode 代替
      */
+    @Deprecated
     public void setRotationButtonVisible(boolean visible) {
         mRotationButtonEnabled = visible;
         updateRotationButtonVisibility();
-        android.util.Log.d(TAG, "setRotationButtonVisible: " + visible);
+        android.util.Log.d(TAG, "setRotationButtonVisible (deprecated): " + visible);
+    }
+    
+    /**
+     * 设置横竖屏切换按钮显示模式
+     * @param mode 显示模式
+     */
+    public void setRotationButtonDisplayMode(RotationButtonDisplayMode mode) {
+        if (mode == null) {
+            mode = RotationButtonDisplayMode.PORTRAIT_ONLY;
+        }
+        mDisplayMode = mode;
+        updateRotationButtonVisibility();
+        android.util.Log.d(TAG, "setRotationButtonDisplayMode: " + mode);
+    }
+    
+    /**
+     * 获取横竖屏切换按钮显示模式
+     * @return 当前显示模式
+     */
+    public RotationButtonDisplayMode getRotationButtonDisplayMode() {
+        return mDisplayMode;
     }
     
     /**
      * 获取横竖屏切换按钮启用状态
      * @return true 表示启用（会显示），false 表示禁用（不显示）
+     * @deprecated 请使用 getRotationButtonDisplayMode 代替
      */
+    @Deprecated
     public boolean isRotationButtonEnabled() {
         return mRotationButtonEnabled;
     }
@@ -958,9 +999,10 @@ public class VodControlView extends FrameLayout implements IControlComponent,
             if (mSkipButton != null) mSkipButton.setVisibility(VISIBLE);
             if (mEpisodeSelect != null) mEpisodeSelect.setVisibility(VISIBLE);
             if (mSpeedControl != null) mSpeedControl.setVisibility(VISIBLE);
-            // 全屏时显示锁定按钮和横竖屏切换按钮
+            // 全屏时显示锁定按钮
             if (mLockButton != null) mLockButton.setVisibility(VISIBLE);
-            if (mRotationButton != null) mRotationButton.setVisibility(VISIBLE);
+            // 横竖屏切换按钮根据模式决定是否显示（不再直接设置 VISIBLE）
+            updateRotationButtonVisibility();
             
             // 关键修复：如果控制器处于隐藏状态，进入全屏时主动显示
             // 调用 show() 方法显示整个控制器（包括 VodControlView 本身）
@@ -1128,7 +1170,18 @@ public class VodControlView extends FrameLayout implements IControlComponent,
         // 执行 seek
         if (mControlWrapper != null) {
             long duration = mControlWrapper.getDuration();
-            long position = duration * seekBar.getProgress() / mVideoProgress.getMax();
+            int progress = seekBar.getProgress();
+            int maxProgress = mVideoProgress.getMax();
+            long position = duration * progress / maxProgress;
+            
+            // 详细日志：记录 seek 计算过程
+            android.util.Log.d("VodControlView", "=== SEEK DEBUG ===");
+            android.util.Log.d("VodControlView", "duration=" + duration + "ms (" + (duration/1000) + "s)");
+            android.util.Log.d("VodControlView", "seekBar.getProgress()=" + progress);
+            android.util.Log.d("VodControlView", "mVideoProgress.getMax()=" + maxProgress);
+            android.util.Log.d("VodControlView", "calculated position=" + position + "ms (" + (position/1000) + "s)");
+            android.util.Log.d("VodControlView", "==================");
+            
             mControlWrapper.seekTo(position);
             mControlWrapper.startProgress();
             mControlWrapper.startFadeOut();
@@ -1148,12 +1201,53 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     }
 
     private void updateBottomProgressVisibility() {
-        if (mIsShowBottomProgress && mBottomProgress != null) {
-            if (mBottomContainer != null && mBottomContainer.getVisibility() == VISIBLE) {
-                mBottomProgress.setVisibility(GONE);
-            } else if (sShowBottomProgress) {
-                mBottomProgress.setVisibility(VISIBLE);
-            }
+        android.util.Log.d("VodControlView", "updateBottomProgressVisibility() called");
+        android.util.Log.d("VodControlView", "  VodControlView size: " + getWidth() + "x" + getHeight());
+        android.util.Log.d("VodControlView", "  mBottomProgress=" + mBottomProgress);
+        android.util.Log.d("VodControlView", "  sShowBottomProgress=" + sShowBottomProgress);
+        android.util.Log.d("VodControlView", "  mIsShowBottomProgress=" + mIsShowBottomProgress);
+        
+        if (mBottomProgress == null) {
+            android.util.Log.w("VodControlView", "  mBottomProgress is null, returning");
+            return;
+        }
+        
+        // 如果全局或实例级别禁用了底部进度条，直接隐藏
+        if (!sShowBottomProgress || !mIsShowBottomProgress) {
+            android.util.Log.d("VodControlView", "  Setting GONE (disabled)");
+            mBottomProgress.setVisibility(GONE);
+            return;
+        }
+        
+        // 如果底部控制栏可见，隐藏小进度条；否则显示小进度条
+        // 注意：不能简单检查 mBottomContainer 可见性，因为设置弹窗打开时底部容器也可见
+        // 应该检查控制器是否真正在显示（不是锁定状态）
+        boolean bottomContainerVisible = mBottomContainer != null && mBottomContainer.getVisibility() == VISIBLE;
+        boolean controllerReallyShowing = bottomContainerVisible && !mIsLocked && getVisibility() == VISIBLE;
+        
+        android.util.Log.d("VodControlView", "  mBottomContainer=" + mBottomContainer);
+        android.util.Log.d("VodControlView", "  bottomContainerVisible=" + bottomContainerVisible);
+        android.util.Log.d("VodControlView", "  mIsLocked=" + mIsLocked);
+        android.util.Log.d("VodControlView", "  getVisibility()=" + getVisibility());
+        android.util.Log.d("VodControlView", "  controllerReallyShowing=" + controllerReallyShowing);
+        
+        if (controllerReallyShowing) {
+            android.util.Log.d("VodControlView", "  Setting GONE (controller showing)");
+            mBottomProgress.setVisibility(GONE);
+        } else {
+            android.util.Log.d("VodControlView", "  Setting VISIBLE");
+            mBottomProgress.setVisibility(VISIBLE);
+            // 强制请求布局和重绘
+            mBottomProgress.requestLayout();
+            mBottomProgress.invalidate();
+            
+            // 延迟检查尺寸
+            mBottomProgress.post(new Runnable() {
+                @Override
+                public void run() {
+                    android.util.Log.d("VodControlView", "  After layout: " + mBottomProgress.getWidth() + "x" + mBottomProgress.getHeight());
+                }
+            });
         }
     }
 
@@ -1171,11 +1265,14 @@ public class VodControlView extends FrameLayout implements IControlComponent,
     }
 
     public static void setBottomProgress(boolean show) {
+        android.util.Log.d("VodControlView", "setBottomProgress() called with show=" + show);
         sShowBottomProgress = show;
     }
 
     public void showBottomProgress(boolean show) {
+        android.util.Log.d("VodControlView", "showBottomProgress() called with show=" + show);
         mIsShowBottomProgress = show;
+        updateBottomProgressVisibility();
     }
 
     public boolean isFullScreen() {
@@ -2013,35 +2110,56 @@ public class VodControlView extends FrameLayout implements IControlComponent,
      */
     public void updateRotationButtonVisibility() {
         if (mRotationButton == null) {
+            android.util.Log.w(TAG, "updateRotationButtonVisibility: mRotationButton is null");
             return;
         }
         
         if (mOrangeController == null) {
+            android.util.Log.w(TAG, "updateRotationButtonVisibility: mOrangeController is null");
             mRotationButton.setVisibility(GONE);
             return;
         }
         
         OrangevideoView videoView = mOrangeController.getVideoView();
         if (videoView == null) {
+            android.util.Log.w(TAG, "updateRotationButtonVisibility: videoView is null");
             mRotationButton.setVisibility(GONE);
             return;
         }
         
         com.orange.playerlibrary.CustomFullscreenHelper helper = videoView.getFullscreenHelper();
         if (helper == null) {
+            android.util.Log.e(TAG, "updateRotationButtonVisibility: helper is null! videoView=" + videoView);
             mRotationButton.setVisibility(GONE);
             return;
         }
         
-        // 在全屏模式下显示按钮（横屏全屏或竖屏全屏），且未锁屏，且用户启用了此按钮
-        boolean shouldShow = helper.isFullscreen() && !mIsLocked && mRotationButtonEnabled;
+        boolean isFullscreen = helper.isFullscreen();
+        boolean isPortraitFullscreen = helper.isPortraitFullscreen();
+        boolean shouldShow = false;
+        
+        // 根据显示模式决定是否显示按钮
+        switch (mDisplayMode) {
+            case ALWAYS:
+                // 全屏模式下始终显示
+                shouldShow = isFullscreen && !mIsLocked && mRotationButtonEnabled;
+                break;
+            case PORTRAIT_ONLY:
+                // 仅竖屏全屏时显示
+                shouldShow = isFullscreen && isPortraitFullscreen && !mIsLocked && mRotationButtonEnabled;
+                break;
+            case LANDSCAPE_ONLY:
+                // 仅横屏全屏时显示
+                shouldShow = isFullscreen && !isPortraitFullscreen && !mIsLocked && mRotationButtonEnabled;
+                break;
+            case NEVER:
+                // 始终隐藏
+                shouldShow = false;
+                break;
+        }
+        
         mRotationButton.setVisibility(shouldShow ? VISIBLE : GONE);
         
-        android.util.Log.d(TAG, "updateRotationButtonVisibility: shouldShow=" + shouldShow 
-            + ", isFullscreen=" + helper.isFullscreen()
-            + ", isPortraitFullscreen=" + helper.isPortraitFullscreen()
-            + ", isLocked=" + mIsLocked
-            + ", rotationButtonEnabled=" + mRotationButtonEnabled);
     }
 }
 
