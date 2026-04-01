@@ -155,7 +155,10 @@ PROJ_VERSION=12.1.0  // 上游最新版本
 | `gsyVideoPlayer-java/src/main/java/com/shuyu/gsyvideoplayer/placeholder/PlaceholderSurface.java` | 空行 | ⭐ |
 | `gsyVideoPlayer-java/src/main/java/com/shuyu/gsyvideoplayer/utils/NetInfoModule.java` | 空行 | ⭐ |
 
-**注意**：Java 源码的修改只是格式化，没有功能性修改。
+**重要说明**：
+- ✅ **GSYVideoPlayer 源码没有功能性修改**（只有格式化）
+- ✅ **所有功能修改都通过继承实现**（在主项目的 palyerlibrary 模块中）
+- ✅ 这是更好的做法，更新上游时不会有冲突
 
 ---
 
@@ -330,6 +333,12 @@ git checkout backup-before-merge -- gsyVideoPlayer-ex_so/src/main/jniLibs/
 5. ⭐⭐⭐ **版本号** - 固定在 12.0.0
 
 **更新上游时最需要注意的是 SO 文件和 Maven 配置，这些是你的核心修改。**
+
+**重要发现**：
+- ✅ **GSYVideoPlayer 源码没有被直接修改**（只有格式化）
+- ✅ **所有功能修改都通过继承实现**（在主项目中）
+- ✅ 这意味着更新上游时**不会有 Java 源码冲突**
+- ✅ 只需要注意 SO 文件、Maven 配置、namespace 等配置文件的冲突
 
 ---
 
