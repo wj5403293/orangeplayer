@@ -1,5 +1,129 @@
 # OrangePlayer 更新日志
-## [1.3.2] - 2026-03-27
+## [1.3.2] - 2026-04-02
+
+### � HLS Discontinuity 智能检测与自动切换（重大更新）
+
+#### 问题背景
+- IJK 播放器基于 FFmpeg，而 FFmpeg 完全不支持 HLS 的 `#EXT-X-DISCONTINUITY` 标记
+- 当视频开头就有 DISCONTINUITY 且存在 PTS 时间轴偏移时，会导致 seek 跳转错误
+- 典型症状：seek 到 1 分钟跳到 2 分钟，seek 到 4 分钟跳到 8 分钟
+
+#### 解决方案
+- **新增 `TsPtsChecker` 类**：实现 TS 片段的 PTS（Presentation Time Stamp）检测
+  - 支持加密/非加密 TS 的 PTS 提取
+  - 使用 Java 自带的 `javax.crypto` 进行 AES-128 解密
+  - 检测第一个片段的 PTS 偏移（开头 DISCONTINUITY 问题）
+  - 检测相邻片段的 PTS 跳变（正片内部 DISCONTINUITY 问题）
+
+- **优化 `M3U8AdRemover` 的 PTS 检测逻辑**
+  - 区分"广告插入导致的 DISCONTINUITY"和"正片本身的 PTS 跳变"
+  - 开头有 DISCONTINUITY 且第一个片段是正片时，下载并检测实际 PTS 值
+  - 只检测正片内部的 PTS 跳变，跳过广告边界的 DISCONTINUITY
+  - PTS 跳变阈值：正片内部 10 秒，第一个片段偏移 1 秒
+
+- **`OrangevideoView` 自动切换播放器**
+  - 检测到 `hasPtsJump=true` 时自动切换到 ExoPlayer
+  - 带回退机制：ExoPlayer > AliPlayer > SystemPlayer
+  - 用户无感知，自动选择最佳播放器内核
+
+#### 检测逻辑
+```java
+// 1. 检测开头 DISCONTINUITY
+if (hasOpeningDiscontinuity && 第一个片段是正片) {
+    // 下载第一个 TS 片段并提取 PTS
+    Double firstPts = TsPtsChecker.checkFirstSegmentPts(tsUrl, encryption);
+    if (firstPts > 1.0) {
+        // PTS 偏移超过 1 秒，标记为有问题
+        hasPtsJump = true;
+    }
+}
+
+// 2. 检测正片内部的 PTS 跳变（跳过广告边界）
+for (DISCONTINUITY 位置) {
+    if (前后都是正片) {
+        // 检测 PTS 连续性
+        Double ptsDiff = checkPtsContinuity(tsBefore, tsAfter);
+        if (ptsDiff > 10.0) {
+            hasPtsJump = true;
+        }
+    }
+}
+
+// 3. 自动切换播放器
+if (hasPtsJump) {
+    // 自动切换到 ExoPlayer
+    switchToExoPlayer();
+}
+```
+
+#### 测试结果
+- ✅ **正常视频**（开头广告）：`hasOpeningDiscontinuity=false`, `hasPtsJump=false`, 继续使用 IJK
+- ✅ **异常视频**（开头 DISCONTINUITY + PTS 偏移 1.48s）：`hasPtsJump=true`, 自动切换 ExoPlayer
+- ✅ 不影响正常视频的播放，无误判
+
+#### 技术细节
+```java
+// TsPtsChecker.java - PTS 检测核心类
+public class TsPtsChecker {
+    // 检测第一个片段的 PTS 偏移
+    public static PtsCheckResult checkFirstSegmentPts(String tsUrl, EncryptionInfo encryption);
+    
+    // 检测相邻片段的 PTS 连续性
+    public static PtsCheckResult checkPtsContinuity(String tsUrlBefore, String tsUrlAfter, 
+                                                     EncryptionInfo encryptionBefore, 
+                                                     EncryptionInfo encryptionAfter);
+    
+    // AES-128 解密
+    private static byte[] decryptAES128(byte[] encryptedData, byte[] key, String ivHex);
+    
+    // 从 TS 包中提取 PTS
+    private static Double extractPtsFromPacket(byte[] data, int offset);
+}
+
+// M3U8AdRemover.java - 集成 PTS 检测
+private M3U8ParseResult parseAndRemoveAds(String content, String baseUrl) {
+    // 检测开头 DISCONTINUITY
+    if (hasOpeningDiscontinuity && !firstSegmentIsAd) {
+        PtsCheckResult result = TsPtsChecker.checkFirstSegmentPts(firstUrl, encryption);
+        if (result.hasPtsJump) {
+            hasPtsJump = true;
+        }
+    }
+    
+    // 检测正片内部的 PTS 跳变
+    for (DISCONTINUITY 位置) {
+        if (!beforeIsAd && !afterIsAd) {
+            PtsCheckResult result = TsPtsChecker.checkPtsContinuity(urlBefore, urlAfter, ...);
+            if (result.hasPtsJump) {
+                hasPtsJump = true;
+            }
+        }
+    }
+}
+
+// OrangevideoView.java - 自动切换播放器
+private void onM3U8AdRemovalComplete(boolean isLocalFile, int adSegmentsRemoved, 
+                                     boolean hasPtsJump, String message) {
+    if (hasPtsJump) {
+        Log.w(TAG, "PTS jump detected, switching to ExoPlayer for better compatibility");
+        // 自动切换到 ExoPlayer
+        switchPlayerEngine(PlayerConstants.ENGINE_EXO);
+    }
+}
+```
+
+#### 相关文件
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/TsPtsChecker.java` - PTS 检测核心类（新增）
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/M3U8AdRemover.java` - 集成 PTS 检测
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/M3U8AdManager.java` - 传递 hasPtsJump 标志
+- `palyerlibrary/src/main/java/com/orange/playerlibrary/OrangevideoView.java` - 自动切换播放器
+
+#### 技术参考
+- [FFmpeg Trac Ticket #5419](https://trac.ffmpeg.org/ticket/5419) - HLS EXT-X-DISCONTINUITY tag is not supported (open since 2016)
+- [HLS RFC 8216](https://tools.ietf.org/html/rfc8216) - HLS 标准规范
+- [ExoPlayer TimestampAdjuster](https://github.com/androidx/media/blob/release/libraries/common/src/main/java/androidx/media3/common/util/TimestampAdjuster.java) - ExoPlayer 的时间戳调整机制
+
+---
 
 ### 🎮 播放器 UI 改进
 
