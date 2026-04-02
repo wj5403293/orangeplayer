@@ -1525,7 +1525,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         IPlayerManager currentManager = GSYVideoManager.instance().getPlayer();
 
         if (currentManager == null) {
-            return PlayerConstants.ENGINE_IJK; // 默认 ijkPlayer
+            return PlayerConstants.ENGINE_EXO; // 默认 ExoPlayer（现代、稳定、支持 discontinuity）
         }
 
         String className = currentManager.getClass().getName();
@@ -1540,7 +1540,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return PlayerConstants.ENGINE_DEFAULT;
         }
 
-        return PlayerConstants.ENGINE_IJK; // 默认
+        return PlayerConstants.ENGINE_EXO; // 默认 ExoPlayer
     }
 
     public void setUrl(String url) {
