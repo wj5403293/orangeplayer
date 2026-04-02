@@ -78,6 +78,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     private boolean mPendingM3U8AdRemoval = false;
     private boolean mBypassM3U8AdRemovalOnce = false;
     private int mM3U8AdRequestToken = 0;
+    private String mUserPreferredEngine = null; // 用户原始内核偏好（用于临时切换后恢复）
+    private boolean mSkipEngineRestore = false; // 跳过内核恢复（用于 M3U8 去广告后的内部 setUp 调用）
 
 
     // ExoPlayer Surface 切换相关 (Android Q+)
@@ -1282,6 +1284,8 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
             mOrangeController.getVideoEventManager().resetTemporarySettings(url);
         }
+        // 设置跳过内核恢复标志，因为这是 M3U8 去广告后的内部调用
+        mSkipEngineRestore = true;
         autoSelectPlayerEngine(url);
         getVideoFirstFrameAsync(url);
         OrangevideoView.super.setUp(url, cacheWithPlay, mCachePath, headerCopy, title);
@@ -1358,7 +1362,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                         }
                         
                         if (targetEngine != null) {
-                            selectPlayerFactory(targetEngine);
+                            selectPlayerFactory(targetEngine, true); // 临时切换
                         } else {
                             android.util.Log.w(TAG, "PTS jump detected but already using the best available player: " + currentEngine);
                         }
@@ -1402,6 +1406,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
             mOrangeController.getVideoEventManager().resetTemporarySettings(url);
         }
+        
+        // 恢复用户原始内核偏好（如果之前有临时切换）
+        if (mUserPreferredEngine != null && !mSkipEngineRestore) {
+            String currentEngine = getCurrentPlayerEngine();
+            if (!currentEngine.equals(mUserPreferredEngine)) {
+                android.util.Log.i(TAG, "恢复用户原始内核偏好: " + mUserPreferredEngine + " (当前: " + currentEngine + ")");
+                selectPlayerFactory(mUserPreferredEngine, false);
+            } else {
+                android.util.Log.i(TAG, "当前内核已是用户偏好: " + mUserPreferredEngine + "，无需恢复");
+            }
+            mUserPreferredEngine = null;
+        }
+        
+        // 重置跳过标志
+        mSkipEngineRestore = false;
+        
         // 自动选择最合适的播放器内核
         autoSelectPlayerEngine(url);
         boolean result = super.setUp(url, cacheWithPlay, cachePath, title);
@@ -1424,6 +1444,22 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
             mOrangeController.getVideoEventManager().resetTemporarySettings(url);
         }
+        
+        // 恢复用户原始内核偏好（如果之前有临时切换）
+        if (mUserPreferredEngine != null && !mSkipEngineRestore) {
+            String currentEngine = getCurrentPlayerEngine();
+            if (!currentEngine.equals(mUserPreferredEngine)) {
+                android.util.Log.i(TAG, "恢复用户原始内核偏好: " + mUserPreferredEngine + " (当前: " + currentEngine + ")");
+                selectPlayerFactory(mUserPreferredEngine, false);
+            } else {
+                android.util.Log.i(TAG, "当前内核已是用户偏好: " + mUserPreferredEngine + "，无需恢复");
+            }
+            mUserPreferredEngine = null;
+        }
+        
+        // 重置跳过标志
+        mSkipEngineRestore = false;
+        
         // 自动选择最合适的播放器内核
         autoSelectPlayerEngine(url);
         boolean result = super.setUp(url, cacheWithPlay, cachePath, mapHeadData, title);
@@ -1471,7 +1507,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         // 只在需要时才切换内核（避免不必要的切换）
         String currentEngine = getCurrentPlayerEngine();
         if (!currentEngine.equals(recommendedEngine)) {
-            selectPlayerFactory(recommendedEngine);
+            selectPlayerFactory(recommendedEngine, true); // 临时切换
             android.util.Log.i(TAG, "自动切换播放器内核: " +
                     com.orange.playerlibrary.utils.PlayerEngineSelector.getEngineName(recommendedEngine) +
                     " (协议: " + com.orange.playerlibrary.utils.PlayerEngineSelector.getProtocolType(url) + ")");
@@ -2223,7 +2259,54 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * 选择播放器工厂（临时切换）
+     * @param engineType 播放器内核类型
+     * @param temporary 是否为临时切换（true=临时切换，false=永久切换）
+     */
+    public void selectPlayerFactory(String engineType, boolean temporary) {
+        if (engineType == null) {
+            engineType = PlayerConstants.ENGINE_DEFAULT;
+        }
+        
+        // 如果是临时切换，保存用户原始偏好
+        if (temporary && mUserPreferredEngine == null) {
+            String currentUserPreference = PlayerSettingsManager.getInstance(getContext()).getPlayerEngine();
+            // 只有当临时切换的内核与用户偏好不同时，才保存用户偏好
+            if (!currentUserPreference.equals(engineType)) {
+                mUserPreferredEngine = currentUserPreference;
+                android.util.Log.i(TAG, "临时切换内核: " + engineType + "，已保存用户偏好: " + mUserPreferredEngine);
+            } else {
+                android.util.Log.i(TAG, "临时切换内核: " + engineType + "，与用户偏好相同，无需保存");
+            }
+        } else if (!temporary) {
+            // 永久切换，清除临时偏好并更新用户设置
+            mUserPreferredEngine = null;
+            PlayerSettingsManager.getInstance(getContext()).setPlayerEngine(engineType);
+            android.util.Log.i(TAG, "永久切换内核: " + engineType);
+        }
+        
+        // 执行实际的内核切换
+        selectPlayerFactoryInternal(engineType);
+        
+        // 通知 UI 更新（如果有控制器）
+        if (mOrangeController != null && mOrangeController.getVideoEventManager() != null) {
+            mOrangeController.getVideoEventManager().notifyEngineChanged(engineType);
+        }
+    }
+    
+    /**
+     * 选择播放器工厂（兼容旧版本，默认为永久切换）
+     * @param engineType 播放器内核类型
+     */
     public void selectPlayerFactory(String engineType) {
+        selectPlayerFactory(engineType, false);
+    }
+    
+    /**
+     * 内部方法：实际执行播放器工厂切换
+     */
+    private void selectPlayerFactoryInternal(String engineType) {
         if (engineType == null) {
             engineType = PlayerConstants.ENGINE_DEFAULT;
         }

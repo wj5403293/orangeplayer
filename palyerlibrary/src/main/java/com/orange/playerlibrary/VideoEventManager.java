@@ -308,7 +308,7 @@ public class VideoEventManager {
         // 其他内核：最高 5.0x
         final String[] speeds;
         if (isIjkEngine) {
-            speeds = new String[]{"0.35x", "0.45x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x"};
+            speeds = new String[]{"0.35x", "0.45x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x","2.5x", "3.0x", "3.5x"};
         } else {
             speeds = new String[]{"0.35x", "0.45x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x", 
                                  "2.5x", "3.0x", "3.5x", "4.0x", "4.5x", "5.0x"};
@@ -826,6 +826,13 @@ public class VideoEventManager {
                 android.util.Log.d("VideoEventManager", "UI已更新，当前引擎: " + getEngineName(newEngine));
             });
         }
+    }
+    
+    /**
+     * 通知引擎已更改（用于外部调用更新 UI）
+     */
+    public void notifyEngineChanged(String newEngine) {
+        updateEngineButtonsUI(newEngine);
     }
     
     /**
