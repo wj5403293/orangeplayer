@@ -177,7 +177,26 @@ fi
 # [2/9] 下载 NDK
 # ========================================
 echo "[2/9] 下载 NDK $NDK_VERSION..."
-if [ -d "$NDK_DIR" ] && [ -f "$NDK_DIR/ndk-build" ]; then
+
+# 检查是否已有 NDK（在其他位置）
+EXISTING_NDK=""
+if [ "$USE_NEW_NDK" = true ]; then
+    # 检查常见的 NDK r21e 位置
+    for ndk_path in \
+        "${BASE_HOME}/ffmpeg-build/android-ndk-r21e" \
+        "${BASE_HOME}/android-ndk-r21e" \
+        "${WORK_DIR}/android-ndk-r21e"; do
+        if [ -d "$ndk_path" ] && [ -f "$ndk_path/ndk-build" ]; then
+            EXISTING_NDK="$ndk_path"
+            break
+        fi
+    done
+fi
+
+if [ -n "$EXISTING_NDK" ]; then
+    echo "  ✓ 检测到已有的 NDK $NDK_VERSION: $EXISTING_NDK"
+    NDK_DIR="$EXISTING_NDK"
+elif [ -d "$NDK_DIR" ] && [ -f "$NDK_DIR/ndk-build" ]; then
     echo "  ✓ NDK $NDK_VERSION 已存在: $NDK_DIR"
 else
     echo "  下载 NDK $NDK_VERSION（约 400-800MB，这可能需要 5-10 分钟）..."
