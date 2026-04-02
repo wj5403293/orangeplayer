@@ -81,6 +81,9 @@ dependencies {
     // VideoDownloader 依赖 - 已迁移到 orange-downloader 模块
     api project(':orange-downloader')
     
+    // FFmpeg 工具 - 用于加密 TS 的 PTS 提取
+    api project(':orange-ffmpeg')
+    
     // Unit testing dependencies
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:4.0.0'

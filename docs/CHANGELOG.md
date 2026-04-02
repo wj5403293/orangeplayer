@@ -1,7 +1,7 @@
 # OrangePlayer 更新日志
 ## [1.3.2] - 2026-04-02
 
-### � HLS Discontinuity 智能检测与自动切换（重大更新）
+###  HLS Discontinuity 智能检测与自动切换（重大更新）
 
 #### 问题背景
 - IJK 播放器基于 FFmpeg，而 FFmpeg 完全不支持 HLS 的 `#EXT-X-DISCONTINUITY` 标记

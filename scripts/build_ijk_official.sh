@@ -64,12 +64,73 @@ trap cleanup_proxy EXIT
 enable_wsl_proxy_if_available
 
 echo "========================================"
-echo "  编译 IJKPlayer（HLS 修复 + 16K 支持）"
+echo "  编译 IJKPlayer（16K 支持）"
 echo "========================================"
 echo ""
+echo "选择 FFmpeg 源："
+echo "  1) FFmpeg 官方最新版本 (master 分支) - 需要 NDK r21+"
+echo "  2) FFmpeg 官方 n7.1 稳定版 - 需要 NDK r21+"
+echo "  3) FFmpeg 官方 n6.1 LTS 版 - 需要 NDK r21+"
+echo "  4) CarGuo/FFmpeg ijk-n4.3-20260301-007 - 使用 NDK r10e"
+echo "  5) Bilibili/FFmpeg ff4.0--ijk0.8.8 (IJK 默认) - 使用 NDK r10e"
+echo ""
+read -p "请选择 [1-5，默认 4]: " ffmpeg_choice
+
+case "${ffmpeg_choice:-4}" in
+    1)
+        FFMPEG_REPO="https://github.com/FFmpeg/FFmpeg.git"
+        FFMPEG_BRANCH="master"
+        FFMPEG_DESC="FFmpeg 官方最新版本 (master)"
+        USE_NEW_NDK=true
+        ;;
+    2)
+        FFMPEG_REPO="https://github.com/FFmpeg/FFmpeg.git"
+        FFMPEG_BRANCH="n7.1"
+        FFMPEG_DESC="FFmpeg 官方 n7.1 稳定版"
+        USE_NEW_NDK=true
+        ;;
+    3)
+        FFMPEG_REPO="https://github.com/FFmpeg/FFmpeg.git"
+        FFMPEG_BRANCH="n6.1"
+        FFMPEG_DESC="FFmpeg 官方 n6.1 LTS 版"
+        USE_NEW_NDK=true
+        ;;
+    4)
+        FFMPEG_REPO="https://github.com/CarGuo/FFmpeg.git"
+        FFMPEG_BRANCH="ijk-n4.3-20260301-007"
+        FFMPEG_DESC="CarGuo/FFmpeg ijk-n4.3-20260301-007"
+        USE_NEW_NDK=false
+        ;;
+    5)
+        FFMPEG_REPO="https://github.com/Bilibili/FFmpeg.git"
+        FFMPEG_BRANCH="ff4.0--ijk0.8.8"
+        FFMPEG_DESC="Bilibili/FFmpeg ff4.0--ijk0.8.8 (IJK 默认)"
+        USE_NEW_NDK=false
+        ;;
+    *)
+        FFMPEG_REPO="https://github.com/CarGuo/FFmpeg.git"
+        FFMPEG_BRANCH="ijk-n4.3-20260301-007"
+        FFMPEG_DESC="CarGuo/FFmpeg ijk-n4.3-20260301-007"
+        USE_NEW_NDK=false
+        ;;
+esac
+
+if [ "$USE_NEW_NDK" = true ]; then
+    NDK_VERSION="r21e"
+    NDK_ZIP="android-ndk-r21e-linux-x86_64.zip"
+    NDK_URL="https://dl.google.com/android/repository/${NDK_ZIP}"
+    NDK_DIR="${WORK_DIR}/android-ndk-r21e"
+else
+    NDK_VERSION="r10e"
+    NDK_ZIP="android-ndk-r10e-linux-x86_64.zip"
+    NDK_URL="https://dl.google.com/android/repository/${NDK_ZIP}"
+    NDK_DIR="${WORK_DIR}/android-ndk-r10e"
+fi
+
+echo ""
 echo "编译配置："
-echo "  - FFmpeg: CarGuo/FFmpeg ijk-n4.3-20260301-007 (包含 HLS Discontinuity 修复)"
-echo "  - NDK: r10e (官方推荐，使用 65536 对齐支持 16K Page Size)"
+echo "  - FFmpeg: $FFMPEG_DESC"
+echo "  - NDK: $NDK_VERSION (使用 65536 对齐支持 16K Page Size)"
 echo "  - 16K Page Size: 使用 65536 (64K) 对齐"
 echo ""
 
@@ -111,15 +172,13 @@ else
 fi
 
 # ========================================
-# [2/9] 下载 NDK r10e
+# [2/9] 下载 NDK
 # ========================================
-echo "[2/9] 下载 NDK r10e..."
+echo "[2/9] 下载 NDK $NDK_VERSION..."
 if [ -d "$NDK_DIR" ] && [ -f "$NDK_DIR/ndk-build" ]; then
-    echo "  ✓ NDK r10e 已存在: $NDK_DIR"
+    echo "  ✓ NDK $NDK_VERSION 已存在: $NDK_DIR"
 else
-    echo "  下载 NDK r10e（约 400MB，这可能需要 3-5 分钟）..."
-    NDK_ZIP="android-ndk-r10e-linux-x86_64.zip"
-    NDK_URL="https://dl.google.com/android/repository/${NDK_ZIP}"
+    echo "  下载 NDK $NDK_VERSION（约 400-800MB，这可能需要 5-10 分钟）..."
     
     if [ ! -f "$NDK_ZIP" ]; then
         wget -O "$NDK_ZIP" "$NDK_URL" || {
@@ -133,7 +192,7 @@ else
     unzip -q "$NDK_ZIP"
     rm -f "$NDK_ZIP"
     
-    echo "  ✓ NDK r10e 安装完成: $NDK_DIR"
+    echo "  ✓ NDK $NDK_VERSION 安装完成: $NDK_DIR"
 fi
 
 export ANDROID_NDK="$NDK_DIR"
@@ -165,19 +224,19 @@ else
 fi
 
 # ========================================
-# [4/9] 修改 init-android.sh 使用 CarGuo FFmpeg
+# [4/9] 修改 init-android.sh 使用指定的 FFmpeg
 # ========================================
-echo "[4/9] 配置 FFmpeg 源（CarGuo/FFmpeg 包含 HLS 修复）..."
+echo "[4/9] 配置 FFmpeg 源（$FFMPEG_DESC）..."
 if [ ! -f "init-android.sh.bak" ]; then
     cp init-android.sh init-android.sh.bak
 fi
 
-# 替换为 CarGuo 的 FFmpeg（使用更可靠的方法）
-sed -i 's|IJK_FFMPEG_UPSTREAM=.*|IJK_FFMPEG_UPSTREAM=https://github.com/CarGuo/FFmpeg.git|g' init-android.sh
-sed -i 's|IJK_FFMPEG_FORK=.*|IJK_FFMPEG_FORK=https://github.com/CarGuo/FFmpeg.git|g' init-android.sh
-sed -i 's|IJK_FFMPEG_COMMIT=.*|IJK_FFMPEG_COMMIT=ijk-n4.3-20260301-007|g' init-android.sh
+# 替换为指定的 FFmpeg 源
+sed -i "s|IJK_FFMPEG_UPSTREAM=.*|IJK_FFMPEG_UPSTREAM=$FFMPEG_REPO|g" init-android.sh
+sed -i "s|IJK_FFMPEG_FORK=.*|IJK_FFMPEG_FORK=$FFMPEG_REPO|g" init-android.sh
+sed -i "s|IJK_FFMPEG_COMMIT=.*|IJK_FFMPEG_COMMIT=$FFMPEG_BRANCH|g" init-android.sh
 
-echo "  ✓ FFmpeg 源已配置为 CarGuo/FFmpeg ijk-n4.3-20260301-007"
+echo "  ✓ FFmpeg 源已配置为 $FFMPEG_DESC"
 echo ""
 echo "  验证配置..."
 grep "IJK_FFMPEG" init-android.sh | grep -v "^#" | head -3
@@ -186,6 +245,14 @@ grep "IJK_FFMPEG" init-android.sh | grep -v "^#" | head -3
 # [5/9] 初始化 OpenSSL 和 FFmpeg
 # ========================================
 echo "[5/9] 初始化 OpenSSL 和 FFmpeg..."
+
+# 清理旧的 FFmpeg 目录（避免分支/标签冲突）
+if [ -d "extra/ffmpeg" ] || [ -d "android/contrib/ffmpeg-armv5" ]; then
+    echo "  清理旧的 FFmpeg 目录..."
+    rm -rf extra/ffmpeg
+    rm -rf android/contrib/ffmpeg-*
+fi
+
 echo "  初始化 OpenSSL（这可能需要几分钟）..."
 ./init-android-openssl.sh
 
