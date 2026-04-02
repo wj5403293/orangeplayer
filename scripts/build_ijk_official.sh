@@ -63,6 +63,22 @@ enable_wsl_proxy_if_available() {
 trap cleanup_proxy EXIT
 enable_wsl_proxy_if_available
 
+# ========================================
+# 初始化路径变量（必须在使用前定义）
+# ========================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# 工作目录
+if [ -d /home/xcwl ]; then
+    BASE_HOME=/home/xcwl
+else
+    BASE_HOME=$HOME
+fi
+
+WORK_DIR="${BASE_HOME}/ijkplayer-build-official"
+IJK_DIR="${WORK_DIR}/ijkplayer"
+
 echo "========================================"
 echo "  编译 IJKPlayer（16K 支持）"
 echo "========================================"
@@ -133,20 +149,6 @@ echo "  - FFmpeg: $FFMPEG_DESC"
 echo "  - NDK: $NDK_VERSION (使用 65536 对齐支持 16K Page Size)"
 echo "  - 16K Page Size: 使用 65536 (64K) 对齐"
 echo ""
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-# 工作目录
-if [ -d /home/xcwl ]; then
-    BASE_HOME=/home/xcwl
-else
-    BASE_HOME=$HOME
-fi
-
-WORK_DIR="${BASE_HOME}/ijkplayer-build-official"
-IJK_DIR="${WORK_DIR}/ijkplayer"
-NDK_DIR="${WORK_DIR}/android-ndk-r10e"
 
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
