@@ -1344,27 +1344,31 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
                     mPendingM3U8AdRemoval = false;
                     mIsPlayingAdRemovedM3U8 = adSegmentsRemoved > 0 && isLocalFile;
                     
-                    // 如果检测到 PTS 跳变，自动切换到 ExoPlayer（带回退机制）
+                    // 如果检测到 PTS 跳变，且当前使用 IJK 内核，自动切换到 ExoPlayer（带回退机制）
+                    // 原因：IJK 基于 FFmpeg，不支持 HLS discontinuity，会导致 seek 跳转错误
+                    // ExoPlayer 和阿里云播放器原生支持 discontinuity，不需要切换
                     if (hasPtsJump) {
                         String currentEngine = getCurrentPlayerEngine();
-                        String targetEngine = null;
                         
-                        // 优先级：ExoPlayer > 阿里云 > 系统播放器
-                        if (!PlayerConstants.ENGINE_EXO.equals(currentEngine) && isEngineAvailable(PlayerConstants.ENGINE_EXO)) {
-                            targetEngine = PlayerConstants.ENGINE_EXO;
-                            android.util.Log.w(TAG, "PTS jump detected, switching to ExoPlayer for better compatibility");
-                        } else if (!PlayerConstants.ENGINE_ALI.equals(currentEngine) && isEngineAvailable(PlayerConstants.ENGINE_ALI)) {
-                            targetEngine = PlayerConstants.ENGINE_ALI;
-                            android.util.Log.w(TAG, "PTS jump detected, ExoPlayer not available, switching to AliPlayer");
-                        } else if (!PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
-                            targetEngine = PlayerConstants.ENGINE_DEFAULT;
-                            android.util.Log.w(TAG, "PTS jump detected, ExoPlayer and AliPlayer not available, switching to System Player");
-                        }
-                        
-                        if (targetEngine != null) {
+                        // 只有当前使用 IJK 内核时才需要切换
+                        if (PlayerConstants.ENGINE_IJK.equals(currentEngine)) {
+                            String targetEngine = null;
+                            
+                            // 优先级：ExoPlayer > 阿里云 > 系统播放器
+                            if (isEngineAvailable(PlayerConstants.ENGINE_EXO)) {
+                                targetEngine = PlayerConstants.ENGINE_EXO;
+                                android.util.Log.w(TAG, "PTS jump detected with IJK player, switching to ExoPlayer for better compatibility");
+                            } else if (isEngineAvailable(PlayerConstants.ENGINE_ALI)) {
+                                targetEngine = PlayerConstants.ENGINE_ALI;
+                                android.util.Log.w(TAG, "PTS jump detected with IJK player, ExoPlayer not available, switching to AliPlayer");
+                            } else {
+                                targetEngine = PlayerConstants.ENGINE_DEFAULT;
+                                android.util.Log.w(TAG, "PTS jump detected with IJK player, ExoPlayer and AliPlayer not available, switching to System Player");
+                            }
+                            
                             selectPlayerFactory(targetEngine, true); // 临时切换
                         } else {
-                            android.util.Log.w(TAG, "PTS jump detected but already using the best available player: " + currentEngine);
+                            android.util.Log.i(TAG, "PTS jump detected but current player (" + currentEngine + ") supports discontinuity, no need to switch");
                         }
                     }
                     
