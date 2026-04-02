@@ -89,9 +89,10 @@ echo "  2) FFmpeg 官方 n7.1 稳定版 - 需要 NDK r21+"
 echo "  3) FFmpeg 官方 n6.1 LTS 版 - 需要 NDK r21+"
 echo "  4) CarGuo/FFmpeg ijk-n4.3-20260301-007 - 使用 NDK r10e"
 echo "  5) Bilibili/FFmpeg ff4.0--ijk0.8.8 (IJK 默认) - 使用 NDK r10e"
-echo "  6) 706412584/FFmpeg (你的 fork，基于 CarGuo) - 使用 NDK r10e ⭐"
+echo "  6) 706412584/FFmpeg ijk-n4.3-20260301-007 (原始版本) - 使用 NDK r10e"
+echo "  7) 706412584/FFmpeg hls-discontinuity-fix (修复版本) - 使用 NDK r10e ⭐"
 echo ""
-read -p "请选择 [1-6，默认 6]: " ffmpeg_choice
+read -p "请选择 [1-7，默认 6]: " ffmpeg_choice
 
 case "${ffmpeg_choice:-6}" in
     1)
@@ -127,13 +128,19 @@ case "${ffmpeg_choice:-6}" in
     6)
         FFMPEG_REPO="https://github.com/706412584/FFmpeg.git"
         FFMPEG_BRANCH="ijk-n4.3-20260301-007"
-        FFMPEG_DESC="706412584/FFmpeg (你的 fork，基于 CarGuo)"
+        FFMPEG_DESC="706412584/FFmpeg ijk-n4.3-20260301-007 (原始版本)"
+        USE_NEW_NDK=false
+        ;;
+    7)
+        FFMPEG_REPO="https://github.com/706412584/FFmpeg.git"
+        FFMPEG_BRANCH="hls-discontinuity-fix"
+        FFMPEG_DESC="706412584/FFmpeg hls-discontinuity-fix (修复版本)"
         USE_NEW_NDK=false
         ;;
     *)
         FFMPEG_REPO="https://github.com/706412584/FFmpeg.git"
         FFMPEG_BRANCH="ijk-n4.3-20260301-007"
-        FFMPEG_DESC="706412584/FFmpeg (你的 fork，基于 CarGuo)"
+        FFMPEG_DESC="706412584/FFmpeg ijk-n4.3-20260301-007 (原始版本)"
         USE_NEW_NDK=false
         ;;
 esac
