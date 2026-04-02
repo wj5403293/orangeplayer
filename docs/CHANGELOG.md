@@ -1,6 +1,35 @@
 # OrangePlayer 更新日志
 ## [1.3.2] - 2026-04-02
 
+### 📦 依赖升级
+
+#### ExoPlayer (Media3) 升级到 1.10.0
+- **升级内容**：从 Media3 1.9.1 升级到 1.10.0（2026年3月26日发布）
+- **HLS 相关改进**：
+  - ✅ HLS 播放列表解析性能优化（缓存正则表达式匹配器）
+  - ✅ 支持 HLS 插播广告的 `X-PLAYOUT-LIMIT` 标签
+  - ✅ 支持 `#EXT-X-DEFINE` 的 `QUERYPARAM` 属性
+  - ✅ HLS 冗余流支持：遇到加载错误时自动回退到备用位置
+  - ✅ 在音频 renditions 中暴露 ID3 (EMSG) 元数据轨道
+  - ✅ 修复 X-SNAP 行为，正确计算插播广告的开始和恢复位置
+- **其他改进**：
+  - 🎵 修复通话期间请求播放时不请求延迟音频焦点的问题
+  - 🎬 新增 Dolby Vision Profile 10 支持
+  - 📹 MP4 容器支持 Versatile Video Coding (VVC) 轨道
+  - 🔄 修复从点播到直播转换时可能导致重新缓冲的问题
+  - 🎨 新增 Material3 风格的播放控制 UI 组件
+- **兼容性**：向后兼容，无破坏性 API 变更
+- **测试结果**：✅ 编译成功，安装测试通过，功能正常
+
+**相关文件**：
+- `gradle/dependencies.gradle` - 更新 `mediaVersion` 从 `1.9.1` 到 `1.10.0`
+
+**技术参考**：
+- [Media3 1.10.0 Release Notes](https://github.com/androidx/media/releases/tag/1.10.0)
+- [Android Developers - Media3](https://developer.android.com/jetpack/androidx/releases/media3)
+
+---
+
 ###  HLS Discontinuity 智能检测与自动切换（重大更新）
 
 #### 问题背景
@@ -25,92 +54,6 @@
   - 检测到 `hasPtsJump=true` 时自动切换到 ExoPlayer
   - 带回退机制：ExoPlayer > AliPlayer > SystemPlayer
   - 用户无感知，自动选择最佳播放器内核
-
-#### 检测逻辑
-```java
-// 1. 检测开头 DISCONTINUITY
-if (hasOpeningDiscontinuity && 第一个片段是正片) {
-    // 下载第一个 TS 片段并提取 PTS
-    Double firstPts = TsPtsChecker.checkFirstSegmentPts(tsUrl, encryption);
-    if (firstPts > 1.0) {
-        // PTS 偏移超过 1 秒，标记为有问题
-        hasPtsJump = true;
-    }
-}
-
-// 2. 检测正片内部的 PTS 跳变（跳过广告边界）
-for (DISCONTINUITY 位置) {
-    if (前后都是正片) {
-        // 检测 PTS 连续性
-        Double ptsDiff = checkPtsContinuity(tsBefore, tsAfter);
-        if (ptsDiff > 10.0) {
-            hasPtsJump = true;
-        }
-    }
-}
-
-// 3. 自动切换播放器
-if (hasPtsJump) {
-    // 自动切换到 ExoPlayer
-    switchToExoPlayer();
-}
-```
-
-#### 测试结果
-- ✅ **正常视频**（开头广告）：`hasOpeningDiscontinuity=false`, `hasPtsJump=false`, 继续使用 IJK
-- ✅ **异常视频**（开头 DISCONTINUITY + PTS 偏移 1.48s）：`hasPtsJump=true`, 自动切换 ExoPlayer
-- ✅ 不影响正常视频的播放，无误判
-
-#### 技术细节
-```java
-// TsPtsChecker.java - PTS 检测核心类
-public class TsPtsChecker {
-    // 检测第一个片段的 PTS 偏移
-    public static PtsCheckResult checkFirstSegmentPts(String tsUrl, EncryptionInfo encryption);
-    
-    // 检测相邻片段的 PTS 连续性
-    public static PtsCheckResult checkPtsContinuity(String tsUrlBefore, String tsUrlAfter, 
-                                                     EncryptionInfo encryptionBefore, 
-                                                     EncryptionInfo encryptionAfter);
-    
-    // AES-128 解密
-    private static byte[] decryptAES128(byte[] encryptedData, byte[] key, String ivHex);
-    
-    // 从 TS 包中提取 PTS
-    private static Double extractPtsFromPacket(byte[] data, int offset);
-}
-
-// M3U8AdRemover.java - 集成 PTS 检测
-private M3U8ParseResult parseAndRemoveAds(String content, String baseUrl) {
-    // 检测开头 DISCONTINUITY
-    if (hasOpeningDiscontinuity && !firstSegmentIsAd) {
-        PtsCheckResult result = TsPtsChecker.checkFirstSegmentPts(firstUrl, encryption);
-        if (result.hasPtsJump) {
-            hasPtsJump = true;
-        }
-    }
-    
-    // 检测正片内部的 PTS 跳变
-    for (DISCONTINUITY 位置) {
-        if (!beforeIsAd && !afterIsAd) {
-            PtsCheckResult result = TsPtsChecker.checkPtsContinuity(urlBefore, urlAfter, ...);
-            if (result.hasPtsJump) {
-                hasPtsJump = true;
-            }
-        }
-    }
-}
-
-// OrangevideoView.java - 自动切换播放器
-private void onM3U8AdRemovalComplete(boolean isLocalFile, int adSegmentsRemoved, 
-                                     boolean hasPtsJump, String message) {
-    if (hasPtsJump) {
-        Log.w(TAG, "PTS jump detected, switching to ExoPlayer for better compatibility");
-        // 自动切换到 ExoPlayer
-        switchPlayerEngine(PlayerConstants.ENGINE_EXO);
-    }
-}
-```
 
 #### 相关文件
 - `palyerlibrary/src/main/java/com/orange/playerlibrary/TsPtsChecker.java` - PTS 检测核心类（新增）
