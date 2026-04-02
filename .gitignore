@@ -113,3 +113,4 @@ logcat.txt
 
 # 排除 FFmpeg fork 本地克隆
 /ffmpeg-fork/
+/.qoder/
