@@ -110,3 +110,6 @@ logcat.txt
 
 # 排除 FFmpeg 第三方构建产物
 /orange-ffmpeg/src/main/cpp/third_party/ffmpeg/
+
+# 排除 FFmpeg fork 本地克隆
+/ffmpeg-fork/

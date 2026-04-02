@@ -17,6 +17,8 @@ import tv.danmaku.ijk.media.player.IjkMediaPlayer;
  */
 public class OrangeIjkPlayerManager extends IjkPlayerManager {
     
+    private static final String TAG = "OrangeIjkPlayerManager";
+    
     @Override
     public void initVideoPlayer(Context context, Message msg, List<VideoOptionModel> optionModelList, ICacheManager cacheManager) {
         // 先调用父类方法创建播放器实例

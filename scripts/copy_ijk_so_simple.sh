@@ -32,25 +32,45 @@ mkdir -p "$TARGET_DIR"
 # 复制 armv7a
 echo "[1/4] 复制 armeabi-v7a..."
 mkdir -p "$TARGET_DIR/armeabi-v7a"
-cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-armv7a/src/main/libs/armeabi-v7a/"*.so "$TARGET_DIR/armeabi-v7a/" || echo "复制失败"
+if [ -f "$IJK_DIR/android/ijkplayer/ijkplayer-armv7a/src/main/obj/local/armeabi-v7a/libijkffmpeg.so" ]; then
+    cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-armv7a/src/main/obj/local/armeabi-v7a/"*.so "$TARGET_DIR/armeabi-v7a/"
+    echo "✓ 复制成功"
+else
+    echo "✗ SO 文件不存在"
+fi
 echo ""
 
 # 复制 arm64
 echo "[2/4] 复制 arm64-v8a..."
 mkdir -p "$TARGET_DIR/arm64-v8a"
-cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-arm64/src/main/libs/arm64-v8a/"*.so "$TARGET_DIR/arm64-v8a/" || echo "复制失败"
+if [ -f "$IJK_DIR/android/ijkplayer/ijkplayer-arm64/src/main/obj/local/arm64-v8a/libijkffmpeg.so" ]; then
+    cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-arm64/src/main/obj/local/arm64-v8a/"*.so "$TARGET_DIR/arm64-v8a/"
+    echo "✓ 复制成功"
+else
+    echo "✗ SO 文件不存在"
+fi
 echo ""
 
 # 复制 x86
 echo "[3/4] 复制 x86..."
 mkdir -p "$TARGET_DIR/x86"
-cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-x86/src/main/libs/x86/"*.so "$TARGET_DIR/x86/" || echo "复制失败"
+if [ -f "$IJK_DIR/android/ijkplayer/ijkplayer-x86/src/main/obj/local/x86/libijkffmpeg.so" ]; then
+    cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-x86/src/main/obj/local/x86/"*.so "$TARGET_DIR/x86/"
+    echo "✓ 复制成功"
+else
+    echo "✗ SO 文件不存在"
+fi
 echo ""
 
 # 复制 x86_64
 echo "[4/4] 复制 x86_64..."
 mkdir -p "$TARGET_DIR/x86_64"
-cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-x86_64/src/main/libs/x86_64/"*.so "$TARGET_DIR/x86_64/" || echo "复制失败"
+if [ -f "$IJK_DIR/android/ijkplayer/ijkplayer-x86_64/src/main/obj/local/x86_64/libijkffmpeg.so" ]; then
+    cp -v "$IJK_DIR/android/ijkplayer/ijkplayer-x86_64/src/main/obj/local/x86_64/"*.so "$TARGET_DIR/x86_64/"
+    echo "✓ 复制成功"
+else
+    echo "✗ SO 文件不存在"
+fi
 echo ""
 
 echo "========================================"

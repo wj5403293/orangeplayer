@@ -90,7 +90,7 @@ echo "  3) FFmpeg 官方 n6.1 LTS 版 - 需要 NDK r21+"
 echo "  4) CarGuo/FFmpeg ijk-n4.3-20260301-007 - 使用 NDK r10e"
 echo "  5) Bilibili/FFmpeg ff4.0--ijk0.8.8 (IJK 默认) - 使用 NDK r10e"
 echo "  6) 706412584/FFmpeg ijk-n4.3-20260301-007 (原始版本) - 使用 NDK r10e"
-echo "  7) 706412584/FFmpeg hls-discontinuity-fix (修复版本) - 使用 NDK r10e ⭐"
+echo "  7) 706412584/FFmpeg hls-discontinuity-fix-v2 (修复版本 - Part 1 + Part 2) - 使用 NDK r10e ⭐"
 echo ""
 read -p "请选择 [1-7，默认 6]: " ffmpeg_choice
 
@@ -133,8 +133,8 @@ case "${ffmpeg_choice:-6}" in
         ;;
     7)
         FFMPEG_REPO="https://github.com/706412584/FFmpeg.git"
-        FFMPEG_BRANCH="hls-discontinuity-fix"
-        FFMPEG_DESC="706412584/FFmpeg hls-discontinuity-fix (修复版本)"
+        FFMPEG_BRANCH="hls-discontinuity-fix-v2"
+        FFMPEG_DESC="706412584/FFmpeg hls-discontinuity-fix-v2 (修复版本 - Part 1 + Part 2)"
         USE_NEW_NDK=false
         ;;
     *)
@@ -438,16 +438,16 @@ echo "SO 文件位置："
 for arch in $ARCHS; do
     case $arch in
         armv7a)
-            echo "  armv7a: $IJK_DIR/android/ijkplayer/ijkplayer-armv7a/src/main/libs/armeabi-v7a/"
+            echo "  armv7a: $IJK_DIR/android/ijkplayer/ijkplayer-armv7a/src/main/obj/local/armeabi-v7a/"
             ;;
         arm64)
-            echo "  arm64:  $IJK_DIR/android/ijkplayer/ijkplayer-arm64/src/main/libs/arm64-v8a/"
+            echo "  arm64:  $IJK_DIR/android/ijkplayer/ijkplayer-arm64/src/main/obj/local/arm64-v8a/"
             ;;
         x86)
-            echo "  x86:    $IJK_DIR/android/ijkplayer/ijkplayer-x86/src/main/libs/x86/"
+            echo "  x86:    $IJK_DIR/android/ijkplayer/ijkplayer-x86/src/main/obj/local/x86/"
             ;;
         x86_64)
-            echo "  x86_64: $IJK_DIR/android/ijkplayer/ijkplayer-x86_64/src/main/libs/x86_64/"
+            echo "  x86_64: $IJK_DIR/android/ijkplayer/ijkplayer-x86_64/src/main/obj/local/x86_64/"
             ;;
     esac
 done
@@ -459,7 +459,7 @@ echo "  应该看到 Align = 0x10000 (65536)"
 echo ""
 echo "下一步："
 echo "  1. 验证 SO 文件对齐（可选）"
-echo "  2. 运行 scripts/copy_ijk_so.sh 复制 SO 文件到项目"
+echo "  2. 运行 scripts/copy_ijk_so_simple.sh 复制 SO 文件到项目"
 echo "  3. 在 Windows 中重新编译项目"
 echo "  4. 测试视频播放"
 echo ""
