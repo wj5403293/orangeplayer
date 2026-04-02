@@ -47,13 +47,13 @@ public class M3U8AdManager {
     public void processVideoUrl(String videoUrl, Callback callback) {
         if (!mEnabled) {
             // 未启用，直接返回原始URL
-            callback.onResult(videoUrl, false, 0, "Ad removal disabled");
+            callback.onResult(videoUrl, false, 0, false, "Ad removal disabled");
             return;
         }
         
         if (!M3U8AdRemover.isHttpM3U8(videoUrl)) {
             // 不是HTTP m3u8，直接返回原始URL
-            callback.onResult(videoUrl, false, 0, "Not HTTP m3u8");
+            callback.onResult(videoUrl, false, 0, false, "Not HTTP m3u8");
             return;
         }
         
@@ -61,17 +61,24 @@ public class M3U8AdManager {
         
         mRemover.processM3U8(videoUrl, new M3U8AdRemover.Callback() {
             @Override
-            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved) {
+            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, boolean hasPtsJump) {
                 Log.d(TAG, "Ad removal complete: isLocalFile=" + isLocalFile + 
-                      ", adSegmentsRemoved=" + adSegmentsRemoved);
-                callback.onResult(playUrl, isLocalFile, adSegmentsRemoved, 
-                    isLocalFile ? "Ad removed successfully" : "No ads found");
+                      ", adSegmentsRemoved=" + adSegmentsRemoved + ", hasPtsJump=" + hasPtsJump);
+                String message;
+                if (hasPtsJump) {
+                    message = "PTS jump detected, recommend using ExoPlayer";
+                } else if (isLocalFile) {
+                    message = "Ad removed successfully";
+                } else {
+                    message = "No ads found";
+                }
+                callback.onResult(playUrl, isLocalFile, adSegmentsRemoved, hasPtsJump, message);
             }
             
             @Override
             public void onError(String originalUrl, Exception e) {
                 Log.w(TAG, "Ad removal failed, using original URL: " + e.getMessage());
-                callback.onResult(originalUrl, false, 0, "Ad removal failed: " + e.getMessage());
+                callback.onResult(originalUrl, false, 0, false, "Ad removal failed: " + e.getMessage());
             }
         });
     }
@@ -93,7 +100,7 @@ public class M3U8AdManager {
         
         mRemover.processM3U8(videoUrl, new M3U8AdRemover.Callback() {
             @Override
-            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved) {
+            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, boolean hasPtsJump) {
                 synchronized (result) {
                     result[0] = playUrl;
                     finished[0] = true;
@@ -185,9 +192,10 @@ public class M3U8AdManager {
          * @param playUrl 可用于播放的URL（可能是本地文件路径）
          * @param isLocalFile 是否是本地文件
          * @param adSegmentsRemoved 移除的广告片段数
+         * @param hasPtsJump 是否检测到 PTS 跳变（建议切换到 ExoPlayer）
          * @param message 处理结果消息
          */
-        void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message);
+        void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, boolean hasPtsJump, String message);
     }
     
     // ===== TS白名单操作 =====

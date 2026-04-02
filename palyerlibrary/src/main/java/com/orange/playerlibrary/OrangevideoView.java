@@ -169,6 +169,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         // 初始化播放核心（必须在这里初始化，因为需要 Context）
         initPlayerFactory();
+        
+        // 初始化 TsPtsChecker（用于检测加密 TS 的 PTS）
+        TsPtsChecker.init(getContext());
 
         mSkipManager = new SkipManager();
         mSkipManager.attachVideoView(this);
@@ -1324,9 +1327,9 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
         mM3U8AdManager.processVideoUrl(url, new M3U8AdManager.Callback() {
             @Override
-            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, String message) {
+            public void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, boolean hasPtsJump, String message) {
                 android.util.Log.d(TAG, "M3U8 ad removal result: isLocalFile=" + isLocalFile
-                        + ", adSegmentsRemoved=" + adSegmentsRemoved + ", message=" + message);
+                        + ", adSegmentsRemoved=" + adSegmentsRemoved + ", hasPtsJump=" + hasPtsJump + ", message=" + message);
 
                 post(() -> {
                     if (requestToken != mM3U8AdRequestToken || !TextUtils.equals(mOriginalM3U8Url, url)) {
@@ -1336,6 +1339,31 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
 
                     mPendingM3U8AdRemoval = false;
                     mIsPlayingAdRemovedM3U8 = adSegmentsRemoved > 0 && isLocalFile;
+                    
+                    // 如果检测到 PTS 跳变，自动切换到 ExoPlayer（带回退机制）
+                    if (hasPtsJump) {
+                        String currentEngine = getCurrentPlayerEngine();
+                        String targetEngine = null;
+                        
+                        // 优先级：ExoPlayer > 阿里云 > 系统播放器
+                        if (!PlayerConstants.ENGINE_EXO.equals(currentEngine) && isEngineAvailable(PlayerConstants.ENGINE_EXO)) {
+                            targetEngine = PlayerConstants.ENGINE_EXO;
+                            android.util.Log.w(TAG, "PTS jump detected, switching to ExoPlayer for better compatibility");
+                        } else if (!PlayerConstants.ENGINE_ALI.equals(currentEngine) && isEngineAvailable(PlayerConstants.ENGINE_ALI)) {
+                            targetEngine = PlayerConstants.ENGINE_ALI;
+                            android.util.Log.w(TAG, "PTS jump detected, ExoPlayer not available, switching to AliPlayer");
+                        } else if (!PlayerConstants.ENGINE_DEFAULT.equals(currentEngine)) {
+                            targetEngine = PlayerConstants.ENGINE_DEFAULT;
+                            android.util.Log.w(TAG, "PTS jump detected, ExoPlayer and AliPlayer not available, switching to System Player");
+                        }
+                        
+                        if (targetEngine != null) {
+                            selectPlayerFactory(targetEngine);
+                        } else {
+                            android.util.Log.w(TAG, "PTS jump detected but already using the best available player: " + currentEngine);
+                        }
+                    }
+                    
                     // 结束 M3U8 去广告状态
                     setOrangePlayState(STATE_M3U8_AD_REMOVAL_END);
                     bindResolvedVideoSource(playUrl, cacheWithPlay, requestTitle, requestHeaders);
@@ -1457,7 +1485,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
         IPlayerManager currentManager = GSYVideoManager.instance().getPlayer();
 
         if (currentManager == null) {
-            return PlayerConstants.ENGINE_EXO; // 默认 ExoPlayer
+            return PlayerConstants.ENGINE_IJK; // 默认 ijkPlayer
         }
 
         String className = currentManager.getClass().getName();
@@ -1472,7 +1500,7 @@ public class OrangevideoView extends GSYBaseVideoPlayer {
             return PlayerConstants.ENGINE_DEFAULT;
         }
 
-        return PlayerConstants.ENGINE_EXO; // 默认
+        return PlayerConstants.ENGINE_IJK; // 默认
     }
 
     public void setUrl(String url) {

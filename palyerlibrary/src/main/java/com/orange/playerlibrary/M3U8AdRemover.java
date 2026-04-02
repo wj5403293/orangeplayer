@@ -49,7 +49,7 @@ public class M3U8AdRemover {
     
     // 广告检测回调
     public interface Callback {
-        void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved);
+        void onResult(String playUrl, boolean isLocalFile, int adSegmentsRemoved, boolean hasPtsJump);
         void onError(String originalUrl, Exception e);
     }
     
@@ -193,14 +193,16 @@ public class M3U8AdRemover {
         
         if (cachedFile.exists()) {
             Log.d(TAG, "Cache file exists: " + cachedFile.getAbsolutePath());
-            // 检查缓存索引获取广告片段数
-            int adCount = getAdCountFromCacheIndex(cacheKey);
-            Log.d(TAG, "Using cached m3u8, ad segments removed: " + adCount + ", file=" + cachedFile.getAbsolutePath());
+            // 检查缓存索引获取广告片段数和 PTS 跳变信息
+            CacheIndexEntry cacheEntry = getCacheIndexEntry(cacheKey);
+            int adCount = cacheEntry != null ? cacheEntry.adCount : 0;
+            boolean hasPtsJump = cacheEntry != null ? cacheEntry.hasPtsJump : false;
+            Log.d(TAG, "Using cached m3u8, ad segments removed: " + adCount + ", hasPtsJump: " + hasPtsJump + ", file=" + cachedFile.getAbsolutePath());
             // 缓存文件也需要通过 HTTP URL 返回，确保 server 设置了文件
             String httpPlayUrl = M3U8PlaceholderServer.getInstance(mContext).getCleanedM3u8Url(cachedFile);
             Log.d(TAG, "Cache hit, returning URL in " + (System.currentTimeMillis() - methodStartTime) + "ms");
             // 本地 cleaned m3u8，标记 isLocalFile=true 便于播放器回退
-            callback.onResult(httpPlayUrl, true, adCount);
+            callback.onResult(httpPlayUrl, true, adCount, hasPtsJump);
             return;
 
         }
@@ -241,9 +243,13 @@ public class M3U8AdRemover {
               "ms, ads removed: " + result.adSegmentsRemoved);
         
         if (result.adSegmentsRemoved == 0) {
-            // 没有广告，直接使用原始URL
-            Log.d(TAG, "No ad segments found, using original URL");
-            callback.onResult(m3u8Url, false, 0);
+            // 没有广告，但可能有 PTS 跳变
+            if (result.hasPtsJump) {
+                Log.w(TAG, "No ads but PTS jump detected, recommend using ExoPlayer");
+            } else {
+                Log.d(TAG, "No ad segments found and PTS continuous, using original URL");
+            }
+            callback.onResult(m3u8Url, false, 0, result.hasPtsJump);
             return;
         }
         
@@ -256,14 +262,14 @@ public class M3U8AdRemover {
         Log.d(TAG, "File write completed in " + (System.currentTimeMillis() - methodStartTime) + "ms");
         
         // 5. 更新缓存索引
-        updateCacheIndex(cacheKey, result.adSegmentsRemoved);
+        updateCacheIndex(cacheKey, result.adSegmentsRemoved, result.hasPtsJump);
         
-        Log.d(TAG, "Saved cleaned m3u8 to cache, ad segments removed: " + result.adSegmentsRemoved);
+        Log.d(TAG, "Saved cleaned m3u8 to cache, ad segments removed: " + result.adSegmentsRemoved + ", hasPtsJump: " + result.hasPtsJump);
         String httpPlayUrl = M3U8PlaceholderServer.getInstance(mContext).getCleanedM3u8Url(cachedFile);
         Log.d(TAG, "Serving cleaned m3u8 via local http: " + httpPlayUrl);
         Log.d(TAG, "processM3U8Internal completed successfully in " + (System.currentTimeMillis() - methodStartTime) + "ms");
         // 本地 cleaned m3u8，标记 isLocalFile=true 便于播放器回退
-        callback.onResult(httpPlayUrl, true, result.adSegmentsRemoved);
+        callback.onResult(httpPlayUrl, true, result.adSegmentsRemoved, result.hasPtsJump);
 
         // 6. 清理旧缓存
         cleanOldCache();
@@ -321,6 +327,9 @@ public class M3U8AdRemover {
         // 提取基础URL用于转换相对路径
         String baseUrlPath = extractBaseUrlPath(baseUrl);
         Log.d(TAG, "Base URL path: " + baseUrlPath);
+        
+        // PTS 连续性检查标记
+        boolean hasPtsJump = false;
         
         String[] lines = content.split("\n");
         StringBuilder cleaned = new StringBuilder();
@@ -419,6 +428,78 @@ public class M3U8AdRemover {
         result.adSegmentsRemoved = adSegments.size();
 
         Log.d(TAG, "detectAdSegments finished, adSegmentsRemoved=" + result.adSegmentsRemoved);
+        
+        // PTS 连续性检查：
+        // 1. 如果开头就有 DISCONTINUITY，检查第一个片段是否是广告
+        //    - 如果第一个片段是广告，这是正常的（广告插入），不需要切换播放器
+        //    - 如果第一个片段是正片，检测实际的 PTS 值来判断是否有时间轴问题
+        // 2. 只检测正片内部的 PTS 跳变，忽略广告片段
+        if (hasOpeningDiscontinuity && segments.size() > 0) {
+            // 检查第一个片段是否是广告
+            boolean firstSegmentIsAd = segments.get(0).isAd;
+            
+            if (firstSegmentIsAd) {
+                // 第一个片段是广告，这是正常的广告插入，不需要检查 PTS
+                Log.d(TAG, "Opening DISCONTINUITY detected, but first segment is ad (normal ad insertion), skip PTS check");
+            } else {
+                // 第一个片段是正片，检测实际的 PTS 值
+                Log.w(TAG, "Opening DISCONTINUITY detected with content segment, checking actual PTS values");
+                
+                String firstUrl = toAbsoluteUrl(segments.get(0).url, baseUrlPath);
+                TsPtsChecker.EncryptionInfo firstEncryption = parseEncryptionInfo(segments.get(0).encryptionKey);
+                
+                TsPtsChecker.PtsCheckResult firstPtsResult = TsPtsChecker.checkFirstSegmentPts(firstUrl, firstEncryption);
+                if (firstPtsResult.success) {
+                    if (firstPtsResult.hasPtsJump) {
+                        // 第一个片段的 PTS 不从 0 开始，说明有 PTS 偏移问题
+                        Log.w(TAG, String.format("First segment PTS is %.2fs (expected ~0s), PTS timeline issue detected", firstPtsResult.beforePts));
+                        Log.w(TAG, "This indicates m3u8 timeline and TS PTS are misaligned, will cause seek jump issues");
+                        hasPtsJump = true;
+                    } else {
+                        Log.d(TAG, String.format("First segment PTS is %.2fs, no significant offset detected", firstPtsResult.beforePts));
+                    }
+                } else {
+                    // PTS 检测失败，为了安全起见，假设有问题
+                    Log.w(TAG, "Failed to check first segment PTS, assuming PTS timeline issue for safety");
+                    hasPtsJump = true;
+                }
+            }
+        }
+        
+        // 检测正片内部的 PTS 跳变（跳过广告边界）
+        for (int i = 0; i < segments.size() - 1; i++) {
+            if (segments.get(i).isDiscontinuity) {
+                // 跳过广告片段的 DISCONTINUITY
+                boolean beforeIsAd = segments.get(i).isAd;
+                boolean afterIsAd = segments.get(i + 1).isAd;
+                
+                if (beforeIsAd || afterIsAd) {
+                    Log.d(TAG, "Skipping PTS check at ad boundary (position " + i + 
+                          "): beforeIsAd=" + beforeIsAd + ", afterIsAd=" + afterIsAd);
+                    continue;
+                }
+                
+                // 只检查正片内部的 DISCONTINUITY
+                String urlBefore = toAbsoluteUrl(segments.get(i).url, baseUrlPath);
+                String urlAfter = toAbsoluteUrl(segments.get(i + 1).url, baseUrlPath);
+                
+                // 解析加密信息
+                TsPtsChecker.EncryptionInfo encryptionBefore = parseEncryptionInfo(segments.get(i).encryptionKey);
+                TsPtsChecker.EncryptionInfo encryptionAfter = parseEncryptionInfo(segments.get(i + 1).encryptionKey);
+                
+                Log.d(TAG, "Checking PTS at DISCONTINUITY position " + i + " (both segments are content)");
+                TsPtsChecker.PtsCheckResult ptsResult = TsPtsChecker.checkPtsContinuity(
+                    urlBefore, urlAfter, encryptionBefore, encryptionAfter);
+                
+                if (ptsResult.success && ptsResult.hasPtsJump) {
+                    Log.w(TAG, "PTS jump detected in content at position " + i + ": " + ptsResult.message);
+                    hasPtsJump = true;
+                    segments.get(i).hasPtsJump = true;
+                }
+            }
+        }
+        
+        result.hasPtsJump = hasPtsJump;
         
         // 构建清理后的m3u8
         // 添加header
@@ -1048,6 +1129,64 @@ public class M3U8AdRemover {
     }
     
     /**
+     * 解析加密信息字符串为 EncryptionInfo 对象
+     * 
+     * @param encryptionKey 加密密钥字符串（例如：METHOD=AES-128,URI="https://...",IV=0x...）
+     * @return EncryptionInfo 对象，如果没有加密返回 null
+     */
+    private TsPtsChecker.EncryptionInfo parseEncryptionInfo(String encryptionKey) {
+        if (encryptionKey == null || encryptionKey.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            TsPtsChecker.EncryptionInfo info = new TsPtsChecker.EncryptionInfo();
+            
+            // 解析 METHOD
+            String methodMarker = "METHOD=";
+            int methodIdx = encryptionKey.indexOf(methodMarker);
+            if (methodIdx >= 0) {
+                int methodStart = methodIdx + methodMarker.length();
+                int methodEnd = encryptionKey.indexOf(',', methodStart);
+                if (methodEnd < 0) methodEnd = encryptionKey.length();
+                info.method = encryptionKey.substring(methodStart, methodEnd).trim();
+            }
+            
+            // 如果是 NONE，直接返回
+            if ("NONE".equalsIgnoreCase(info.method)) {
+                return null;
+            }
+            
+            // 解析 URI
+            String uriMarker = "URI=\"";
+            int uriIdx = encryptionKey.indexOf(uriMarker);
+            if (uriIdx >= 0) {
+                int uriStart = uriIdx + uriMarker.length();
+                int uriEnd = encryptionKey.indexOf('"', uriStart);
+                if (uriEnd > uriStart) {
+                    info.keyUri = encryptionKey.substring(uriStart, uriEnd);
+                }
+            }
+            
+            // 解析 IV
+            String ivMarker = "IV=";
+            int ivIdx = encryptionKey.indexOf(ivMarker);
+            if (ivIdx >= 0) {
+                int ivStart = ivIdx + ivMarker.length();
+                int ivEnd = encryptionKey.indexOf(',', ivStart);
+                if (ivEnd < 0) ivEnd = encryptionKey.length();
+                info.iv = encryptionKey.substring(ivStart, ivEnd).trim();
+            }
+            
+            return info;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "parseEncryptionInfo error: " + encryptionKey, e);
+            return null;
+        }
+    }
+    
+    /**
      * 生成缓存key
      */
     private String getCacheKey(String url) {
@@ -1068,11 +1207,11 @@ public class M3U8AdRemover {
     /**
      * 更新缓存索引
      */
-    private void updateCacheIndex(String cacheKey, int adCount) {
+    private void updateCacheIndex(String cacheKey, int adCount, boolean hasPtsJump) {
         try {
             File indexFile = new File(mCacheDir, CACHE_INDEX_FILE);
             FileOutputStream fos = new FileOutputStream(indexFile, true);
-            String entry = cacheKey + "|" + adCount + "\n";
+            String entry = cacheKey + "|" + adCount + "|" + (hasPtsJump ? "1" : "0") + "\n";
             fos.write(entry.getBytes("UTF-8"));
             fos.close();
         } catch (Exception e) {
@@ -1081,28 +1220,47 @@ public class M3U8AdRemover {
     }
     
     /**
-     * 从缓存索引获取广告片段数
+     * 缓存索引条目
      */
-    private int getAdCountFromCacheIndex(String cacheKey) {
+    private static class CacheIndexEntry {
+        int adCount;
+        boolean hasPtsJump;
+    }
+    
+    /**
+     * 从缓存索引获取条目
+     */
+    private CacheIndexEntry getCacheIndexEntry(String cacheKey) {
         try {
             File indexFile = new File(mCacheDir, CACHE_INDEX_FILE);
-            if (!indexFile.exists()) return 0;
+            if (!indexFile.exists()) return null;
             
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(new FileInputStream(indexFile), "UTF-8"));
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split("\\|");
-                if (parts.length == 2 && parts[0].equals(cacheKey)) {
+                if (parts.length >= 2 && parts[0].equals(cacheKey)) {
+                    CacheIndexEntry entry = new CacheIndexEntry();
+                    entry.adCount = Integer.parseInt(parts[1]);
+                    entry.hasPtsJump = parts.length >= 3 && "1".equals(parts[2]);
                     reader.close();
-                    return Integer.parseInt(parts[1]);
+                    return entry;
                 }
             }
             reader.close();
         } catch (Exception e) {
-            Log.e(TAG, "getAdCountFromCacheIndex error", e);
+            Log.e(TAG, "getCacheIndexEntry error", e);
         }
-        return 0;
+        return null;
+    }
+    
+    /**
+     * 从缓存索引获取广告片段数（兼容旧版本）
+     */
+    private int getAdCountFromCacheIndex(String cacheKey) {
+        CacheIndexEntry entry = getCacheIndexEntry(cacheKey);
+        return entry != null ? entry.adCount : 0;
     }
     
     /**
@@ -1312,11 +1470,13 @@ public class M3U8AdRemover {
         boolean isAd;             // 是否是广告片段
         boolean needsDiscontinuity; // 输出时是否需要DISCONTINUITY标记
         String encryptionKey;     // 加密密钥信息（#EXT-X-KEY标签内容，如：METHOD=AES-128,URI="...",IV=...）
+        boolean hasPtsJump;       // 此 DISCONTINUITY 位置是否有 PTS 跳变
     }
     
     // 内部类：解析结果
     private static class M3U8ParseResult {
         String cleanedContent;
         int adSegmentsRemoved;
+        boolean hasPtsJump;       // 是否检测到 PTS 跳变
     }
 }
